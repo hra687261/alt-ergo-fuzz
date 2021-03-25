@@ -4,6 +4,9 @@ build from root with:
 
 to fuzz with afl-fuzz execute:
   afl-fuzz -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
+or (if max_fuel = 5):
+  afl-fuzz -t 100 -m 50 -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
+this sets the timeout to 100ms, and the memory to 50MB
 
 to run quickcheck-like property testing execute:
   ./_build/default/test/fuzzing/afl_fuzzing.exe
@@ -17,7 +20,7 @@ module PA = Parsed_interface
 
 let thmid = ref 0
 
-let max_fuel = 2
+let max_fuel = 5
 
 (** Generator of a constant boolean Expr.t *)
 let gen_cst_bexpr = 
