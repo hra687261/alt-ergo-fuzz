@@ -41,3 +41,7 @@ _opam
 alt-ergo.js
 alt-ergo-worker.js
 www/
+
+
+# Generated fuzzing output files 
+test/fuzzing/output/*

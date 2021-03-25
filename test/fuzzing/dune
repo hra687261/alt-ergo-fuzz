@@ -1,0 +1,5 @@
+(executable
+ (name afl_fuzzing)
+ (public_name afl_fuzzing)
+ (libraries alt-ergo-lib crowbar)
+ (package alt-ergo-lib))
