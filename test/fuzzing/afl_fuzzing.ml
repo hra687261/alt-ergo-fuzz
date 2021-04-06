@@ -16,8 +16,6 @@ to run quickcheck-like property testing execute:
 open Crowbar
 open AltErgoLib
 
-module PA = Parsed_interface
-
 let thmid = ref 0
 
 let max_fuel = 3
@@ -396,23 +394,18 @@ let proc pbs =
                     (FE.init_all_used_context ()) 
                     (Stack.create ()) 
                     acc d
-                with Assert_failure (_, _, _) as exp ->
-                  (* Will be replaced by writing the serialization of 
-                   * of the lists of commands into the files *)
+                with 
+                Assert_failure (_, _, _) as exp ->
+                  List.iter (Format.printf "\n#########\n%s  %a\n" goal_name Commands.print) pb;
+                  let tmp = Stdlib.Marshal.to_string pb [] in
                   let time = Unix.gettimeofday () in
                   let file = 
-                    "test/fuzzing/crash_output/tmp"^string_of_float time^".txt"
+                    "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
                   in
+                  
+                  Format.printf "\nWriting to file : %s\n@." file;
                   let oc = open_out file in 
-                  let strl = 
-                    List.map 
-                      (Format.asprintf "%a" Commands.print) 
-                      pb 
-                  in
-                  Printf.fprintf oc "%s\n\n" (Printexc.to_string exp);
-                  List.iter
-                    (Printf.fprintf oc "%s\n")
-                    strl;
+                  Printf.fprintf oc "%s" tmp;
                   flush stdout;
                   close_out oc; 
                   raise exp 
@@ -421,10 +414,9 @@ let proc pbs =
           pb
       in
       ignore ex; ignore consistent;
-      (
-      List.iter (Format.printf "\n ###  %s  %a\n" goal_name Commands.print) pb;
+      (*(
       Format.printf "%s@."
-        (if consistent then "unknown" else "unsat"))
+        (if consistent then "unknown" else "unsat"))*)
     ) pbs; 
   true (* for now *)
 
