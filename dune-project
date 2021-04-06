@@ -1,4 +1,4 @@
-(lang dune 2.0)
+(lang dune 2.7)
 (allow_approximate_merlin)
 
 ; Since we want to generate opam files we need to provide informations ;
@@ -27,6 +27,7 @@ See more details on https://alt-ergo.ocamlpro.com/")
  (depends
   (ocaml (>= 4.05.0))
   (dune (>= 2.0))
+  (bisect_ppx (>= 2.5.0))
   (alt-ergo-lib (= :version))
   (alt-ergo-parsers (= :version))
    menhir
@@ -52,6 +53,7 @@ See more details on https://alt-ergo.ocamlpro.com/"
  (depends
   (ocaml (>= 4.05.0))
   (dune (>= 2.0))
+  (bisect_ppx (>= 2.5.0))
   (alt-ergo-lib (= :version))
   (alt-ergo-parsers (= :version))
   lablgtk
@@ -78,6 +80,7 @@ See more details on http://alt-ergo.ocamlpro.com/"
  (depends
   (ocaml (>= 4.05.0))
   (dune (>= 2.0))
+  (bisect_ppx (>= 2.5.0))
   (alt-ergo-lib (= :version))
   (psmt2-frontend (>= 0.3))
   (camlzip (>= 1.07))
@@ -104,6 +107,7 @@ See more details on http://alt-ergo.ocamlpro.com/"
  (depends
   (ocaml (>= 4.05.0))
   (dune (>= 2.0))
+  (bisect_ppx (>= 2.5.0))
   dune-configurator
   num
   (ocplib-simplex (>= 0.4))

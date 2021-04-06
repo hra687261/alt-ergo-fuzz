@@ -249,6 +249,7 @@ module Shostak
         P.add p (P.mult p1 p2), ctx
 
     | Sy.Op Sy.Div, [t1;t2] ->
+      (* assert (not (E.equal t2 (Expr.int (Int.to_string 0)))); *)
       let p1, ctx = mke Q.one (empty_polynome ty) t1 ctx in
       let p2, ctx = mke Q.one (empty_polynome ty) t2 ctx in
       if get_no_nla() &&
@@ -264,7 +265,8 @@ module Shostak
             let p, approx = P.div p1 p2 in
             if approx then mk_euc_division p p2 t1 t2 ctx
             else p, ctx
-          with Division_by_zero | Polynome.Maybe_zero ->
+          with Division_by_zero -> assert false 
+          | Polynome.Maybe_zero -> 
             P.create [Q.one, X.term_embed t] Q.zero ty, ctx
         in
         P.add p (P.mult_const coef p3), ctx
@@ -277,6 +279,7 @@ module Shostak
       mke coef p2 t1 ctx
 
     | Sy.Op Sy.Modulo , [t1;t2] ->
+      (* assert (not (E.equal t2 (Expr.int (Int.to_string 0)))); *)
       let p1, ctx = mke Q.one (empty_polynome ty) t1 ctx in
       let p2, ctx = mke Q.one (empty_polynome ty) t2 ctx in
       if get_no_nla() &&
@@ -292,7 +295,8 @@ module Shostak
           with e ->
             let t = E.mk_term mod_symb [t1; t2] Ty.Tint in
             let ctx = match e with
-              | Division_by_zero | Polynome.Maybe_zero -> ctx
+              | Division_by_zero -> assert false 
+              | Polynome.Maybe_zero -> ctx
               | Polynome.Not_a_num -> mk_modulo t t1 t2 p2 ctx
               | _ -> assert false
             in

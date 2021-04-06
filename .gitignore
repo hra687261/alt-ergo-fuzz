@@ -45,3 +45,8 @@ www/
 
 # Generated fuzzing output files 
 test/fuzzing/output/*
+test/fuzzing/crash_output/*
+
+# Generated bisect coverage files
+_coverage/*
+_coverage

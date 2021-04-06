@@ -15,6 +15,7 @@
   (name       ABWhy3Plugin)
   (libraries  alt-ergo-lib alt-ergo-parsers)
   (modules    Why3_lexer Why3_parser Why3_loc Why3_ptree)
+  (instrumentation (backend bisect))
 )
 
 (install

@@ -1,5 +1,11 @@
-(executable
+;;(executable
+;; (name afl_fuzzing)
+;; (public_name afl_fuzzing)
+;; (libraries alt-ergo-lib crowbar)
+;; (package alt-ergo-lib))
+
+(test
  (name afl_fuzzing)
- (public_name afl_fuzzing)
  (libraries alt-ergo-lib crowbar)
- (package alt-ergo-lib))
+ (instrumentation (backend bisect_ppx))
+ )

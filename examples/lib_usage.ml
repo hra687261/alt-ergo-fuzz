@@ -37,8 +37,6 @@ module PA = Parsed_interface
 
 let () = Options.set_is_gui false
 
-let x = PA.mk_var_type Loc.dummy "'a"
-
 let one = PA.mk_int_const Loc.dummy "1"
 let two = PA.mk_int_const Loc.dummy "2"
 let three = PA.mk_int_const Loc.dummy "3"
@@ -61,16 +59,17 @@ module FE = Frontend.Make(SAT)
 
 let () =
   List.iter
-    (fun (pb, goal_name) ->
-       let ctxt = FE.init_all_used_context () in
-       let acc0 = SAT.empty (), true, Explanation.empty in
-       let s = Stack.create () in
-       let _, consistent, ex =
-         List.fold_left
-           (fun acc d ->
-              FE.process_decl (fun _ _ -> ()) ctxt s acc d
-           )acc0 pb
-       in
-       Format.printf "%s@."
-         (if consistent then "unknown" else "unsat")
+    ( fun (pb, goal_name) -> 
+        List.iter (fun v -> Format.printf ">>> %s : %a@." goal_name Commands.print v) pb; 
+        let ctxt = FE.init_all_used_context () in
+        let acc0 = SAT.empty (), true, Explanation.empty in
+        let s = Stack.create () in
+        let _, consistent, _ =
+          List.fold_left
+            ( fun acc d ->
+                FE.process_decl (fun _ _ -> ()) ctxt s acc d
+            ) acc0 pb
+        in
+        Format.printf "%s@."
+          ( if consistent then "unknown" else "unsat")
     )pbs

@@ -38,7 +38,7 @@ include Makefile.config
 # Some variables to help with adding
 # flags and/or renaming the dune binary
 DUNE=dune
-DUNE_FLAGS=
+DUNE_FLAGS= --instrument-with bisect_ppx
 
 # Definining the sphinx build command
 SPHINXBUILD = sphinx-build

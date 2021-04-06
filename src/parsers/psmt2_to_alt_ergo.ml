@@ -442,6 +442,9 @@ module Translate = struct
     | Cmd_Push n -> translate_push_pop mk_push n (pos command) :: acc
     | Cmd_Pop n -> translate_push_pop mk_pop n (pos command) :: acc
     | Cmd_Exit -> acc
+    | Cmd_CheckAllSat _ -> not_supported "checkall"; acc 
+    | Cmd_Maximize _ -> not_supported "maximize"; acc
+    | Cmd_Minimize _ -> not_supported "minimize"; acc
 
   let init () =
     if Psmt2Frontend.Options.get_is_int_real () then
