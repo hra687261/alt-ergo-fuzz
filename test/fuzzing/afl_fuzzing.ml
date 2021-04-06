@@ -4,14 +4,16 @@ build from root with:
 
 to fuzz with afl-fuzz execute:
   afl-fuzz -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
-or (if max_fuel = 5):
-  afl-fuzz -t 100 -m 50 -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
-this sets the timeout to 100ms, and the memory to 50MB
+or (-t to set timeout in milliseconds, and -m to set usable memory in MBs ):
+  afl-fuzz -t 3000 -m 50 -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
 
 to run quickcheck-like property testing execute:
   ./_build/default/test/fuzzing/afl_fuzzing.exe
-*)
 
+In case of a check failure, a file is written containing the expression that caused
+the failure in a marshalled format in the ./test/fuzzing/crash_output folder. 
+It can be read and reexecuted with rerun.ml
+*)
 
 open Crowbar
 open AltErgoLib
@@ -58,8 +60,12 @@ type qty =
   | U (* Universal *) 
   | E (* Existential *)
 
+type qpos =
+  | R (* The variables will be bound to a quantifier at the root of the ast*)
+  | C (* The variables will be bound to a quantifier at the closest possible position*)
+
 (** Quantified variable type *)
-type qvar = {name: string; id: int; vty: Ty.t; qt: qty} 
+type qvar = {name: string; id: int; vty: Ty.t; qt: qty; qp: qpos} 
 
 module V = 
   struct
@@ -79,24 +85,8 @@ let mk_egr vst exp = {vst; exp}
 
 let mk_var_expr v = Expr.mk_term (Symbols.name v.name) [] v.vty 
 
-let iv_id, rv_id, bv_id = ref 0, ref 0, ref 0
-
-let mk_new_qvar vty qt = 
-  match vty with 
-  | Ty.Tint -> 
-    let id = incr iv_id; !iv_id in 
-    let name = "xi_"^ (string_of_int id) in
-      {name; id; vty; qt} 
-  | Ty.Treal -> 
-    let id = incr rv_id; !rv_id in 
-    let name = "xr_"^ (string_of_int id) in
-      {name; id; vty; qt} 
-  | Ty.Tbool -> 
-    let id = 
-      incr bv_id; !bv_id in 
-    let name = "xb_"^ (string_of_int id) in
-      {name; id; vty; qt} 
-  | _ -> assert false 
+let ivc_id, rvc_id, bvc_id = ref 0, ref 0, ref 0
+let ivr_id, rvr_id, bvr_id = ref 0, ref 0, ref 0
 
 (** Binds each variable in vset and makes it quantified in exp *)
 let quantify (vset: VS.t) (exp: Expr.t) = 
@@ -191,53 +181,85 @@ let rec gen_iexpr ?(fuel = max_fuel) ?(ty = Ty.Tint) () : eg_res gen =
 
 (** Generates a quantified variable *)
 and gen_qvar (ty: Ty.t) : eg_res gen =
+  let mk_egr_aux1 npref id vty qt qp =
+    let name = npref ^ string_of_int id in
+    let nv = {name; id; vty; qt; qp} in
+      mk_egr (VS.add nv VS.empty) (mk_var_expr nv)
+  in
   match ty with 
   | Ty.Tint -> 
-      Crowbar.map 
-      [Crowbar.bool] 
-      ( function 
-        | true -> 
-          let id = incr iv_id; !iv_id in 
-          let name = "Exi_"^ (string_of_int id) in
-          let nv = {name; id; vty = ty; qt = E} in 
-            mk_egr (VS.add nv VS.empty) (mk_var_expr nv)
-        | false -> 
-          let id = incr iv_id; !iv_id in 
-          let name = "Uxi_"^ (string_of_int id) in
-          let nv = {name; id; vty = ty; qt = U} in 
-            mk_egr (VS.add nv VS.empty) (mk_var_expr nv))
+    if !ivr_id > 0 
+    then 
+      Crowbar.map
+        [Crowbar.range 5; Crowbar.range !ivr_id] 
+        ( fun choice pos ->
+          match choice with 
+          | 0 -> mk_egr_aux1 "URxi_" (pos + 1) ty U R
+          | 1 -> mk_egr_aux1 "ECxi_" (incr ivc_id; !ivc_id) ty E C
+          | 2 -> mk_egr_aux1 "UCxi_" (incr ivc_id; !ivc_id) ty U C
+          | 3 -> mk_egr_aux1 "ERxi_" (incr ivr_id; !ivr_id) ty E R
+          | _ -> mk_egr_aux1 "URxi_" (incr ivr_id; !ivr_id) ty U R)
+    else 
+      Crowbar.map
+        [Crowbar.range 4] 
+        ( function
+          | 0 -> mk_egr_aux1 "ECxi_" (incr ivc_id; !ivc_id) ty E C
+          | 1 -> mk_egr_aux1 "UCxi_" (incr ivc_id; !ivc_id) ty U C
+          | 2 -> mk_egr_aux1 "ERxi_" (incr ivr_id; !ivr_id) ty E R
+          | _ -> mk_egr_aux1 "URxi_" (incr ivr_id; !ivr_id) ty U R)
   | Ty.Treal -> 
-      Crowbar.map 
-      [Crowbar.bool] 
-      ( function 
-        | true -> 
-          let id = incr rv_id; !rv_id in 
-          let name = "Exr_"^ (string_of_int id) in
-          let nv = {name; id; vty = ty; qt = E} in 
-            mk_egr (VS.add nv VS.empty) (mk_var_expr nv)
-        | false -> 
-          let id = incr rv_id; !rv_id in 
-          let name = "Uxr_"^ (string_of_int id) in
-          let nv = {name; id; vty = ty; qt = U} in 
-            mk_egr (VS.add nv VS.empty) (mk_var_expr nv))
+    if !rvr_id > 0 
+    then 
+      Crowbar.map
+        [Crowbar.range 5; Crowbar.range !rvr_id] 
+        ( fun choice pos ->
+          match choice with 
+          | 0 -> mk_egr_aux1 "URxi_" (pos + 1) ty U R
+          | 1 -> mk_egr_aux1 "ECxi_" (incr rvc_id; !rvc_id) ty E C
+          | 2 -> mk_egr_aux1 "UCxr_" (incr rvc_id; !rvc_id) ty U C
+          | 3 -> mk_egr_aux1 "ERxr_" (incr rvr_id; !rvr_id) ty E R
+          | _ -> mk_egr_aux1 "URxr_" (incr rvr_id; !rvr_id) ty U R)
+    else 
+      Crowbar.map
+        [Crowbar.range 4] 
+        ( function
+          | 0 -> mk_egr_aux1 "ECxr_" (incr rvc_id; !rvc_id) ty E C
+          | 1 -> mk_egr_aux1 "UCxr_" (incr rvc_id; !rvc_id) ty U C
+          | 2 -> mk_egr_aux1 "ERxr_" (incr rvr_id; !rvr_id) ty E R
+          | _ -> mk_egr_aux1 "URxr_" (incr rvr_id; !rvr_id) ty U R)
   | Ty.Tbool -> 
-      Crowbar.map 
-      [Crowbar.bool] 
-      ( function 
-        | true -> 
-          let id = incr bv_id; !bv_id in 
-          let name = "Exb_"^ (string_of_int id) in
-          let nv = {name; id; vty = ty; qt = E} in 
-            mk_egr (VS.add nv VS.empty) (mk_var_expr nv)
-        | false -> 
-          let id = incr bv_id; !bv_id in 
-          let name = "Uxb_"^ (string_of_int id) in
-          let nv = {name; id; vty = ty; qt = U} in 
-            mk_egr (VS.add nv VS.empty) (mk_var_expr nv))
+    if !bvr_id > 0 
+    then 
+      Crowbar.map
+        [Crowbar.range 5; Crowbar.range !bvr_id] 
+        ( fun choice pos ->
+          match choice with 
+          | 0 -> mk_egr_aux1 "URxb_" (pos + 1) ty U R
+          | 1 -> mk_egr_aux1 "ERxb_" (incr bvc_id; !bvc_id) ty E C
+          | 2 -> mk_egr_aux1 "UCxb_" (incr bvc_id; !bvc_id) ty U C
+          | 3 -> mk_egr_aux1 "ERxb_" (incr bvr_id; !bvr_id) ty E R
+          | _ -> mk_egr_aux1 "URxb_" (incr bvr_id; !bvr_id) ty U R
+        )
+    else 
+      Crowbar.map
+        [Crowbar.range 4] 
+        ( function
+          | 0 -> mk_egr_aux1 "ERxb_" (incr bvc_id; !bvc_id) ty E C
+          | 1 -> mk_egr_aux1 "UCxb_" (incr bvc_id; !bvc_id) ty U C
+          | 2 -> mk_egr_aux1 "ERxb_" (incr bvr_id; !bvr_id) ty E R
+          | _ -> mk_egr_aux1 "URxb_" (incr bvr_id; !bvr_id) ty U R
+        )
   | _ -> assert false 
 
 (** Generator of a Expr.t of type bool/prop and of max depth max_fuel *)
-and gen_bool_expr ?(fuel = max_fuel) () : eg_res gen =
+and gen_bool_expr ?(fuel = max_fuel) () : eg_res gen =  
+    let mk_egr_aux2 exp avst bvst = 
+      let arvst, acvst = VS.partition (fun v -> v.qp = R) avst in 
+      let brvst, bcvst = VS.partition (fun v -> v.qp = R) bvst in
+      let rvst = VS.union arvst brvst in
+      let cvst = VS.union acvst bcvst in
+        mk_egr rvst (quantify cvst exp)
+    in
     match fuel = 0 with
     | true -> gen_cst Ty.Tbool
     | false ->
@@ -246,46 +268,30 @@ and gen_bool_expr ?(fuel = max_fuel) () : eg_res gen =
         ( Crowbar.map [ gen_iexpr ~fuel:(fuel-1) ~ty (); 
                         gen_iexpr ~fuel:(fuel-1) ~ty ()])
         [ (fun a b ->
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_eq ~iff:true a.exp b.exp in
-              mk_egr VS.empty (quantify nvst exp)
-          );
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b -> 
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_eq ~iff:false a.exp b.exp in
-              mk_egr VS.empty (quantify nvst exp)
-          );
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b -> 
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_distinct ~iff:true [a.exp; b.exp] in
-              mk_egr VS.empty (quantify nvst exp)
-          );
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b -> 
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_distinct ~iff:false [a.exp; b.exp] in
-              mk_egr VS.empty (quantify nvst exp)
-          );
+              mk_egr_aux2 exp a.vst b.vst);
 
           (fun a b -> 
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_builtin ~is_pos:true Symbols.LE [a.exp; b.exp] in
-              mk_egr VS.empty (quantify nvst exp)
-          ); 
+              mk_egr_aux2 exp a.vst b.vst); 
           (fun a b -> 
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_builtin ~is_pos:true Symbols.LT [a.exp; b.exp] in
-              mk_egr VS.empty (quantify nvst exp)
-          );
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b ->
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_builtin ~is_pos:false Symbols.LE [a.exp; b.exp] in
-              mk_egr VS.empty (quantify nvst exp)
-          );
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b ->
-            let nvst = VS.union a.vst b.vst in  
             let exp = Expr.mk_builtin ~is_pos:false Symbols.LT [a.exp; b.exp] in
-              mk_egr VS.empty (quantify nvst exp)
-          );]
+              mk_egr_aux2 exp a.vst b.vst);]
       in
 
       Crowbar.choose @@
@@ -298,25 +304,20 @@ and gen_bool_expr ?(fuel = max_fuel) () : eg_res gen =
                         gen_bool_expr ~fuel:(fuel-1) ()])
 
         [ (fun a b ->
-            let nvst = VS.union a.vst b.vst in
             let exp = Expr.mk_and a.exp b.exp true 0 in
-              mk_egr nvst exp);
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b ->
-            let nvst = VS.union a.vst b.vst in
             let exp = Expr.mk_or a.exp b.exp true 0 in
-              mk_egr nvst exp);
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b ->
-            let nvst = VS.union a.vst b.vst in
             let exp = Expr.mk_imp a.exp b.exp 0 in
-              mk_egr nvst exp);
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b ->
-            let nvst = VS.union a.vst b.vst in
             let exp = Expr.mk_iff a.exp b.exp 0 in
-              mk_egr nvst exp);
+              mk_egr_aux2 exp a.vst b.vst);
           (fun a b ->
-            let nvst = VS.union a.vst b.vst in
             let exp = Expr.mk_xor a.exp b.exp 0 in
-              mk_egr nvst exp);]
+              mk_egr_aux2 exp a.vst b.vst);]
 
         @ arith_gens Ty.Tint fuel
         @ arith_gens Ty.Treal fuel

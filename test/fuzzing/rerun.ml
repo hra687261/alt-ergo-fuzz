@@ -1,4 +1,11 @@
+(*
+To run: 
+./_build/default/test/fuzzing/rerun.exe ./test/fuzzing/crash_output/op_XXXXXXXXXX.txt
 
+Reads the marshalled expression written in the file given as an argument (which was written by
+afl_fuzzing.exe) and recalls the solver on it to reproduce the bug that got it written in the
+first place.
+*)
 open AltErgoLib 
 
 
@@ -31,7 +38,7 @@ let _ =
                 acc d
             with Assert_failure (_, _, _) as exp -> Format.printf "%s\n\n" (Printexc.to_string exp);
             List.iter (Format.printf "\n#########\n%s  %a\n@." "goal_name" Commands.print) pb;
-            raise exp 
+            raise exp
           )
           (SAT.empty (), true, Explanation.empty) 
           pb
