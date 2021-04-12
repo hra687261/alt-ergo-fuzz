@@ -13,7 +13,7 @@
   (name         worker_interface)
   (libraries    js_of_ocaml data-encoding)
   (modules      worker_interface)
-  (instrumentation (backend bisect))
+  ;(instrumentation (backend bisect))
 )
 
 ; Rule to build a web worker running Alt-Ergo

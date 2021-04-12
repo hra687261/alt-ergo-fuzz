@@ -7,7 +7,7 @@ afl_fuzzing.exe) and recalls the solver on it to reproduce the bug that got it w
 first place.
 *)
 open AltErgoLib 
-
+open Ast
 
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
@@ -26,27 +26,36 @@ let _ =
   assert (List.length !inputs = 1);
   let file = List.hd !inputs in 
   let line = Core.In_channel.read_all file in 
-  let pb : Commands.sat_tdecl list = Marshal.from_string line 0 in 
-    let _, consistent, _ = 
-      List.fold_left
-        ( fun acc d ->
-            try 
-              FE.process_decl 
-                ( fun _ _ -> ()) (*FE.print_status*)
-                (FE.init_all_used_context ()) 
-                (Stack.create ()) 
-                acc d
-            with Assert_failure (_, _, _) as exp -> Format.printf "%s\n\n" (Printexc.to_string exp);
-            List.iter (Format.printf "\n#########\n%s  %a\n@." "goal_name" Commands.print) pb;
-            raise exp
-          )
-          (SAT.empty (), true, Explanation.empty) 
-          pb
-    in       
-    Format.printf "%s@."
-      (if consistent then "unknown" else "unsat")
-    
-
+  let astlist : ast list = Marshal.from_string line 0 in 
+  let cmds = 
+    List.map 
+      ( fun x -> 
+          let expr = ast_to_expr (quantify x) in 
+          let name = "thm" ^ string_of_int 0 in 
+          let gsty = Typed.Thm in 
+            Commands.{ 
+              st_loc = Loc.dummy;
+              st_decl = 
+                Commands.Query (name, expr, gsty)})
+      astlist
+  in
   
-
+  List.iter (Format.printf "\n####  %a\n@." print) astlist;
+  List.iter (Format.printf "\n>>>>  %a\n\n@." Commands.print) cmds;
+  
+  let _, consistent, _ = 
+    List.fold_left 
+      ( fun acc d ->
+          FE.process_decl 
+            ( fun _ _ -> ()) (*FE.print_status*)
+            (FE.init_all_used_context ()) 
+            (Stack.create ()) 
+            acc d)
+      (SAT.empty (), true, Explanation.empty) 
+      cmds
+  in
+    Format.printf "%s@."
+      ( if consistent 
+        then "unknown" 
+        else "unsat")
 

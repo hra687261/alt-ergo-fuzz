@@ -1,434 +1,205 @@
-(*
-build from root with: 
-  make && dune build
-
-to fuzz with afl-fuzz execute:
-  afl-fuzz -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
-or (-t to set timeout in milliseconds, and -m to set usable memory in MBs ):
-  afl-fuzz -t 3000 -m 50 -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
-
-to run quickcheck-like property testing execute:
-  ./_build/default/test/fuzzing/afl_fuzzing.exe
-
-In case of a check failure, a file is written containing the expression that caused
-the failure in a marshalled format in the ./test/fuzzing/crash_output folder. 
-It can be read and reexecuted with rerun.ml
-*)
-
-open Crowbar
 open AltErgoLib
+open Ast 
+
+module Cr = Crowbar 
+module Sy = Symbols 
 
 let thmid = ref 0
 
-let max_fuel = 3
+let i_usymv, r_usymv, b_usymv = mk_vars "iuv" Tint US, 
+  mk_vars "ruv" Treal US, mk_vars "buv" Tbool US
 
-let nb_usyms = 3
+let i_uqv, r_uqv, b_uqv = mk_vars "iuqv" Tint UQ, 
+  mk_vars "ruqv" Treal UQ, mk_vars "buqv" Tbool UQ
 
-let get_usym_var (ty : Ty.t) = 
-  match ty with 
-  | Ty.Tint -> ["iv1"; "iv2"; "iv3"]
-  | Ty.Treal -> ["rv1"; "rv2"; "rv3"]
-  | Ty.Tbool -> ["bv1"; "bv2"; "bv3"]
-  | _ -> assert false 
-
-let get_usym_fun (ty : Ty.t) = 
-  match ty with 
-  | Ty.Tint ->
-    [ "if1"; (* Ty.Tint -> Ty.Tint *)
-      "if2"; (* Ty.Tint -> Ty.Treal -> Ty.Tint *)
-      "if3"] (* Ty.Tint -> Ty.Treal -> Ty.Tbool -> Ty.Tint *)
-  | Ty.Treal ->
-    [ "rf1"; (* Ty.Tint -> Ty.Treal *)
-      "rf2"; (* Ty.Tint -> Ty.Treal -> Ty.Treal *)
-      "rf3"] (* Ty.Tint -> Ty.Treal -> Ty.Tbool -> Ty.Treal *)
-  | Ty.Tbool ->
-    [ "bf1"; (* Ty.Tint -> Ty.Tbool *)
-      "bf2"; (* Ty.Tint -> Ty.Treal -> Ty.Tbool *)
-      "bf3"] (* Ty.Tint -> Ty.Treal -> Ty.Tbool -> Ty.Tbool *)
-  | _ -> assert false
-
-let arithops (ty : Ty.t) =
-  List.map (fun x -> Symbols.Op x) @@
-  let l = [Symbols.Plus; Symbols.Minus; Symbols.Mult; Symbols.Div] in 
-    match ty with 
-    | Ty.Tint -> Symbols.Modulo::l
-    | Ty.Treal -> l
-    | _ -> assert false
-
-(** Quantifier type *)
-type qty =  
-  | U (* Universal *) 
-  | E (* Existential *)
-
-type qpos =
-  | R (* The variables will be bound to a quantifier at the root of the ast*)
-  | C (* The variables will be bound to a quantifier at the closest possible position*)
-
-(** Quantified variable type *)
-type qvar = {name: string; id: int; vty: Ty.t; qt: qty; qp: qpos} 
-
-module V = 
-  struct
-    type t = qvar 
-    let compare a b = 
-      let cmp = Ty.compare a.vty b.vty in 
-        if cmp = 0
-        then Int.compare a.id b.id
-        else cmp
-  end
-
-module VS = Set.Make(V)
-
-type eg_res = {vst: VS.t; exp: Expr.t}
-
-let mk_egr vst exp = {vst; exp}
-
-let mk_var_expr v = Expr.mk_term (Symbols.name v.name) [] v.vty 
-
-let ivc_id, rvc_id, bvc_id = ref 0, ref 0, ref 0
-let ivr_id, rvr_id, bvr_id = ref 0, ref 0, ref 0
-
-(** Binds each variable in vset and makes it quantified in exp *)
-let quantify (vset: VS.t) (exp: Expr.t) = 
-  let quantify_aux qty vnl exp ty = 
-    ( match qty with 
-      | U -> Expr.mk_forall
-      | E -> Expr.mk_exists ) "" Loc.dummy 
-    ( List.fold_left
-        (fun acc v ->
-          Symbols.Map.add (Symbols.Var (Var.of_string v.name)) (ty, v.id) acc) 
-        Symbols.Map.empty
-        vnl)
-    [] exp (-42) ~toplevel:false ~decl_kind:Expr.Dgoal
+let i_eqv, r_eqv, b_eqv = mk_vars "ieqv" Tint EQ, 
+  mk_vars "reqv" Treal EQ, mk_vars "beqv" Tbool EQ
+  
+let get_usymf num rty args = 
+  let name = 
+    ( match rty with 
+      | Tint -> "iuf_"
+      | Treal -> "ruf_"
+      | Tbool -> "buf_") 
+    ^ string_of_int num 
   in
-  let _, _, vsl, _, _ = 
-    VS.fold 
-    ( fun v (qacc, tacc, totacc, currq, currt) ->
-        match currq, currt with
-        | Some q, Some t -> 
-          if Ty.equal t v.vty 
-          then (
-            if q == v.qt 
-            then (v::qacc, tacc, totacc, currq, currt)
-            else ([v], (qacc, currq)::tacc, totacc, Some v.qt, currt)) 
-          else 
-            ([v], [], ((qacc, currq)::tacc, currt)::totacc, Some v.qt, Some v.vty)
-        
-        | None, None -> 
-          ([v], [], [], Some v.qt, Some v.vty)
-        | _ -> assert false 
-    )
-    vset
-    ([], [], [], None, None)
-  in 
-    List.fold_left 
-      (fun acc (vl, oty : (qvar list * qty option) list * Ty.t option) -> 
-        match oty with 
-        | Some ty -> (
-          List.fold_left 
-            ( fun acc2 (qvl, oqty) ->
-                match oqty with 
-                | Some qty -> quantify_aux qty qvl acc2 ty
-                | None -> assert false 
-            )
-            acc
-            vl
-        )
-        | None -> assert false 
-      )
-      exp
-      vsl
+    Fun {name; rty; args} 
 
-(** Generator of a constant Expr.t of type ty *)
-let gen_cst (ty : Ty.t) = 
+let cst_gen ty = 
   match ty with 
-  | Ty.Tint  -> 
-      Crowbar.map [int] 
-        (fun i -> mk_egr VS.empty (Expr.int (Int.to_string i)))
-  | Ty.Treal -> 
-      Crowbar.map [float] (fun i -> 
-        mk_egr VS.empty (
-        if Float.is_nan i
-        then Expr.real "0." 
-        else Expr.real (Float.to_string i)))
-  | Ty.Tbool -> 
-      Crowbar.map [bool] 
-        ( function 
-          | true -> mk_egr VS.empty Expr.vrai
-          | false -> mk_egr VS.empty Expr.faux)
-  | _ -> assert false 
+  | Tint -> 
+    Cr.map 
+      [Cr.int] 
+      (fun x -> Cst (CstI x))
+  | Treal -> 
+    Cr.map 
+      [Cr.float] 
+      (fun x -> 
+        Cst (CstR (
+          if Float.is_nan x then 0. else x)))
+  | Tbool -> 
+    Cr.map 
+      [Cr.bool] 
+      (fun x -> Cst (CstB x))
+  
+let binop_gen ty fuel bop gen = 
+  Cr.map 
+    [ gen ty (fuel - 1);
+      gen ty (fuel - 1)] 
+    ( fun x y -> 
+        mk_binop bop x y)  
 
-(*** Generates an expr of type ty *)
-let rec gen_iexpr ?(fuel = max_fuel) ?(ty = Ty.Tint) () : eg_res gen =
-    match fuel = 0 with
-    | true -> 
-        Crowbar.choose @@ [gen_cst ty; gen_usym_var ty; gen_qvar ty]
-    | false ->
-      let fn = 
-        List.fold_left 
-          ( fun acc op -> 
-            ( Crowbar.map
-                [ gen_iexpr ~fuel:(fuel-1) ~ty (); 
-                  gen_iexpr ~fuel:(fuel-1) ~ty ()]
-                ( fun a b -> 
-                    let exp = Expr.mk_term op [a.exp;b.exp] ty in
-                    let nvs = VS.union a.vst b.vst in 
-                      mk_egr nvs exp )
-            )::acc)
-          [gen_iexpr ~fuel:(fuel-1) ~ty ()] (arithops ty)
-      in 
-        Crowbar.choose @@ gen_qvar ty :: gen_usym_fun fuel ty @ fn 
+let unop_gen ty fuel uop gen = 
+  Cr.map [gen ty (fuel - 1)] (fun x -> mk_unop uop x)  
 
-(** Generates a quantified variable *)
-and gen_qvar (ty: Ty.t) : eg_res gen =
-  let mk_egr_aux1 npref id vty qt qp =
-    let name = npref ^ string_of_int id in
-    let nv = {name; id; vty; qt; qp} in
-      mk_egr (VS.add nv VS.empty) (mk_var_expr nv)
-  in
-  match ty with 
-  | Ty.Tint -> 
-    if !ivr_id > 0 
-    then 
-      Crowbar.map
-        [Crowbar.range 5; Crowbar.range !ivr_id] 
-        ( fun choice pos ->
-          match choice with 
-          | 0 -> mk_egr_aux1 "URxi_" (pos + 1) ty U R
-          | 1 -> mk_egr_aux1 "ECxi_" (incr ivc_id; !ivc_id) ty E C
-          | 2 -> mk_egr_aux1 "UCxi_" (incr ivc_id; !ivc_id) ty U C
-          | 3 -> mk_egr_aux1 "ERxi_" (incr ivr_id; !ivr_id) ty E R
-          | _ -> mk_egr_aux1 "URxi_" (incr ivr_id; !ivr_id) ty U R)
-    else 
-      Crowbar.map
-        [Crowbar.range 4] 
-        ( function
-          | 0 -> mk_egr_aux1 "ECxi_" (incr ivc_id; !ivc_id) ty E C
-          | 1 -> mk_egr_aux1 "UCxi_" (incr ivc_id; !ivc_id) ty U C
-          | 2 -> mk_egr_aux1 "ERxi_" (incr ivr_id; !ivr_id) ty E R
-          | _ -> mk_egr_aux1 "URxi_" (incr ivr_id; !ivr_id) ty U R)
-  | Ty.Treal -> 
-    if !rvr_id > 0 
-    then 
-      Crowbar.map
-        [Crowbar.range 5; Crowbar.range !rvr_id] 
-        ( fun choice pos ->
-          match choice with 
-          | 0 -> mk_egr_aux1 "URxi_" (pos + 1) ty U R
-          | 1 -> mk_egr_aux1 "ECxi_" (incr rvc_id; !rvc_id) ty E C
-          | 2 -> mk_egr_aux1 "UCxr_" (incr rvc_id; !rvc_id) ty U C
-          | 3 -> mk_egr_aux1 "ERxr_" (incr rvr_id; !rvr_id) ty E R
-          | _ -> mk_egr_aux1 "URxr_" (incr rvr_id; !rvr_id) ty U R)
-    else 
-      Crowbar.map
-        [Crowbar.range 4] 
-        ( function
-          | 0 -> mk_egr_aux1 "ECxr_" (incr rvc_id; !rvc_id) ty E C
-          | 1 -> mk_egr_aux1 "UCxr_" (incr rvc_id; !rvc_id) ty U C
-          | 2 -> mk_egr_aux1 "ERxr_" (incr rvr_id; !rvr_id) ty E R
-          | _ -> mk_egr_aux1 "URxr_" (incr rvr_id; !rvr_id) ty U R)
-  | Ty.Tbool -> 
-    if !bvr_id > 0 
-    then 
-      Crowbar.map
-        [Crowbar.range 5; Crowbar.range !bvr_id] 
-        ( fun choice pos ->
-          match choice with 
-          | 0 -> mk_egr_aux1 "URxb_" (pos + 1) ty U R
-          | 1 -> mk_egr_aux1 "ERxb_" (incr bvc_id; !bvc_id) ty E C
-          | 2 -> mk_egr_aux1 "UCxb_" (incr bvc_id; !bvc_id) ty U C
-          | 3 -> mk_egr_aux1 "ERxb_" (incr bvr_id; !bvr_id) ty E R
-          | _ -> mk_egr_aux1 "URxb_" (incr bvr_id; !bvr_id) ty U R
-        )
-    else 
-      Crowbar.map
-        [Crowbar.range 4] 
-        ( function
-          | 0 -> mk_egr_aux1 "ERxb_" (incr bvc_id; !bvc_id) ty E C
-          | 1 -> mk_egr_aux1 "UCxb_" (incr bvc_id; !bvc_id) ty U C
-          | 2 -> mk_egr_aux1 "ERxb_" (incr bvr_id; !bvr_id) ty E R
-          | _ -> mk_egr_aux1 "URxb_" (incr bvr_id; !bvr_id) ty U R
-        )
-  | _ -> assert false 
-
-(** Generator of a Expr.t of type bool/prop and of max depth max_fuel *)
-and gen_bool_expr ?(fuel = max_fuel) () : eg_res gen =  
-    let mk_egr_aux2 exp avst bvst = 
-      let arvst, acvst = VS.partition (fun v -> v.qp = R) avst in 
-      let brvst, bcvst = VS.partition (fun v -> v.qp = R) bvst in
-      let rvst = VS.union arvst brvst in
-      let cvst = VS.union acvst bcvst in
-        mk_egr rvst (quantify cvst exp)
-    in
-    match fuel = 0 with
-    | true -> gen_cst Ty.Tbool
-    | false ->
-      let arith_gens ty fuel = 
-        List.map
-        ( Crowbar.map [ gen_iexpr ~fuel:(fuel-1) ~ty (); 
-                        gen_iexpr ~fuel:(fuel-1) ~ty ()])
-        [ (fun a b ->
-            let exp = Expr.mk_eq ~iff:true a.exp b.exp in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b -> 
-            let exp = Expr.mk_eq ~iff:false a.exp b.exp in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b -> 
-            let exp = Expr.mk_distinct ~iff:true [a.exp; b.exp] in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b -> 
-            let exp = Expr.mk_distinct ~iff:false [a.exp; b.exp] in
-              mk_egr_aux2 exp a.vst b.vst);
-
-          (fun a b -> 
-            let exp = Expr.mk_builtin ~is_pos:true Symbols.LE [a.exp; b.exp] in
-              mk_egr_aux2 exp a.vst b.vst); 
-          (fun a b -> 
-            let exp = Expr.mk_builtin ~is_pos:true Symbols.LT [a.exp; b.exp] in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b ->
-            let exp = Expr.mk_builtin ~is_pos:false Symbols.LE [a.exp; b.exp] in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b ->
-            let exp = Expr.mk_builtin ~is_pos:false Symbols.LT [a.exp; b.exp] in
-              mk_egr_aux2 exp a.vst b.vst);]
-      in
-
-      Crowbar.choose @@
-        gen_bool_expr ~fuel:(fuel-1) ()
-        :: gen_qvar Ty.Tbool
-        :: gen_usym_fun fuel Ty.Tbool  
-
-        @ List.map 
-        ( Crowbar.map [ gen_bool_expr ~fuel:(fuel-1) (); 
-                        gen_bool_expr ~fuel:(fuel-1) ()])
-
-        [ (fun a b ->
-            let exp = Expr.mk_and a.exp b.exp true 0 in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b ->
-            let exp = Expr.mk_or a.exp b.exp true 0 in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b ->
-            let exp = Expr.mk_imp a.exp b.exp 0 in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b ->
-            let exp = Expr.mk_iff a.exp b.exp 0 in
-              mk_egr_aux2 exp a.vst b.vst);
-          (fun a b ->
-            let exp = Expr.mk_xor a.exp b.exp 0 in
-              mk_egr_aux2 exp a.vst b.vst);]
-
-        @ arith_gens Ty.Tint fuel
-        @ arith_gens Ty.Treal fuel
-
-and gen_expr ?(fuel = max_fuel) ~ty : eg_res gen = 
-  match ty with 
-  | Ty.Tbool -> gen_bool_expr ~fuel ()
-  | _ -> gen_iexpr ~fuel ~ty ()
-
-and gen_usym_var (ty : Ty.t) =
-  Crowbar.map 
-    [Crowbar.range nb_usyms] 
+let usymv_gen ty = 
+  Cr.map 
+    [Cr.range nb_usym_vars] 
     ( fun pos -> 
-      let var = List.nth (get_usym_var ty) pos in 
-      let sym = Symbols.Name (Hstring.make var, Symbols.Other) in
-      let exp = Expr.mk_term sym [] ty in 
-        mk_egr VS.empty exp)
+        List.nth (
+        match ty with
+        | Tint -> i_usymv
+        | Treal -> r_usymv
+        | Tbool -> b_usymv) pos)
 
-and gen_usym_fun (fuel : int) (ty : Ty.t) : (eg_res gen list ) =
-  [ 
-    Crowbar.map 
-      [ gen_expr ~fuel:(fuel - 1) ~ty:Ty.Tint ]
-      ( fun x ->
-          let f = List.nth (get_usym_fun ty) 0 in 
-          let sym = Symbols.Name (Hstring.make f, Symbols.Other) in
-          let exp = Expr.mk_term sym [x.exp] ty in 
-            mk_egr x.vst exp);
+let usymf_gen ty gen fuel = 
+  [ Cr.map 
+      [ gen Tint (fuel-1)] 
+      ( fun arg1 -> 
+          get_usymf 1 ty [arg1]);
+    Cr.map 
+      [ gen Tint (fuel-1); 
+        gen Treal (fuel-1)] 
+      ( fun arg1 arg2 -> 
+          get_usymf 2 ty [arg1; arg2]);
+    Cr.map 
+      [ gen Tint (fuel-1); 
+        gen Treal (fuel-1); 
+        cst_gen Tbool
+        (* gen Tbool (fuel-1) *)]
+      ( fun arg1 arg2 arg3 -> 
+          get_usymf 3 ty [arg1; arg2; arg3]);]
 
-    Crowbar.map 
-      [ gen_expr ~fuel:(fuel - 1) ~ty:Ty.Tint;
-        gen_expr ~fuel:(fuel - 1) ~ty:Ty.Treal]
-      ( fun x y ->
-          let f = List.nth (get_usym_fun ty) 1 in 
-          let sym = Symbols.Name (Hstring.make f, Symbols.Other) in
-          let exp = Expr.mk_term sym [x.exp; y.exp] ty in 
-          let nvst = VS.union x.vst y.vst in   
-            mk_egr nvst exp);
+let qv_gen ty = 
+  Cr.map 
+    [Cr.bool; Cr.range nb_q_vars] 
+    ( fun b pos -> 
+        match b with 
+        | true -> (
+          List.nth (
+            match ty with
+            | Tint -> i_uqv
+            | Treal -> r_uqv
+            | Tbool -> b_uqv) pos)
+        | false ->
+          List.nth (
+            match ty with
+            | Tint -> i_eqv
+            | Treal -> r_eqv
+            | Tbool -> b_eqv) pos)
 
-    Crowbar.map 
-      [ gen_expr ~fuel:(fuel - 1) ~ty:Ty.Tint;
-        gen_expr ~fuel:(fuel - 1) ~ty:Ty.Treal;
-        (* gen_bool_expr ~fuel:(fuel-1) () *) (*???*)
-        gen_cst Ty.Tbool]
-      ( fun x y z ->
-        let f = List.nth (get_usym_fun ty) 2 in 
-        let sym = Symbols.Name (Hstring.make f, Symbols.Other) in
-        let exp = Expr.mk_term sym [x.exp; y.exp; z.exp] ty in 
-        let nvst = VS.union x.vst (VS.union y.vst z.vst) in
-          mk_egr nvst exp)
-    ]
-
-let cq_thm_gen : (Commands.sat_tdecl) gen = 
-  Crowbar.with_printer Commands.print @@
-    Crowbar.map [gen_bool_expr ()] 
-      ( fun {vst; exp} : Commands.sat_tdecl ->
-          let nexp = quantify vst exp in
-            { st_loc = Loc.dummy;
-              st_decl = 
-                Commands.Query 
-                  ("thm" ^ string_of_int (incr thmid; !thmid), nexp, Typed.Thm)})
+let ast_gen =
+  let rec ag_aux ty fuel = 
+    match fuel <= 0 with 
+    | true -> 
+      Cr.choose @@  
+        [cst_gen ty; usymv_gen ty; qv_gen ty]
+    | false -> 
+      Cr.choose @@
+        (* 
+        cst_gen ty ::
+        usymv_gen ty :: 
+        qv_gen ty ::*)
+        usymf_gen ty ag_aux fuel @
+        ( match ty with 
+          | Tint -> 
+            List.map 
+              (fun bop -> binop_gen ty fuel bop ag_aux)
+              [ IAdd; ISub; IMul; IDiv; IMod; IPow]
+          | Treal ->
+            List.map 
+              (fun bop -> binop_gen ty fuel bop ag_aux)
+              [ RAdd; RSub; RMul; RDiv; RPow]
+          | Tbool ->
+            List.map 
+              (fun bop -> binop_gen ty fuel bop ag_aux)
+              [ And; Or; Xor; Imp; Iff] @   
+            List.map 
+              (fun bop -> binop_gen Tint fuel bop ag_aux)
+              [ Lt; Le; Gt; Ge; Eq; Neq] @   
+            List.map 
+              (fun bop -> binop_gen Treal fuel bop ag_aux)
+              [ Lt; Le; Gt; Ge; Eq; Neq])
+  in 
+    Cr.map 
+      [ag_aux Tbool max_fuel]
+      quantify
 
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
-let proc pbs = 
-  List.iter
-    ( fun (pb, goal_name) -> 
-        ignore goal_name;
-        let _, consistent, ex = 
-          List.fold_left
-            ( fun acc d ->
-                try 
-                  FE.process_decl 
-                    ( fun _ _ -> ()) (*FE.print_status*)
-                    (FE.init_all_used_context ()) 
-                    (Stack.create ()) 
-                    acc d
-                with 
-                Assert_failure (_, _, _) as exp ->
-                  List.iter (Format.printf "\n#########\n%s  %a\n" goal_name Commands.print) pb;
-                  let tmp = Stdlib.Marshal.to_string pb [] in
-                  let time = Unix.gettimeofday () in
-                  let file = 
-                    "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
-                  in
-                  
-                  Format.printf "\nWriting to file : %s\n@." file;
-                  let oc = open_out file in 
-                  Printf.fprintf oc "%s" tmp;
-                  flush stdout;
-                  close_out oc; 
-                  raise exp 
-          )
-          (SAT.empty (), true, Explanation.empty) 
-          pb
+let mk_cmd_query name expr gsty = 
+  Commands.{ 
+    st_loc = Loc.dummy;
+    st_decl = 
+      Commands.Query (name, expr, gsty)}
+
+let proc astlist = 
+  let cmds = 
+    List.map 
+      ( fun x -> 
+          let expr = ast_to_expr (quantify x) in 
+          let name = "thm" ^ string_of_int (incr thmid; !thmid) in 
+          let gsty = Typed.Thm in 
+            Commands.{ 
+              st_loc = Loc.dummy;
+              st_decl = 
+                Commands.Query (name, expr, gsty)})
+      astlist
+  in
+  (*
+  List.iter (Format.printf "\n####  %a\n" print) astlist;
+  List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
+  *)
+  try         
+    let _, consistent, ex = 
+      List.fold_left 
+        ( fun acc d ->
+            FE.process_decl 
+              ( fun _ _ -> ()) (*FE.print_status*)
+              (FE.init_all_used_context ()) 
+              (Stack.create ()) 
+              acc d)
+        (SAT.empty (), true, Explanation.empty) 
+        cmds
+    in
+      ignore ex; 
+      ignore consistent;
+      true
+    with 
+    | exp ->
+
+      List.iter (Format.printf "\n####  %a\n" print) astlist;
+      List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
+  
+
+      let tmp = Stdlib.Marshal.to_string astlist [] in
+      let time = Unix.gettimeofday () in
+      let file = 
+        "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
       in
-      ignore ex; ignore consistent;
-      (*(
-      Format.printf "%s@."
-        (if consistent then "unknown" else "unsat"))*)
-    ) pbs; 
-  true (* for now *)
+      Format.printf "\nWriting to file : %s\n@." file;
+      let oc = open_out file in 
+      Printf.fprintf oc "%s" tmp;
+      flush stdout;
+      close_out oc; 
+      raise exp 
 
 let () = Options.set_is_gui false
 
 let test_id = ref 0 
 
 let () =
-  Crowbar.add_test ~name:"ae" [cq_thm_gen] 
+  Cr.add_test ~name:"ae" [ast_gen] 
   @@ fun m -> 
-  Crowbar.check
-    ((proc 
-      [([m], "test_" ^ string_of_int (incr test_id; !test_id))]
-    ))
+  Cr.check (proc [m])

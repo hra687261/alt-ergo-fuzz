@@ -7,7 +7,7 @@
   (name       FmSimplexPlugin)
   (libraries  alt-ergo-lib)
   (modules    Simplex Simplex_cache FmSimplexIneqs)
-  (instrumentation (backend bisect))
+  ;(instrumentation (backend bisect))
 )
 
 (install
