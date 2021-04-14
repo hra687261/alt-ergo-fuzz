@@ -11,9 +11,9 @@ let v_id = ref 0
 type ty = Tint | Treal | Tbool 
 
 type vkind = 
-| EQ (* Exisancially quantified *) 
-| UQ (* Universally quantified *)
-| US (* Uninterpreted symbol *)
+  | EQ (* Exisancially quantified *)
+  | UQ (* Universally quantified *)
+  | US (* Uninterpreted symbol *)
 
 type cst = 
   | CstI of int 
@@ -28,16 +28,20 @@ type binop =
   
 type unop = Neg | Not 
 
-type vty = {name: string; ty: ty; vk: vkind; id: int}
+type vty = {vname: string; ty: ty; vk: vkind; id: int}
 
 type ast = 
   | Cst of cst
   | Var of vty
   | Unop of unop * ast 
   | Binop of binop * ast * ast
-  | Fun of {name: string; rty: ty; args: ast list}
-  | Forall of {vars : vty list * ast list; body : ast}
-  | Exists of {vars : vty list * ast list; body : ast}
+  | Fun of func
+  | Forall of quant
+  | Exists of quant
+and quant =
+  {vars: vty list * ast list; body: ast}
+and func =
+  {fname: string; rty: ty; args: ast list}
 
 let print_binop fmt binop =
   Format.fprintf fmt @@
@@ -65,8 +69,8 @@ let rec print fmt ast =
   | Cst (CstB x) ->
     Format.fprintf fmt "%b" x
   
-  | Var {name; _} ->
-    Format.fprintf fmt "%s" name
+  | Var {vname; _} ->
+    Format.fprintf fmt "%s" vname
   
   | Unop (Neg, ast) ->
     Format.fprintf fmt "- (%a)" print ast 
@@ -76,8 +80,8 @@ let rec print fmt ast =
   | Binop (binop, x, y) ->
     Format.fprintf fmt "(%a %a %a)" print x print_binop binop print y 
 
-  | Fun {name; args; _} -> 
-    Format.fprintf fmt "%s(" name;
+  | Fun {fname; args; _} -> 
+    Format.fprintf fmt "%s(" fname;
     let _ = 
       List.fold_left 
       ( fun isfist x ->
@@ -88,20 +92,20 @@ let rec print fmt ast =
       args in 
       Format.fprintf fmt ")";
 
-  | Forall {vars; body} ->
+  | Forall {vars = (vl, _); body} ->
     Format.fprintf fmt "∀ ";
     List.iter 
-      (fun {name; _} -> 
-        Format.fprintf fmt "%s " name) 
-      (fst vars);
+      (fun {vname; _} -> 
+        Format.fprintf fmt "%s " vname) 
+      vl;
     Format.fprintf fmt ". %a" print body  
   
-  | Exists {vars; body} -> 
+  | Exists {vars = (vl, _); body} -> 
     Format.fprintf fmt "∃ ";
     List.iter 
-      (fun {name; _} -> 
-        Format.fprintf fmt "%s " name) 
-      (fst vars);
+      (fun {vname; _} -> 
+        Format.fprintf fmt "%s " vname) 
+      vl;
     Format.fprintf fmt ". %a" print body
 
 let mk_vars pref ty vk=
@@ -109,8 +113,8 @@ let mk_vars pref ty vk=
     match nb = 0 with 
     | true -> []
     | false -> 
-      let name = (pref^string_of_int (nb_usym_vars-nb)) in 
-        Var {name; ty; vk; id = (incr v_id; !v_id)} ::aux (nb-1)  
+      let vname = (pref^string_of_int (nb_usym_vars-nb)) in 
+        Var {vname; ty; vk; id = (incr v_id; !v_id)} ::aux (nb-1)  
   in 
     aux nb_usym_vars
 
@@ -119,71 +123,116 @@ let mk_binop bop x y =
 let mk_unop uop x =
   Unop (uop, x)
 
-type ptree =  Node of (vty list) * ptree * ptree 
-            | Empty
+type ptree =  
+  | Node of vty list * ptree list
+  | Empty
 
-let rec insert_in_ptree p v pt =
-  match pt with 
-  | Node (vl, lst, rst) -> (
-    match p with 
-    | h :: t -> (
-      if h = 1 
-      then Node (vl, lst, insert_in_ptree t v rst)
-      else Node (vl, insert_in_ptree t v lst, rst))
-    | [] -> Node (v::vl, lst, rst))
-  | Empty -> 
-    match p with 
-    | h :: t -> (
-      if h = 1 
-      then Node ([], Empty, insert_in_ptree t v Empty)
-      else Node ([], insert_in_ptree t v Empty, Empty))
-    | [] -> Node ([v], Empty, Empty)
+let rec insert_in_ptree path var ptree =
+  let rec iin_aux phd ptl stl = 
+    match stl with
+    | h :: t when phd = 0 -> 
+      insert_in_ptree ptl var h :: t
+    | h :: t -> 
+      h :: iin_aux (phd-1) ptl t
+    | [] when phd = 0 -> 
+      [insert_in_ptree ptl var Empty]
+    | [] -> 
+      Empty :: iin_aux (phd-1) ptl stl
+  in 
+  match ptree with
+  | Node (vl, stl) -> (
+    match path with 
+    | h :: t -> 
+      Node (vl, iin_aux h t stl)
+    | [] -> 
+      Node (var :: vl, stl))
+  | Empty ->
+    match path with 
+    | h :: t -> 
+      Node ([], iin_aux h t [])
+    | [] -> Node ([var], [])
 
+  
 (** Quantifies all the variables in the ast *)
 let quantify ast = 
   let rec quantify_aux ast pt = 
+    let rec aux_call (asts : ast list) (pths : ptree list) = 
+      match asts with 
+      | h1 :: t1 -> (
+        match pths with 
+        | h2 :: t2 ->
+          quantify_aux h1 h2 :: aux_call t1 t2  
+        | [] -> asts)
+      | [] -> [] 
+    in
+    let q_aux_bis vs ast =  
+      match vs with 
+      | h :: t -> 
+        let l, k, nvs = 
+          List.fold_left 
+            (fun (cacc, acck, gacc) v -> 
+              if acck = v.vk 
+              then (v::cacc, acck, gacc)
+              else ([v], v.vk, (cacc, acck)::gacc))
+            
+            ([h], h.vk, []) t
+        in 
+        let nnvs = (l, k) :: nvs in
+        List.fold_left  
+        ( fun exp (vs, kd) -> 
+            match kd with 
+            | EQ -> 
+              Exists {vars = vs, []; body = exp}
+            | UQ -> 
+              Forall {vars = vs, []; body = exp}
+            | US -> assert false)
+        ast nnvs
+      | [] -> ast
+    in 
+    
     match ast with 
     | Binop (op, x, y) -> (
-      match pt with 
-      | Node (vs, l, r) -> (
-        match vs with 
-        | h :: t -> 
-          let _, _, nvs = 
-            List.fold_left 
-              (fun (cacc, acck, gacc) v -> 
-                if acck = v.vk 
-                then (v::cacc, acck, gacc)
-                else ([v], v.vk, (cacc, v.vk)::gacc)
-              )
-              ([h], h.vk, []) t
-          in 
-            List.fold_left  
-            ( fun exp (vs, kd) -> 
-                match kd with 
-                | EQ -> 
-                  Exists {vars= (vs, []); body = exp}
-                | UQ ->
-                  Forall {vars= (vs, []); body = exp}
-                | US -> assert false)
-            ast nvs
-        | [] ->
-          Binop (op, quantify_aux x l, quantify_aux y r))
+      match pt with
+      | Node (vs, pstl) -> 
+        q_aux_bis vs (
+          match pstl with 
+          | [] -> Binop (op, x, y)
+          | [_] ->
+            Binop (op, 
+              quantify_aux x (List.hd pstl), y)
+          | [_; _] ->
+            Binop (op, 
+              quantify_aux x (List.nth pstl 0), 
+              quantify_aux y (List.nth pstl 1))
+          | _ -> assert false)
       | Empty -> ast)
+
+    | Fun {fname; rty; args} -> (
+      match pt with
+      | Node (vs, pstl) -> 
+        q_aux_bis vs 
+          (Fun {fname; rty; args = aux_call args pstl})
+      | Empty -> ast)
+      
     | Unop (op, x) -> Unop (op, quantify_aux x pt) 
+    | Forall {vars; body} -> 
+      Forall {vars; body = quantify_aux body pt}
+    | Exists {vars; body} -> 
+      Exists {vars; body = quantify_aux body pt}
+    
     | _ -> ast
   in 
   (* takes a list of couples (list of paths, var) 
-   * and returns a a list of couples (common path prefixes, var) *)
+   * and returns a a list of couples (common path prefix, var) *)
   let rec get_q_paths spll = 
-    let rec intersect x y = 
-      match x, y with 
-      | h1::t1, h2::t2 when h1 = h2 -> h1 :: intersect t1 t2 
-      | _ -> []
-    in 
-    (* takes a list of paths and returns their shared prefix*)
     let rec gqp_aux spll = 
+      let rec get_cpref x y = 
+        match x, y with 
+        | h1::t1, h2::t2 when h1 = h2 -> h1 :: get_cpref t1 t2 
+        | _ -> []
+      in 
       match spll with 
-      | h1::h2::t -> gqp_aux ((intersect h1 h2)::t) 
+      | h1::h2::t -> gqp_aux ((get_cpref h1 h2)::t) 
       | h::[] -> h 
       | [] -> []
     in
@@ -193,45 +242,85 @@ let quantify ast =
   in 
   (* takes an ast returns list of couples (path, var) *)
   let rec q_aux path ast =
+    let rec get_vars ast = 
+      match ast with 
+      | Binop (_, x, y) ->
+        get_vars x @ get_vars y 
+      | Unop (_, x) -> get_vars x
+      | Fun {args; _} -> 
+        List.fold_left 
+          ( fun l x -> 
+            get_vars x @ l)
+          ([])
+          args 
+      | Var ({vk = (EQ|UQ); _} as var) -> [var]
+      | _ -> []
+    in 
+
     match ast with 
-    | Binop (_, x, y) ->
-      let nx = q_aux (0::path) x in 
-      let ny = q_aux (0::path) y in
-      if nx = []
-      then (
-        if ny = []
-        then []
-        else ny)
-      else 
-        if ny = []
-        then nx
-        else nx @ ny
-    | Unop (_, x) -> q_aux path x
+    | Binop (
+      ( And | Or | Xor | Imp | Iff | 
+        Lt | Le | Gt | Ge | Eq | Neq), 
+      x, y) -> 
+        q_aux (0::path) x @  q_aux (1::path) y
+    | Binop (_, x, y) -> 
+      let rpath = List.rev (List.tl path) in 
+      List.map
+        ( fun x -> (rpath, x)) 
+        ( get_vars x @ get_vars y)
+
+    | Unop (Not, x) -> 
+      q_aux path x
+    | Unop (_, x) -> 
+      let rpath = List.rev path in
+      List.map
+        ( fun x -> (rpath, x)) 
+        ( get_vars x)
+
+    | Fun {args; rty = Tbool; _} -> 
+      fst @@
+      List.fold_left 
+        ( fun (l, n) x -> 
+            q_aux (n::path) x @ l, n + 1)
+        ([], 0)
+        args
+    | Fun {args; _} -> 
+      let rpath = List.rev (List.tl path) in 
+      let vars = 
+        List.fold_left 
+          (fun acc x -> 
+            List.map 
+              (fun x -> (List.rev rpath, x))
+              (get_vars x) @ acc) 
+          [] args 
+      in 
+      vars 
+
     | Var ({vk = (EQ|UQ); _} as var) ->
       [(List.rev path, var)]
     | _ -> []
   in 
-  (* list of couples *)
+
   let cpll = 
     List.sort 
       (fun (_, x) (_, y) -> Int.compare x.id y.id) 
       (q_aux [] ast) 
-  in 
-  (* list of couples (list of paths, var)*)
+  in
   match cpll with
   | [] -> ast 
-  | h :: t -> 
-    let _, _, spll = 
+  | (fh, sh) :: t -> 
+    let l, v, spll = 
       List.fold_left 
       (fun (cacc, accv, gacc) (p, v) ->
         if v.id = accv.id 
         then (p::cacc, accv, gacc) 
         else ([p], v, (cacc, accv)::gacc))
-      ([fst h], snd h, [])
-      t 
+      ([fh], sh, []) t 
     in 
-    let nspll = get_q_paths spll in 
-    let pt = List.fold_left 
+    let rspll = (l, v) :: spll in 
+    let nspll = get_q_paths rspll  in 
+    let pt = 
+      List.fold_left 
         (fun acc (p, v) ->
           insert_in_ptree p v acc)
         Empty nspll
@@ -321,48 +410,47 @@ let rec ast_to_expr ast =
     Expr.mk_term (Sy.Op Sy.Pow) 
       [ast_to_expr x; ast_to_expr y] Ty.Treal 
 
-  | Var {name; ty = Tint; vk = US; _} -> 
+  | Var {vname; ty = Tint; vk = US; _} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Tint 
-  | Var {name; ty = Treal; vk = US; _} -> 
+  | Var {vname; ty = Treal; vk = US; _} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Treal 
-  | Var {name; ty = Tbool; vk = US; _} -> 
+  | Var {vname; ty = Tbool; vk = US; _} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Tbool 
 
-  | Fun {name; rty = Tint; args} -> 
+  | Fun {fname; rty = Tint; args} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map ast_to_expr args) Ty.Tint
-  | Fun {name; rty = Treal; args} -> 
+  | Fun {fname; rty = Treal; args} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map ast_to_expr args) Ty.Treal
-  | Fun {name; rty = Tbool; args} -> 
+  | Fun {fname; rty = Tbool; args} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map ast_to_expr args) Ty.Tbool
       
-  | Unop (Neg, x) -> 
-    Expr.neg (ast_to_expr x)
+  | Unop (Neg, x) -> ast_to_expr x
   | Unop (Not, x) -> 
     Expr.neg (ast_to_expr x)
 
-  | Var {name; ty=Tint; vk=(EQ|UQ); _} -> 
+  | Var {vname; ty=Tint; vk=(EQ|UQ); _} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Tint
-  | Var {name; ty=Treal; vk=(EQ|UQ); _} -> 
+  | Var {vname; ty=Treal; vk=(EQ|UQ); _} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Treal 
-  | Var {name; ty=Tbool; vk=(EQ|UQ); _} -> 
+  | Var {vname; ty=Tbool; vk=(EQ|UQ); _} -> 
     Expr.mk_term 
-      (Sy.Name (Hstring.make name, Sy.Other)) 
+      (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Tbool 
 
   | Forall {vars = (vs, trs); body} -> 
@@ -378,11 +466,10 @@ let rec ast_to_expr ast =
                 | Tbool -> Ty.Tbool) 
               in
               Sy.Map.add 
-                (Sy.Var (Var.of_string v.name)) 
+                (Sy.Var (Var.of_string v.vname)) 
                 (rty, v.id) acc)
           Sy.Map.empty vs)
-      []
-      (ast_to_expr body) (-42) 
+      [] (ast_to_expr body) (-42) 
       ~toplevel:false 
       ~decl_kind:Expr.Dgoal
   | Exists {vars = (vs, trs); body} ->
@@ -398,10 +485,9 @@ let rec ast_to_expr ast =
                 | Tbool -> Ty.Tbool) 
               in
               Sy.Map.add 
-                (Sy.Var (Var.of_string v.name)) 
+                (Sy.Var (Var.of_string v.vname)) 
                 (rty, v.id) acc)
           Sy.Map.empty vs)
-      []
-      (ast_to_expr body) (-42) 
+      [] (ast_to_expr body) (-42) 
       ~toplevel:false 
       ~decl_kind:Expr.Dgoal

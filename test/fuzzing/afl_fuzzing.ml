@@ -6,24 +6,30 @@ module Sy = Symbols
 
 let thmid = ref 0
 
-let i_usymv, r_usymv, b_usymv = mk_vars "iuv" Tint US, 
-  mk_vars "ruv" Treal US, mk_vars "buv" Tbool US
+let i_usymv, r_usymv, b_usymv =
+  mk_vars "iuv" Tint US,
+  mk_vars "ruv" Treal US,
+  mk_vars "buv" Tbool US
 
-let i_uqv, r_uqv, b_uqv = mk_vars "iuqv" Tint UQ, 
-  mk_vars "ruqv" Treal UQ, mk_vars "buqv" Tbool UQ
+let i_uqv, r_uqv, b_uqv =
+  mk_vars "iuqv" Tint UQ,
+  mk_vars "ruqv" Treal UQ,
+  mk_vars "buqv" Tbool UQ
 
-let i_eqv, r_eqv, b_eqv = mk_vars "ieqv" Tint EQ, 
-  mk_vars "reqv" Treal EQ, mk_vars "beqv" Tbool EQ
+let i_eqv, r_eqv, b_eqv =
+  mk_vars "ieqv" Tint EQ,
+  mk_vars "reqv" Treal EQ,
+  mk_vars "beqv" Tbool EQ
   
 let get_usymf num rty args = 
-  let name = 
+  let fname = 
     ( match rty with 
       | Tint -> "iuf_"
       | Treal -> "ruf_"
       | Tbool -> "buf_") 
     ^ string_of_int num 
   in
-    Fun {name; rty; args} 
+    Fun {fname; rty; args} 
 
 let cst_gen ty = 
   match ty with 
@@ -148,7 +154,7 @@ let proc astlist =
   let cmds = 
     List.map 
       ( fun x -> 
-          let expr = ast_to_expr (quantify x) in 
+          let expr = ast_to_expr x in 
           let name = "thm" ^ string_of_int (incr thmid; !thmid) in 
           let gsty = Typed.Thm in 
             Commands.{ 
@@ -159,7 +165,7 @@ let proc astlist =
   in
   (*
   List.iter (Format.printf "\n####  %a\n" print) astlist;
-  List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
+  List.iter (Format.printf "\n>>>>  %a\n@." Commands.print) cmds;
   *)
   try         
     let _, consistent, ex = 
@@ -181,7 +187,7 @@ let proc astlist =
 
       List.iter (Format.printf "\n####  %a\n" print) astlist;
       List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
-  
+
 
       let tmp = Stdlib.Marshal.to_string astlist [] in
       let time = Unix.gettimeofday () in

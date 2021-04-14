@@ -25,12 +25,13 @@ let _ =
   Format.printf "RERUNNING @.";
   assert (List.length !inputs = 1);
   let file = List.hd !inputs in 
+  Format.printf "Reading from file: %s @." file;
   let line = Core.In_channel.read_all file in 
   let astlist : ast list = Marshal.from_string line 0 in 
   let cmds = 
     List.map 
       ( fun x -> 
-          let expr = ast_to_expr (quantify x) in 
+          let expr = ast_to_expr x in 
           let name = "thm" ^ string_of_int 0 in 
           let gsty = Typed.Thm in 
             Commands.{ 
