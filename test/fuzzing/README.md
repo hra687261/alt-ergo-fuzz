@@ -17,7 +17,9 @@ Containing the marshalled pair (exception, ast) which are the raised exception t
 
 By running:
 
-```./_build/default/test/fuzzing/rerun.exe ./test/fuzzing/crash_output/op_XXXXXXXXXX.txt```
+```
+./_build/default/test/fuzzing/rerun.exe ./test/fuzzing/crash_output/op_XXXXXXXXXX.txt
+```
 
 The exception and the ast that caused the crash are read from the file ```op_XXXXXXXXXX.txt``` in which they were written after the crash, they are printed (the ast is printed before and after it's translation to an Alt-Ergo expr) and then the solving loop is called with it to try and reproduce the crash.
 
