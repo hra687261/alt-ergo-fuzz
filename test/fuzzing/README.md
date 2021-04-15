@@ -1,13 +1,13 @@
 
 Compiling:
 ```
-~/alt-ergo$ make
+make
 ```
 Running:
 
 In afl mode:
 ```
-~/alt-ergo$ afl-fuzz -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
+afl-fuzz -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
 ```
 When a crash happens : ```(aka: total crashes > 0)```
 
