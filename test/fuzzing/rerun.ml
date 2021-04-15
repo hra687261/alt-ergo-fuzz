@@ -25,9 +25,8 @@ let _ =
   Format.printf "RERUNNING @.";
   assert (List.length !inputs = 1);
   let file = List.hd !inputs in 
-  Format.printf "Reading from file: %s @." file;
   let line = Core.In_channel.read_all file in 
-  let astlist : ast list = Marshal.from_string line 0 in 
+  let (exp, astlist) : exn * ast list = Marshal.from_string line 0 in 
   let cmds = 
     List.map 
       ( fun x -> 
@@ -41,6 +40,10 @@ let _ =
       astlist
   in
   
+  let msg = Printexc.to_string exp
+  and stack = Printexc.get_backtrace () in
+  Format.printf "\nException: \n%s\n%s\n@." msg stack;
+
   List.iter (Format.printf "\n####  %a\n@." print) astlist;
   List.iter (Format.printf "\n>>>>  %a\n\n@." Commands.print) cmds;
   

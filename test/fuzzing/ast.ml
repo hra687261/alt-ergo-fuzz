@@ -92,21 +92,25 @@ let rec print fmt ast =
       args in 
       Format.fprintf fmt ")";
 
-  | Forall {vars = (vl, _); body} ->
+  | Forall {vars = (vl, trs); body} ->
     Format.fprintf fmt "∀ ";
     List.iter 
       (fun {vname; _} -> 
         Format.fprintf fmt "%s " vname) 
       vl;
-    Format.fprintf fmt ". %a" print body  
+    Format.fprintf fmt ".{";
+    List.iter (Format.fprintf fmt " %a;" print) trs; 
+    Format.fprintf fmt "} %a" print body
   
-  | Exists {vars = (vl, _); body} -> 
+  | Exists {vars = (vl, trs); body} -> 
     Format.fprintf fmt "∃ ";
     List.iter 
       (fun {vname; _} -> 
         Format.fprintf fmt "%s " vname) 
       vl;
-    Format.fprintf fmt ". %a" print body
+      Format.fprintf fmt ".{";
+      List.iter (Format.fprintf fmt " %a;" print) trs; 
+      Format.fprintf fmt "} %a" print body
 
 let mk_vars pref ty vk=
   let rec aux nb = 
@@ -152,6 +156,68 @@ let rec insert_in_ptree path var ptree =
       Node ([], iin_aux h t [])
     | [] -> Node ([var], [])
 
+let add_triggers vs ast =
+  let rec add_triggers_aux foundv ast =
+    let rec setvn nb nv vlist = 
+      match vlist with 
+      | (v, _) :: t when nv.id = v.id -> (v, nb) :: t   
+      | (v, b) :: t -> (v, b) :: setvn nb nv t
+      | _ -> []
+    in 
+    let llor_ vbl1 vbl2 = 
+      List.map2 (fun (a, b1) (_, b2) -> (a, b1 || b2)) vbl1 vbl2  
+    in
+    let lor_ (vbl1, f1) (vbl2, f2) =
+      (llor_ vbl1 vbl2, f1 || f2)
+    in   
+    let rec bfold_left f acc l = 
+      match l with 
+      | (_, h) :: t -> 
+        let r = f acc h in 
+        if r then bfold_left f r t else r 
+      | _ -> acc
+    in 
+    let is_valid (vbl, f) = 
+      bfold_left (&&) f vbl
+    in 
+    (* Check that it contains all of the variables quantified  
+      * by the quantifier, and at least one non constant uninterpreted
+      * function symbol *)
+    let rec check_trigger (vbl, f) sast = 
+      match sast with
+      | Var nv -> (setvn true nv vbl, f) 
+        (* what if it was quantified by an other (external) quantifier? *)
+      | Unop (_,  x) -> check_trigger (vbl, f) x 
+      | Binop (_, x, y) -> 
+        lor_ (check_trigger (vbl, f) x) (check_trigger (vbl, f) y)
+      | Fun {args; _} -> ( 
+          match args with 
+          | h::t -> 
+            List.fold_left 
+            check_trigger 
+              (check_trigger (vbl, true) h) 
+              (* all functions are non constant uninterpreted symbols *)
+              t 
+          | [] -> assert false)
+      | Forall {body; _} | Exists {body; _} -> 
+        check_trigger (vbl, f) body (* ??? *)
+      | _ -> (vbl, f)
+    in 
+    let aux ast =
+      if is_valid (check_trigger (foundv, false) ast)
+      then [ast]
+      else []
+    in 
+    match ast with 
+    | Unop (_, x) -> add_triggers_aux foundv x
+    | Binop (_, x, y) ->
+      aux x @ aux y
+    | Fun _ -> aux ast 
+    | Forall {body; _} -> aux body
+    | Exists {body; _} -> aux body
+    | _ -> []
+  in
+  add_triggers_aux (List.map (fun x -> (x, false)) vs) ast
   
 (** Quantifies all the variables in the ast *)
 let quantify ast = 
@@ -168,6 +234,7 @@ let quantify ast =
     let q_aux_bis vs ast =  
       match vs with 
       | h :: t -> 
+        (* Separation of variables by variable kind *)
         let l, k, nvs = 
           List.fold_left 
             (fun (cacc, acck, gacc) v -> 
@@ -182,9 +249,9 @@ let quantify ast =
         ( fun exp (vs, kd) -> 
             match kd with 
             | EQ -> 
-              Exists {vars = vs, []; body = exp}
+              Exists {vars = vs, add_triggers vs exp; body = exp}
             | UQ -> 
-              Forall {vars = vs, []; body = exp}
+              Forall {vars = vs, add_triggers vs exp; body = exp}
             | US -> assert false)
         ast nnvs
       | [] -> ast
@@ -225,6 +292,7 @@ let quantify ast =
   (* takes a list of couples (list of paths, var) 
    * and returns a a list of couples (common path prefix, var) *)
   let rec get_q_paths spll = 
+    (* takes a list of paths and returns their shared prefix*)
     let rec gqp_aux spll = 
       let rec get_cpref x y = 
         match x, y with 
@@ -301,6 +369,7 @@ let quantify ast =
     | _ -> []
   in 
 
+  (* sorted list of (path, var) couples by var.id *)
   let cpll = 
     List.sort 
       (fun (_, x) (_, y) -> Int.compare x.id y.id) 
@@ -318,13 +387,16 @@ let quantify ast =
       ([fh], sh, []) t 
     in 
     let rspll = (l, v) :: spll in 
+    (* list of couples (longest common prefix of paths, var) *)
     let nspll = get_q_paths rspll  in 
+    (* building a path tree*)
     let pt = 
       List.fold_left 
         (fun acc (p, v) ->
           insert_in_ptree p v acc)
         Empty nspll
     in 
+      (* print_ptree pt; *)
       quantify_aux ast pt
   
 let rec ast_to_expr ast = 
@@ -454,40 +526,107 @@ let rec ast_to_expr ast =
       [] Ty.Tbool 
 
   | Forall {vars = (vs, trs); body} -> 
-    ignore trs; (* no support for triggers yet *)
+    let binders = 
+      List.fold_left 
+      ( fun acc v -> 
+          let rty = (
+            match v.ty with 
+            | Tint -> Ty.Tint
+            | Treal -> Ty.Treal
+            | Tbool -> Ty.Tbool) 
+          in
+          Sy.Map.add 
+            (Sy.Var (Var.of_string v.vname)) 
+            (rty, v.id) acc)
+      Sy.Map.empty vs
+    in
+    let triggers = (* ??? *)
+      List.fold_left 
+        ( fun acc x -> 
+            acc @ x)
+        []
+        @@
+      List.map 
+        ( fun x -> 
+          Expr.make_triggers 
+            (ast_to_expr x) 
+            binders 
+            Expr.Dgoal 
+            Util.{ (* ??? *)
+              nb_triggers = 1;
+              triggers_var = true;
+              no_ematching = false;
+              greedy = true;
+              use_cs = false;
+              backward = Util.Normal;
+            })
+        trs 
+    in 
     Expr.mk_forall 
       "" Loc.dummy 
-      ( List.fold_left 
-          ( fun acc v -> 
-              let rty = (
-                match v.ty with 
-                | Tint -> Ty.Tint
-                | Treal -> Ty.Treal
-                | Tbool -> Ty.Tbool) 
-              in
-              Sy.Map.add 
-                (Sy.Var (Var.of_string v.vname)) 
-                (rty, v.id) acc)
-          Sy.Map.empty vs)
-      [] (ast_to_expr body) (-42) 
+      binders
+      triggers (ast_to_expr body) (-42) 
       ~toplevel:false 
       ~decl_kind:Expr.Dgoal
   | Exists {vars = (vs, trs); body} ->
-    ignore trs; (* no support for triggers yet *)
+    let binders = 
+      List.fold_left 
+      ( fun acc v -> 
+          let rty = (
+            match v.ty with 
+            | Tint -> Ty.Tint
+            | Treal -> Ty.Treal
+            | Tbool -> Ty.Tbool) 
+          in
+          Sy.Map.add 
+            (Sy.Var (Var.of_string v.vname)) 
+            (rty, v.id) acc)
+          Sy.Map.empty vs
+    in
+    let triggers = (* ??? *)
+      List.fold_left 
+        ( fun acc x -> 
+            acc @ x)
+        []
+        @@
+      List.map 
+        ( fun x -> 
+          Expr.make_triggers 
+            (ast_to_expr x) 
+            binders 
+            Expr.Dgoal 
+            Util.{ (* ??? *)
+              nb_triggers = 1;
+              triggers_var = true;
+              no_ematching = false;
+              greedy = true;
+              use_cs = false;
+              backward = Util.Normal;
+            })
+        trs 
+    in 
     Expr.mk_exists 
       "" Loc.dummy 
-      ( List.fold_left 
-          ( fun acc v -> 
-              let rty = (
-                match v.ty with 
-                | Tint -> Ty.Tint
-                | Treal -> Ty.Treal
-                | Tbool -> Ty.Tbool) 
-              in
-              Sy.Map.add 
-                (Sy.Var (Var.of_string v.vname)) 
-                (rty, v.id) acc)
-          Sy.Map.empty vs)
-      [] (ast_to_expr body) (-42) 
+      binders
+      triggers 
+      (ast_to_expr body) (-42) 
       ~toplevel:false 
       ~decl_kind:Expr.Dgoal
+
+let mk_cmd_query name expr gsty = 
+  Commands.{ 
+    st_loc = Loc.dummy;
+    st_decl = 
+      Commands.Query (name, expr, gsty)}
+
+let mk_cmd_assume name expr b =
+  Commands.{ 
+    st_loc = Loc.dummy;
+    st_decl = 
+      Commands.Assume (name, expr, b)}
+
+let mk_cmd_preddef name expr =
+  Commands.{ 
+    st_loc = Loc.dummy;
+    st_decl = 
+      Commands.PredDef (expr, name)}

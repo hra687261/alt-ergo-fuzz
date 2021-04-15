@@ -144,12 +144,6 @@ let ast_gen =
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
-let mk_cmd_query name expr gsty = 
-  Commands.{ 
-    st_loc = Loc.dummy;
-    st_decl = 
-      Commands.Query (name, expr, gsty)}
-
 let proc astlist = 
   let cmds = 
     List.map 
@@ -157,10 +151,7 @@ let proc astlist =
           let expr = ast_to_expr x in 
           let name = "thm" ^ string_of_int (incr thmid; !thmid) in 
           let gsty = Typed.Thm in 
-            Commands.{ 
-              st_loc = Loc.dummy;
-              st_decl = 
-                Commands.Query (name, expr, gsty)})
+            mk_cmd_query name expr gsty)
       astlist
   in
   (*
@@ -188,8 +179,7 @@ let proc astlist =
       List.iter (Format.printf "\n####  %a\n" print) astlist;
       List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
 
-
-      let tmp = Stdlib.Marshal.to_string astlist [] in
+      let tmp = Stdlib.Marshal.to_string (exp, astlist) [] in
       let time = Unix.gettimeofday () in
       let file = 
         "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
