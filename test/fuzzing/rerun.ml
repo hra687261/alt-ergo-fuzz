@@ -40,9 +40,9 @@ let _ =
       astlist
   in
   
-  let msg = Printexc.to_string exp
-  and stack = Printexc.get_backtrace () in
-  Format.printf "\nException: \n%s\n%s\n@." msg stack;
+  let msg = Printexc.to_string exp in 
+  Format.printf "\nException: \n%s@." msg;
+
 
   List.iter (Format.printf "\n####  %a\n@." print) astlist;
   List.iter (Format.printf "\n>>>>  %a\n\n@." Commands.print) cmds;
