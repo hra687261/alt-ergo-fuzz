@@ -9,20 +9,17 @@ first place.
 open AltErgoLib 
 open Ast
 
-module SAT = Fun_sat.Make(Theory.Main_Default)
-module FE = Frontend.Make(SAT)
-
 let inputs = ref []
 
-let _ =
+let () =
   Arg.parse []
     (fun s -> inputs := s::!inputs)
     "Usage: ./rerun.exe file"
 
-let _ = Options.set_is_gui false
+let () = Options.set_is_gui false
 
-let _ =
-  Format.printf "RERUNNING @.";
+let () =
+  Format.printf "\n\nRERUNNING @.";
   assert (List.length !inputs = 1);
   let file = List.hd !inputs in 
   let line = Core.In_channel.read_all file in 
@@ -46,7 +43,9 @@ let _ =
 
   List.iter (Format.printf "\n####  %a\n@." print) astlist;
   List.iter (Format.printf "\n>>>>  %a\n\n@." Commands.print) cmds;
-  
+
+  let module SAT = Fun_sat.Make(Theory.Main_Default) in
+  let module FE = Frontend.Make(SAT) in
   let _, consistent, _ = 
     List.fold_left 
       ( fun acc d ->

@@ -141,8 +141,6 @@ let ast_gen =
       [ag_aux Tbool max_fuel]
       quantify
 
-module SAT = Fun_sat.Make(Theory.Main_Default)
-module FE = Frontend.Make(SAT)
 
 let proc astlist = 
   let cmds = 
@@ -158,6 +156,8 @@ let proc astlist =
   List.iter (Format.printf "\n####  %a\n" print) astlist;
   List.iter (Format.printf "\n>>>>  %a\n@." Commands.print) cmds;
   *)
+  let module SAT = Fun_sat.Make(Theory.Main_Default) in
+  let module FE = Frontend.Make(SAT) in
   try         
     let _, consistent, ex = 
       List.fold_left 
@@ -170,12 +170,14 @@ let proc astlist =
         (SAT.empty (), true, Explanation.empty) 
         cmds
     in
+      SAT.reset_refs ();
       ignore ex; 
       ignore consistent;
       true
     with 
     | exp ->
 
+      SAT.reset_refs ();
       List.iter (Format.printf "\n####  %a\n" print) astlist;
       List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
 

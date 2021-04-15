@@ -249,9 +249,9 @@ let quantify ast =
         ( fun exp (vs, kd) -> 
             match kd with 
             | EQ -> 
-              Exists {vars = vs, add_triggers vs exp; body = exp}
+              Exists {vars = vs, [](*add_triggers vs exp*); body = exp}
             | UQ -> 
-              Forall {vars = vs, add_triggers vs exp; body = exp}
+              Forall {vars = vs, [](*add_triggers vs exp*); body = exp}
             | US -> assert false)
         ast nnvs
       | [] -> ast

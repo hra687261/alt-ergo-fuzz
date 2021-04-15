@@ -46,8 +46,11 @@ www/
 # Generated fuzzing output files 
 test/fuzzing/output/*
 test/fuzzing/crash_output/*
+test/fuzzing/output/sync_dir/*
+
 !test/fuzzing/output/.keep
 !test/fuzzing/crash_output/.keep
+!test/fuzzing/crash_output/sync_dir/.keep
 
 # Generated bisect coverage files
 _coverage/*
