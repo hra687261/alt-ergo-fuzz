@@ -556,7 +556,7 @@ let rec ast_to_expr ast =
               nb_triggers = 1;
               triggers_var = true;
               no_ematching = false;
-              greedy = true;
+              greedy = false;
               use_cs = false;
               backward = Util.Normal;
             })
@@ -599,7 +599,7 @@ let rec ast_to_expr ast =
               nb_triggers = 1;
               triggers_var = true;
               no_ematching = false;
-              greedy = true;
+              greedy = false;
               use_cs = false;
               backward = Util.Normal;
             })
