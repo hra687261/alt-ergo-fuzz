@@ -14,4 +14,6 @@
  (names afl_fuzzing rerun)
  (public_names afl_fuzzing rerun)
  (libraries alt-ergo-lib crowbar core)
- (package alt-ergo-lib))
+ (package alt-ergo-lib)
+ (instrumentation (backend bisect_ppx))
+)

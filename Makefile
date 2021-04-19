@@ -38,7 +38,7 @@ include Makefile.config
 # Some variables to help with adding
 # flags and/or renaming the dune binary
 DUNE=dune
-DUNE_FLAGS= --instrument-with bisect_ppx
+DUNE_FLAGS=
 
 # Definining the sphinx build command
 SPHINXBUILD = sphinx-build
@@ -174,6 +174,12 @@ non-regression: all
 
 .PHONY: non-regression
 
+coverage :
+	$(DUNE) build $(DUNE_ARGS) --instrument-with bisect_ppx @test/runtest --no-buffer -j 1 --force || true
+	bisect-ppx-report html
+	@echo See _coverage/index.html
+
+.PHONY : coverage
 
 # ============
 # Installation
