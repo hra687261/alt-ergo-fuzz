@@ -52,8 +52,10 @@ test/fuzzing/output/sync_dir/*
 !test/fuzzing/crash_output/.keep
 !test/fuzzing/output/sync_dir/.keep
 
-# Generated bisect coverage files
+# Generated coverage and profiling files
 _coverage/*
 _coverage
 *.coverage
 bisect.log
+
+spacetime-*

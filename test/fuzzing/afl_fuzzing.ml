@@ -141,7 +141,9 @@ let ast_gen =
       [ag_aux Tbool max_fuel]
       quantify
 
-
+let reinit_env () = 
+  Expr.clear_hc ()
+  
 let proc astlist = 
   let cmds = 
     List.map 
@@ -170,9 +172,10 @@ let proc astlist =
         (SAT.empty (), true, Explanation.empty) 
         cmds
     in
-      SAT.reset_refs ();
       ignore ex; 
       ignore consistent;
+      SAT.reset_refs ();
+      reinit_env ();
       true
     with 
     | exp ->
@@ -191,13 +194,14 @@ let proc astlist =
       Printf.fprintf oc "%s" tmp;
       flush stdout;
       close_out oc; 
+      SAT.reset_refs ();
+      reinit_env ();
       raise exp 
 
-let () = Options.set_is_gui false
-
-let test_id = ref 0 
 
 let () =
+  Options.set_disable_weaks true;
+  Options.set_is_gui false;
   Cr.add_test ~name:"ae" [ast_gen] 
   @@ fun m -> 
   Cr.check (proc [m])

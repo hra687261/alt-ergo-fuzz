@@ -2542,3 +2542,5 @@ type th_elt =
 
 let print_th_elt fmt t =
   Format.fprintf fmt "%s/%s: @[<hov>%a@]" t.th_name t.ax_name print t.ax_form
+
+let clear_hc () = HC.empty ()
