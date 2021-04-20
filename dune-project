@@ -28,7 +28,6 @@ See more details on https://alt-ergo.ocamlpro.com/")
   (ocaml (>= 4.05.0))
   ;(dune (>= 2.0))
   dune
-  ;bisect_ppx
   (alt-ergo-lib (= :version))
   (alt-ergo-parsers (= :version))
    menhir
@@ -55,7 +54,6 @@ See more details on https://alt-ergo.ocamlpro.com/"
   (ocaml (>= 4.05.0))
   ;(dune (>= 2.0))
   dune
-  ;bisect_ppx
   (alt-ergo-lib (= :version))
   (alt-ergo-parsers (= :version))
   lablgtk
@@ -83,7 +81,6 @@ See more details on http://alt-ergo.ocamlpro.com/"
   (ocaml (>= 4.05.0))
   ;(dune (>= 2.0))
   dune
-  ;bisect_ppx
   (alt-ergo-lib (= :version))
   (psmt2-frontend (>= 0.3))
   (camlzip (>= 1.07))
@@ -112,6 +109,7 @@ See more details on http://alt-ergo.ocamlpro.com/"
   ;(dune (>= 2.0))
   dune
   bisect_ppx
+  memtrace
   dune-configurator
   num
   (ocplib-simplex (>= 0.4))

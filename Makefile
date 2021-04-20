@@ -174,13 +174,6 @@ non-regression: all
 
 .PHONY: non-regression
 
-coverage :
-	$(DUNE) build $(DUNE_ARGS) --instrument-with bisect_ppx @test/runtest --no-buffer -j 1 --force || true
-	bisect-ppx-report html
-	@echo See _coverage/index.html
-
-.PHONY : coverage
-
 # ============
 # Installation
 # ============

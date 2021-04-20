@@ -142,7 +142,8 @@ let ast_gen =
       quantify
 
 let reinit_env () = 
-  Expr.clear_hc ()
+  Expr.clear_hc ();
+  Shostak.Combine.empty_cache ()
   
 let proc astlist = 
   let cmds = 

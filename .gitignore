@@ -59,3 +59,4 @@ _coverage
 bisect.log
 
 spacetime-*
+*.ctf
