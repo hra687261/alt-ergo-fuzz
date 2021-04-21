@@ -358,7 +358,7 @@ let quantify ast =
         List.fold_left 
           (fun acc x -> 
             List.map 
-              (fun x -> (List.rev rpath, x))
+              (fun x -> (rpath, x))
               (get_vars x) @ acc) 
           [] args 
       in 
