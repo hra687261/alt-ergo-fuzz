@@ -2,18 +2,13 @@ open AltErgoLib
 
 module Sy = Symbols 
 
-let max_fuel = 3
-let nb_usym_vars = 3
-let nb_usym_funcs = 3
-let nb_q_vars = 3
-let v_id = ref 0 
-
 type ty = Tint | Treal | Tbool 
 
 type vkind = 
   | EQ (* Exisancially quantified *)
   | UQ (* Universally quantified *)
   | US (* Uninterpreted symbol *)
+  | ARG (* Function/predicate argument *)
 
 type cst = 
   | CstI of int 
@@ -35,13 +30,21 @@ type ast =
   | Var of vty
   | Unop of unop * ast 
   | Binop of binop * ast * ast
-  | Fun of func
+  | FunCall of fcall
   | Forall of quant
   | Exists of quant
 and quant =
   {vars: vty list * ast list; body: ast}
-and func =
+and fcall =
   {fname: string; rty: ty; args: ast list}
+
+type cmd =
+  | FuncDef of fdef
+  | Axiom of {name: string; body: ast} 
+  | Goal of {name: string; body: ast}
+and fdef = 
+  { name: string; body: ast; 
+    aty: (string * ty) list; rty : ty}
 
 let print_binop fmt binop =
   Format.fprintf fmt @@
@@ -80,7 +83,7 @@ let rec print fmt ast =
   | Binop (binop, x, y) ->
     Format.fprintf fmt "(%a %a %a)" print x print_binop binop print y 
 
-  | Fun {fname; args; _} -> 
+  | FunCall {fname; args; _} -> 
     Format.fprintf fmt "%s(" fname;
     let _ = 
       List.fold_left 
@@ -112,15 +115,15 @@ let rec print fmt ast =
       List.iter (Format.fprintf fmt " %a;" print) trs; 
       Format.fprintf fmt "} %a" print body
 
-let mk_vars pref ty vk=
-  let rec aux nb = 
-    match nb = 0 with 
-    | true -> []
-    | false -> 
-      let vname = (pref^string_of_int (nb_usym_vars-nb)) in 
-        Var {vname; ty; vk; id = (incr v_id; !v_id)} ::aux (nb-1)  
-  in 
-    aux nb_usym_vars
+let print_cmd fmt cmd = 
+  match cmd with 
+  | FuncDef {name; body; _} -> 
+    Format.fprintf fmt "FuncDef(%s):\n%a@." name print body
+  | Axiom {name; body} ->
+    Format.fprintf fmt "Axiom(%s):\n%a@." name print body
+  | Goal {name; body} ->
+    Format.fprintf fmt "Goal(%s):\n%a@." name print body
+
 
 let mk_binop bop x y =
   Binop (bop, x, y)
@@ -190,7 +193,7 @@ let add_triggers vs ast =
       | Unop (_,  x) -> check_trigger (vbl, f) x 
       | Binop (_, x, y) -> 
         lor_ (check_trigger (vbl, f) x) (check_trigger (vbl, f) y)
-      | Fun {args; _} -> ( 
+      | FunCall {args; _} -> ( 
           match args with 
           | h::t -> 
             List.fold_left 
@@ -212,7 +215,7 @@ let add_triggers vs ast =
     | Unop (_, x) -> add_triggers_aux foundv x
     | Binop (_, x, y) ->
       aux x @ aux y
-    | Fun _ -> aux ast 
+    | FunCall _ -> aux ast 
     | Forall {body; _} -> aux body
     | Exists {body; _} -> aux body
     | _ -> []
@@ -249,10 +252,10 @@ let quantify ast =
         ( fun exp (vs, kd) -> 
             match kd with 
             | EQ -> 
-              Exists {vars = vs, [](*add_triggers vs exp*); body = exp}
+              Exists {vars = vs, add_triggers vs exp; body = exp}
             | UQ -> 
-              Forall {vars = vs, [](*add_triggers vs exp*); body = exp}
-            | US -> assert false)
+              Forall {vars = vs, add_triggers vs exp; body = exp}
+            | US | ARG -> assert false)
         ast nnvs
       | [] -> ast
     in 
@@ -274,11 +277,11 @@ let quantify ast =
           | _ -> assert false)
       | Empty -> ast)
 
-    | Fun {fname; rty; args} -> (
+    | FunCall {fname; rty; args} -> (
       match pt with
       | Node (vs, pstl) -> 
         q_aux_bis vs 
-          (Fun {fname; rty; args = aux_call args pstl})
+          (FunCall {fname; rty; args = aux_call args pstl})
       | Empty -> ast)
       
     | Unop (op, x) -> Unop (op, quantify_aux x pt) 
@@ -315,7 +318,7 @@ let quantify ast =
       | Binop (_, x, y) ->
         get_vars x @ get_vars y 
       | Unop (_, x) -> get_vars x
-      | Fun {args; _} -> 
+      | FunCall {args; _} -> 
         List.fold_left 
           ( fun l x -> 
             get_vars x @ l)
@@ -345,14 +348,14 @@ let quantify ast =
         ( fun x -> (rpath, x)) 
         ( get_vars x)
 
-    | Fun {args; rty = Tbool; _} -> 
+    | FunCall {args; rty = Tbool; _} -> 
       fst @@
       List.fold_left 
         ( fun (l, n) x -> 
             q_aux (n::path) x @ l, n + 1)
         ([], 0)
         args
-    | Fun {args; _} -> 
+    | FunCall {args; _} -> 
       let rpath = List.rev (List.tl path) in 
       let vars = 
         List.fold_left 
@@ -495,15 +498,15 @@ let rec ast_to_expr ast =
       (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Tbool 
 
-  | Fun {fname; rty = Tint; args} -> 
+  | FunCall {fname; rty = Tint; args} -> 
     Expr.mk_term 
       (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map ast_to_expr args) Ty.Tint
-  | Fun {fname; rty = Treal; args} -> 
+  | FunCall {fname; rty = Treal; args} -> 
     Expr.mk_term 
       (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map ast_to_expr args) Ty.Treal
-  | Fun {fname; rty = Tbool; args} -> 
+  | FunCall {fname; rty = Tbool; args} -> 
     Expr.mk_term 
       (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map ast_to_expr args) Ty.Tbool
@@ -524,6 +527,22 @@ let rec ast_to_expr ast =
     Expr.mk_term 
       (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] Ty.Tbool 
+
+
+  (* ??? *)
+  | Var {vname; ty=Tbool; vk=ARG; _ } ->
+    Expr.mk_term 
+    (Sy.Name (Hstring.make vname, Sy.Other)) 
+    [] Ty.Tbool 
+  | Var {vname; ty=Treal; vk=ARG; _ } ->
+    Expr.mk_term 
+    (Sy.Name (Hstring.make vname, Sy.Other)) 
+    [] Ty.Treal 
+  | Var {vname; ty=Tint; vk=ARG; _ } ->
+    Expr.mk_term 
+    (Sy.Name (Hstring.make vname, Sy.Other)) 
+    [] Ty.Tint 
+  (* ??? *)
 
   | Forall {vars = (vs, trs); body} -> 
     let binders = 
@@ -613,20 +632,26 @@ let rec ast_to_expr ast =
       ~toplevel:false 
       ~decl_kind:Expr.Dgoal
 
-let mk_cmd_query name expr gsty = 
-  Commands.{ 
-    st_loc = Loc.dummy;
-    st_decl = 
-      Commands.Query (name, expr, gsty)}
-
-let mk_cmd_assume name expr b =
-  Commands.{ 
-    st_loc = Loc.dummy;
-    st_decl = 
-      Commands.Assume (name, expr, b)}
-
-let mk_cmd_preddef name expr =
-  Commands.{ 
-    st_loc = Loc.dummy;
-    st_decl = 
-      Commands.PredDef (expr, name)}
+let cmd_to_commad cmd = 
+  match cmd with 
+  
+  | Axiom {name; body} ->
+    Commands.{ 
+      st_loc = Loc.dummy;
+      st_decl = Assume (name, ast_to_expr body, true)}
+      
+  | Goal {name; body} ->
+    Commands.{ 
+      st_loc = Loc.dummy;
+      st_decl = Query (name, ast_to_expr body, Typed.Thm)}
+  
+  | FuncDef {name; body; rty; _} -> (
+    match rty with 
+    | Tbool ->
+      Commands.{ 
+        st_loc = Loc.dummy;
+        st_decl = PredDef ( ast_to_expr body, name)}
+    | Tint | Treal ->
+      Commands.{
+        st_loc = Loc.dummy;
+        st_decl = Assume (name, ast_to_expr body, true)})

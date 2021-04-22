@@ -4,23 +4,21 @@ open Ast
 module Cr = Crowbar 
 module Sy = Symbols 
 
-let thmid = ref 0
+let query_max_depth = 3
+let axiom_max_depth = 3
+let func_max_depth = 3
 
-let i_usymv, r_usymv, b_usymv =
-  mk_vars "iuv" Tint US,
-  mk_vars "ruv" Treal US,
-  mk_vars "buv" Tbool US
+let nb_usym_vars = 3
+let nb_usym_funcs = 3
+let nb_funs = 3
+let nb_q_vars = 3
 
-let i_uqv, r_uqv, b_uqv =
-  mk_vars "iuqv" Tint UQ,
-  mk_vars "ruqv" Treal UQ,
-  mk_vars "buqv" Tbool UQ
+let v_id, thmid, axid, gid = ref 0, ref 0, ref 0, ref 0
 
-let i_eqv, r_eqv, b_eqv =
-  mk_vars "ieqv" Tint EQ,
-  mk_vars "reqv" Treal EQ,
-  mk_vars "beqv" Tbool EQ
-  
+let mk_usym_var pref ty vk num = 
+  let vname = pref ^ string_of_int num in 
+    Var {vname; ty; vk; id = (incr v_id; !v_id)}
+
 let get_usymf num rty args = 
   let fname = 
     ( match rty with 
@@ -29,7 +27,7 @@ let get_usymf num rty args =
       | Tbool -> "buf_") 
     ^ string_of_int num 
   in
-    Fun {fname; rty; args} 
+    FunCall {fname; rty; args} 
 
 let cst_gen ty = 
   match ty with 
@@ -55,20 +53,16 @@ let binop_gen ty fuel bop gen =
     ( fun x y -> 
         mk_binop bop x y)  
 
-let unop_gen ty fuel uop gen = 
-  Cr.map [gen ty (fuel - 1)] (fun x -> mk_unop uop x)  
-
 let usymv_gen ty = 
   Cr.map 
     [Cr.range nb_usym_vars] 
     ( fun pos -> 
-        List.nth (
-        match ty with
-        | Tint -> i_usymv
-        | Treal -> r_usymv
-        | Tbool -> b_usymv) pos)
+        ( match ty with
+          | Tint -> mk_usym_var "iusv" 
+          | Treal -> mk_usym_var "rusv" 
+          | Tbool -> mk_usym_var "busv") ty US pos)
 
-let usymf_gen ty gen fuel = 
+let usymf_genl ty gen fuel = 
   [ Cr.map 
       [ gen Tint (fuel-1)] 
       ( fun arg1 -> 
@@ -91,77 +85,146 @@ let qv_gen ty =
     [Cr.bool; Cr.range nb_q_vars] 
     ( fun b pos -> 
         match b with 
-        | true -> (
-          List.nth (
-            match ty with
-            | Tint -> i_uqv
-            | Treal -> r_uqv
-            | Tbool -> b_uqv) pos)
-        | false ->
-          List.nth (
-            match ty with
-            | Tint -> i_eqv
-            | Treal -> r_eqv
-            | Tbool -> b_eqv) pos)
+        | true -> 
+          ( match ty with
+            | Tint -> mk_usym_var "iuqv"
+            | Treal -> mk_usym_var "ruqv" 
+            | Tbool -> mk_usym_var "buqv") ty UQ pos
+        | false -> 
+          ( match ty with
+            | Tint -> mk_usym_var "ieqv"
+            | Treal -> mk_usym_var "reqv" 
+            | Tbool -> mk_usym_var "beqv") ty EQ pos)
 
-let ast_gen =
-  let rec ag_aux ty fuel = 
+let get_arg_gens ty args =
+  List.map 
+    ( fun (vname, vty) -> 
+        Cr.const @@
+        Var {vname; ty=vty; vk=ARG; id = (incr v_id; !v_id)})
+    ( List.filter 
+        (fun ( _, t) -> ty = t) 
+        args)
+
+let get_fcall_gens gen fdefs rty fuel = 
+  List.map 
+    ( fun f -> 
+        ( match List.length f.aty with 
+          | 1 -> 
+            Cr.map
+              [gen Tint (fuel-1)]
+              ( fun x1 -> 
+                FunCall {fname = f.name; rty; args = [x1]})
+          | 2 -> 
+            Cr.map
+              [ gen Tint (fuel-1); 
+                gen Treal (fuel-1)]
+              ( fun x1 x2 -> 
+                FunCall {fname = f.name; rty; args = [x1; x2]})
+          | 3 -> 
+            Cr.map
+              [ gen Tint (fuel-1); 
+                gen Treal (fuel-1);
+                gen Tbool (fuel-1)]
+              ( fun x1 x2 x3 -> 
+                FunCall {fname = f.name; rty; args = [x1; x2; x3]})
+          | _ -> assert false))
+  @@
+  List.filter 
+    ( fun f -> f.rty = rty) 
+    fdefs
+
+let ast_gen ?(args = []) ?(funcs = []) ty  =
+  ignore args;
+  let rec ag_aux (funcs: fdef list) ty fuel = 
     match fuel <= 0 with 
     | true -> 
       Cr.choose @@  
-        [cst_gen ty; usymv_gen ty; qv_gen ty]
+        [cst_gen ty; usymv_gen ty; qv_gen ty] 
+        (*@ get_arg_gens ty args*)
+
     | false -> 
       Cr.choose @@
-        (* 
         cst_gen ty ::
         usymv_gen ty :: 
-        qv_gen ty ::*)
-        usymf_gen ty ag_aux fuel @
+        usymf_genl ty (ag_aux funcs) fuel @
+        
+        (*get_arg_gens ty args @
+        get_fcall_gens (ag_aux funcs) funcs ty fuel @*)
+
         ( match ty with 
           | Tint -> 
             List.map 
-              (fun bop -> binop_gen ty fuel bop ag_aux)
+              (fun bop -> binop_gen ty fuel bop (ag_aux funcs))
               [ IAdd; ISub; IMul; IDiv; IMod; IPow]
           | Treal ->
             List.map 
-              (fun bop -> binop_gen ty fuel bop ag_aux)
+              (fun bop -> binop_gen ty fuel bop (ag_aux funcs))
               [ RAdd; RSub; RMul; RDiv; RPow]
           | Tbool ->
             List.map 
-              (fun bop -> binop_gen ty fuel bop ag_aux)
+              (fun bop -> binop_gen ty fuel bop (ag_aux funcs))
               [ And; Or; Xor; Imp; Iff] @   
             List.map 
-              (fun bop -> binop_gen Tint fuel bop ag_aux)
+              (fun bop -> binop_gen Tint fuel bop (ag_aux funcs))
               [ Lt; Le; Gt; Ge; Eq; Neq] @   
             List.map 
-              (fun bop -> binop_gen Treal fuel bop ag_aux)
+              (fun bop -> binop_gen Treal fuel bop (ag_aux funcs))
               [ Lt; Le; Gt; Ge; Eq; Neq])
   in 
+    ag_aux funcs ty query_max_depth
+
+let goal_gen () =
+  Cr.map 
+    [ast_gen Tbool]
+    ( fun ast ->
+        Goal {
+          name = "goal_" ^ (incr gid; string_of_int !gid);
+          body = quantify ast})
+
+let axiom_gen () =
+  Cr.map 
+  [ast_gen Tbool]
+  ( fun ast ->
+      Axiom {
+        name = "ax_" ^ (incr axid; string_of_int !axid);
+        body = quantify ast})
+  
+let fdef_gen rty n = 
+  let args = 
+    match n with 
+    | 0 -> [ "x1", Tint;]
+    | 1 -> [ "x1", Tint; "x2", Treal;]
+    | 2 -> [ "x1", Tint; "x2", Treal; "x3", Tbool;]
+    | _ -> assert false
+  in
     Cr.map 
-      [ag_aux Tbool max_fuel]
-      quantify
+    [ast_gen ~args rty]
+    ( fun ast ->
+        FuncDef {
+          name = (
+            match rty with 
+            | Tint -> "ifun_" 
+            | Treal -> "rfun_" 
+            | Tbool -> "bfun_" ) ^ string_of_int n;
+          body = quantify ast; 
+          aty = args; rty})
+
+module SAT = Fun_sat.Make(Theory.Main_Default)
+module FE = Frontend.Make(SAT)
 
 let reinit_env () = 
+  SAT.reset_refs ();
   Expr.clear_hc ();
   Shostak.Combine.empty_cache ()
   
-let proc astlist = 
-  let cmds = 
-    List.map 
-      ( fun x -> 
-          let expr = ast_to_expr x in 
-          let name = "thm" ^ string_of_int (incr thmid; !thmid) in 
-          let gsty = Typed.Thm in 
-            mk_cmd_query name expr gsty)
-      astlist
-  in
-  (*
-  List.iter (Format.printf "\n####  %a\n" print) astlist;
-  List.iter (Format.printf "\n>>>>  %a\n@." Commands.print) cmds;
-  *)
-  let module SAT = Fun_sat.Make(Theory.Main_Default) in
-  let module FE = Frontend.Make(SAT) in
-  try         
+let proc cmdlist = 
+  try
+    let cmds = 
+      List.map 
+        cmd_to_commad
+        cmdlist
+    in
+
     let _, consistent, ex = 
       List.fold_left 
         ( fun acc d ->
@@ -175,34 +238,36 @@ let proc astlist =
     in
       ignore ex; 
       ignore consistent;
-      SAT.reset_refs ();
       reinit_env ();
       true
     with 
     | exp ->
+      
+      List.iter (Format.printf "\n####  %a\n" print_cmd) cmdlist;
+      Printexc.print_backtrace stdout;
 
-      SAT.reset_refs ();
-      List.iter (Format.printf "\n####  %a\n" print) astlist;
-      List.iter (Format.printf "\n>>>>  %a\n" Commands.print) cmds;
-
-      let tmp = Stdlib.Marshal.to_string (exp, astlist) [] in
+      let tmp = Stdlib.Marshal.to_string (exp, cmdlist) [] in
       let time = Unix.gettimeofday () in
       let file = 
         "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
       in
-      Format.printf "\nWriting to file : %s\n@." file;
       let oc = open_out file in 
+      
+      Format.printf "\nWriting to file : %s\n@." file;
       Printf.fprintf oc "%s" tmp;
       flush stdout;
       close_out oc; 
-      SAT.reset_refs ();
       reinit_env ();
       raise exp 
 
-
 let () =
+  (*Memtrace.trace_if_requested ();*)
   Options.set_disable_weaks true;
   Options.set_is_gui false;
-  Cr.add_test ~name:"ae" [ast_gen] 
-  @@ fun m -> 
-  Cr.check (proc [m])
+  Cr.add_test ~name:"ae" [goal_gen ()] 
+  @@ fun x -> Cr.check (proc [x]) 
+  (*
+  (*Out_of_memory bug reproduction in afl mode*)
+  Cr.add_test ~name:"ae" [axiom_gen (); goal_gen ()] 
+  @@ fun x y -> Cr.check (proc [x; y])
+  *)

@@ -9,6 +9,9 @@ first place.
 open AltErgoLib 
 open Ast
 
+module SAT = Fun_sat.Make(Theory.Main_Default)
+module FE = Frontend.Make(SAT)
+
 let inputs = ref []
 
 let () =
@@ -21,31 +24,23 @@ let () = Options.set_is_gui false
 let () =
   Format.printf "\n\nRERUNNING @.";
   assert (List.length !inputs = 1);
+  
   let file = List.hd !inputs in 
   let line = Core.In_channel.read_all file in 
-  let (exp, astlist) : exn * ast list = Marshal.from_string line 0 in 
+  
+  let (exp, cmdlist) : exn * cmd list = Marshal.from_string line 0 in 
+  let msg = Printexc.to_string exp in 
+  Format.printf "\nException: %s\n@." msg;
+  List.iter (Format.printf "####  %a" print_cmd) cmdlist;
+
   let cmds = 
     List.map 
-      ( fun x -> 
-          let expr = ast_to_expr x in 
-          let name = "thm" ^ string_of_int 0 in 
-          let gsty = Typed.Thm in 
-            Commands.{ 
-              st_loc = Loc.dummy;
-              st_decl = 
-                Commands.Query (name, expr, gsty)})
-      astlist
+      cmd_to_commad
+      cmdlist
   in
-  
-  let msg = Printexc.to_string exp in 
-  Format.printf "\nException: \n%s@." msg;
+  Format.printf "\n";
+  List.iter (Format.printf ">>>>  %a@." Commands.print) cmds;
 
-
-  List.iter (Format.printf "\n####  %a\n@." print) astlist;
-  List.iter (Format.printf "\n>>>>  %a\n\n@." Commands.print) cmds;
-
-  let module SAT = Fun_sat.Make(Theory.Main_Default) in
-  let module FE = Frontend.Make(SAT) in
   let _, consistent, _ = 
     List.fold_left 
       ( fun acc d ->
