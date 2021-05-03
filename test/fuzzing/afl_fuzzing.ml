@@ -113,13 +113,13 @@ let get_fcall_gens gen (fdefs: fdef list) rtyp fuel =
     ( fun f -> f.rtyp = rtyp) 
     fdefs
 
-let ast_gen ?(args = []) ?(funcs = []) ty  =
-  ignore args;
+let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) ty =
   let rec ag_aux funcs ty fuel = 
     match fuel <= 0 with 
     | true -> 
       Cr.choose @@  
-        [cst_gen ty; usymv_gen ty; qv_gen ty] 
+        [cst_gen ty; usymv_gen ty]
+        @ (if qvars then [qv_gen ty] else []) 
         @ get_arg_gens ty args
 
     | false -> 
@@ -127,7 +127,8 @@ let ast_gen ?(args = []) ?(funcs = []) ty  =
         cst_gen ty ::
         usymv_gen ty :: 
         usymf_genl ty (ag_aux funcs) fuel @
-        
+        (if qvars then [qv_gen ty] else []) @
+
         get_arg_gens ty args @
         get_fcall_gens (ag_aux funcs) funcs ty fuel @
 
@@ -184,7 +185,7 @@ let funcdef_gen ?(funcs = []) () =
         [aux "ia" Tint] 
       in 
       Cr.map 
-        [ast_gen ~args:atyp ~funcs rtyp]
+        [ast_gen ~qvars:false ~args:atyp ~funcs rtyp]
         (fun body ->
           let name, _ = aux2 rtyp 0 in 
           let fd = {name; body; atyp; rtyp} in 
@@ -195,10 +196,10 @@ let funcdef_gen ?(funcs = []) () =
         [aux "ia" Tint; aux "ra" Treal] 
       in
       Cr.map 
-        [ast_gen ~args:atyp ~funcs rtyp]
+        [ast_gen ~qvars:false ~args:atyp ~funcs rtyp]
         (fun body ->
           let name, _ = aux2 rtyp 1 in 
-          let fd = {name; body; atyp; rtyp} in 
+          let fd = {name; body = quantify body; atyp; rtyp} in 
             fdefs := fd :: !fdefs;
             FuncDef fd));
 
@@ -206,7 +207,7 @@ let funcdef_gen ?(funcs = []) () =
         [aux "ia" Tint; aux "ra" Treal; aux "ba" Tbool] 
       in 
       Cr.map 
-        [ast_gen ~args:atyp ~funcs rtyp]
+        [ast_gen ~qvars:false ~args:atyp ~funcs rtyp]
         (fun body ->
           let name, _ = aux2 rtyp 2 in 
           let fd = {name; body; atyp; rtyp} in 
