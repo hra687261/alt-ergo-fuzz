@@ -205,12 +205,6 @@ let funcdef_gen ?(funcs = []) () =
       (let atyp = 
         [aux "ia" Tint; aux "ra" Treal; aux "ba" Tbool] 
       in 
-      List.iter 
-      (fun n ->
-        Format.printf "XXX %d %s)\n" 
-          n.id n.vname)
-        atyp;
-
       Cr.map 
         [ast_gen ~args:atyp ~funcs rtyp]
         (fun body ->
