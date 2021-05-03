@@ -2,7 +2,19 @@ open AltErgoLib
 
 module Sy = Symbols 
 
-type ty = Tint | Treal | Tbool 
+let query_max_depth = 2
+let axiom_max_depth = 3
+let func_max_depth = 3
+
+let nb_usym_vars = 3
+let nb_usym_funcs = 3
+let nb_funs = 3
+let nb_q_vars = 3
+
+let v_id, thmid, axid, gid, qid, fid = 
+  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
+
+type typ = Tint | Treal | Tbool 
 
 type vkind = 
   | EQ (* Exisancially quantified *)
@@ -23,43 +35,72 @@ type binop =
   
 type unop = Neg | Not 
 
-type vty = {vname: string; ty: ty; vk: vkind; id: int}
+type tvar = 
+  { vname: string; vty: typ; 
+    vk: vkind; id: int}
+
+module ES = Expr.Set
+
+module VS = Set.Make(
+  struct 
+    type t = tvar 
+    let compare x y = Int.compare x.id y.id
+  end 
+)
+
+module VM = Map.Make(
+  struct
+    type t = int 
+    let compare = Int.compare
+  end)
 
 type ast = 
   | Cst of cst
-  | Var of vty
+  | Var of tvar
   | Unop of unop * ast 
   | Binop of binop * ast * ast
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
 and quant =
-  {vars: vty list * ast list; body: ast}
+  {qvars: VS.t; trgs: ast list; body: ast}
 and fcall =
-  {fname: string; rty: ty; args: ast list}
+  {fname: string; rtyp: typ; args: ast list}
 
 type cmd =
-  | FuncDef of fdef
   | Axiom of {name: string; body: ast} 
   | Goal of {name: string; body: ast}
+  | FuncDef of fdef
 and fdef = 
   { name: string; body: ast; 
-    aty: (string * ty) list; rty : ty}
+    atyp: tvar list; rtyp : typ}
+
+let typ_to_ty typ = 
+  match typ with  
+  | Tint -> Ty.Tint
+  | Treal -> Ty.Treal
+  | Tbool -> Ty.Tbool
+
+let print_typ fmt typ = 
+  match typ with 
+  | Tint -> Format.fprintf fmt "int"
+  | Treal -> Format.fprintf fmt "real"
+  | Tbool -> Format.fprintf fmt "bool"
 
 let print_binop fmt binop =
   Format.fprintf fmt @@
   match binop with 
-  | And ->  "&&"   | Or -> "||"    | Xor -> "xor"
+  | And ->  "&&"   | Or -> "||"     | Xor -> "xor"
   | Imp -> "->"    | Iff-> "<->"
 
-  | Lt -> "<"      | Le -> "<="    | Gt -> ">"
-  | Ge -> ">="     | Eq -> "="     | Neq -> "<>" 
+  | Lt -> "<"      | Le -> "<="     | Gt -> ">"
+  | Ge -> ">="     | Eq -> "="      | Neq -> "<>" 
 
-  | RAdd -> "+."   | RSub -> "-."  | RMul -> "*." 
-  | RDiv -> "/."   | RPow -> "**." 
+  | RAdd -> "+."   | RSub -> "-."   | RMul -> "*." 
+  | RDiv -> "/."   | RPow -> "**."
 
-  | IAdd -> "+"    | ISub -> "-"   | IMul -> "*" 
-  | IDiv -> "/"    | IMod -> "%%"  | IPow -> "**" 
+  | IAdd -> "+"    | ISub -> "-"    | IMul -> "*" 
+  | IDiv -> "/"    | IMod -> "%%"   | IPow -> "**" 
 
 let rec print fmt ast = 
   match ast with 
@@ -89,49 +130,207 @@ let rec print fmt ast =
       List.fold_left 
       ( fun isfist x ->
           if isfist
-          then (Format.fprintf fmt "%a" print x; false)
-          else (Format.fprintf fmt ", %a" print x; false))
+          then (
+            Format.fprintf fmt "%a" print x; 
+            false)
+          else (
+            Format.fprintf fmt ", %a" print x; 
+            false))
       true 
       args in 
       Format.fprintf fmt ")";
 
-  | Forall {vars = (vl, trs); body} ->
+  | Forall {qvars; trgs; body} ->
     Format.fprintf fmt "∀ ";
-    List.iter 
+    VS.iter 
       (fun {vname; _} -> 
         Format.fprintf fmt "%s " vname) 
-      vl;
+      qvars;
     Format.fprintf fmt ".{";
-    List.iter (Format.fprintf fmt " %a;" print) trs; 
+    List.iter (Format.fprintf fmt " %a;" print) trgs; 
     Format.fprintf fmt "} %a" print body
   
-  | Exists {vars = (vl, trs); body} -> 
+  | Exists {qvars; trgs; body} -> 
     Format.fprintf fmt "∃ ";
-    List.iter 
+    VS.iter 
       (fun {vname; _} -> 
         Format.fprintf fmt "%s " vname) 
-      vl;
+      qvars;
       Format.fprintf fmt ".{";
-      List.iter (Format.fprintf fmt " %a;" print) trs; 
+      List.iter (Format.fprintf fmt " %a;" print) trgs; 
       Format.fprintf fmt "} %a" print body
 
 let print_cmd fmt cmd = 
   match cmd with 
-  | FuncDef {name; body; _} -> 
-    Format.fprintf fmt "FuncDef(%s):\n%a@." name print body
+  | FuncDef {name; body; atyp; rtyp} -> 
+    Format.fprintf 
+      fmt 
+      "FuncDef %s %a -> %a :\n%a@." 
+      name 
+      (fun fmt args -> 
+        let rec pr_iter args =
+          match args with 
+          | hd :: [] ->
+            Format.fprintf fmt "(%s: %a)" 
+              hd.vname print_typ hd.vty
+          | hd :: tl ->
+            Format.fprintf fmt "(%s: %a) -> " 
+              hd.vname print_typ hd.vty;
+            pr_iter tl
+          | [] -> ()
+        in
+          pr_iter args)
+      atyp
+      (fun fmt rty -> 
+        Format.fprintf fmt "%a" print_typ rty)
+      rtyp
+      print body
+  
   | Axiom {name; body} ->
     Format.fprintf fmt "Axiom(%s):\n%a@." name print body
   | Goal {name; body} ->
     Format.fprintf fmt "Goal(%s):\n%a@." name print body
 
+let mk_vname pref num = 
+  pref ^ string_of_int num
+
+let mk_tvar vname vty vk = 
+  {vname; vty; vk; id = (incr v_id; !v_id)}
+  
+let mk_var vname vty vk = 
+  Var (mk_tvar vname vty vk)
+
+(* Uninterpreted variables *)
+
+let mk_usymvars nb_usym_vars =
+  let aux pref ty n = 
+    let vname = mk_vname pref n in 
+    mk_var vname ty US ,
+    Sy.Name (Hstring.make vname, Sy.Other)
+  in
+  let tmp = 
+    List.init nb_usym_vars (fun x -> x+1) 
+  in 
+    List.map (aux "iuqv" Tint) tmp,
+    List.map (aux "ruqv" Treal) tmp,
+    List.map (aux "buqv" Tbool) tmp
+
+let i_uvars, r_uvars, b_uvars = mk_usymvars nb_usym_vars
+
+let get_uvar_ast num ty =
+  fst
+  begin
+    match ty with
+    | Tint -> List.nth i_uvars num
+    | Treal -> List.nth r_uvars num
+    | Tbool -> List.nth b_uvars num
+  end
+
+let get_uvar_syty num ty =
+  let (_, sy), rty = 
+    match ty with
+    | Tint -> List.nth i_uvars num, Ty.Tint
+    | Treal -> List.nth r_uvars num, Ty.Treal
+    | Tbool -> List.nth b_uvars num, Ty.Tbool
+  in 
+    sy, rty
+
+let get_uvar_expr num ty =
+  let sy, rty = get_uvar_syty num ty in 
+    Expr.mk_term sy [] rty
+
+(* Uninterpreted functions *)
+
+let mk_usymfuncs nb_usym_funcs =
+  let aux pref n = 
+    let fname = mk_vname pref n in 
+      fname,
+      Sy.Name (Hstring.make fname, Sy.Other)
+  in
+  let tmp = 
+    List.init nb_usym_funcs (fun x -> x+1) 
+  in 
+    List.map (aux "iuf_") tmp,
+    List.map (aux "ruf_") tmp,
+    List.map (aux "buf_") tmp
+
+let i_ufuncs, r_ufuncs, b_ufuncs = mk_usymfuncs nb_usym_funcs
+
+let get_ufunc_ast num ty args = 
+  let (fname, _), rtyp = 
+    begin 
+      match ty with 
+      | Tint -> List.nth i_ufuncs num, Tint
+      | Treal -> List.nth r_ufuncs num, Treal
+      | Tbool -> List.nth b_ufuncs num, Tbool
+    end 
+  in 
+    FunCall {fname; rtyp; args}
+
+let get_ufunc_syty num ty =
+  let (_, sy), rty = 
+    match ty with 
+    | Tint -> List.nth i_ufuncs num, Ty.Tint
+    | Treal -> List.nth r_ufuncs num, Ty.Treal
+    | Tbool -> List.nth b_ufuncs num, Ty.Tbool
+  in 
+    sy, rty
+
+let get_ufunc_expr ate vars num ty args =
+  let sy, rty = get_ufunc_syty num ty in 
+  let rargs = List.map (ate ~vars) args in  
+    Expr.mk_term sy rargs rty
+
+(* User-defined function *)
+
+let mk_udfuncs nb_ud_funcs =
+  let aux pref n = 
+    let fname = mk_vname pref n in 
+      fname,
+      Sy.Name (Hstring.make fname, Sy.Other)
+  in
+  let tmp = 
+    List.init nb_ud_funcs (fun x -> x+1) 
+  in 
+    List.map (aux "iudf_") tmp,
+    List.map (aux "rudf_") tmp,
+    List.map (aux "budf_") tmp
+
+let i_udfs, r_udfs, b_udfs = mk_udfuncs nb_usym_funcs
+
+let get_udfunc_ast num ty args =
+  let (fname, _), rtyp = 
+    begin 
+      match ty with 
+      | Tint -> List.nth i_udfs num, Tint
+      | Treal -> List.nth r_udfs num, Treal
+      | Tbool -> List.nth b_udfs num, Tbool
+    end 
+  in 
+    FunCall {fname; rtyp; args}
+
+let get_udfunc_syty num ty =
+  let (_, sy), rty = 
+    match ty with
+    | Tint -> List.nth i_udfs num, Ty.Tint
+    | Treal -> List.nth r_udfs num, Ty.Treal
+    | Tbool -> List.nth b_udfs num, Ty.Tbool
+  in 
+    sy, rty    
+
+let get_udfunc_expr ate vars num ty args =
+  let sy, rty = get_udfunc_syty num ty in 
+  let rargs = List.map (ate ~vars) args in  
+    Expr.mk_term sy rargs rty
 
 let mk_binop bop x y =
   Binop (bop, x, y)
+
 let mk_unop uop x =
   Unop (uop, x)
 
 type ptree =  
-  | Node of vty list * ptree list
+  | Node of tvar list * ptree list
   | Empty
 
 let rec insert_in_ptree path var ptree =
@@ -244,19 +443,32 @@ let quantify ast =
               if acck = v.vk 
               then (v::cacc, acck, gacc)
               else ([v], v.vk, (cacc, acck)::gacc))
-            
             ([h], h.vk, []) t
         in 
-        let nnvs = (l, k) :: nvs in
+        let nnvs = (l, k) :: nvs in 
+        
         List.fold_left  
-        ( fun exp (vs, kd) -> 
+        ( fun exp (vl, kd) ->
+            let vs = 
+              List.fold_left 
+                (fun acc x -> 
+                  VS.add x acc)
+                VS.empty vl
+            in 
             match kd with 
             | EQ -> 
-              Exists {vars = vs, add_triggers vs exp; body = exp}
+              Exists {
+                qvars = vs; 
+                trgs = [](*add_triggers vs exp*); 
+                body = exp}
             | UQ -> 
-              Forall {vars = vs, add_triggers vs exp; body = exp}
+              Forall {
+                qvars = vs; 
+                trgs = [](*add_triggers vs exp*); 
+                body = exp}
             | US | ARG -> assert false)
         ast nnvs
+        
       | [] -> ast
     in 
     
@@ -277,18 +489,18 @@ let quantify ast =
           | _ -> assert false)
       | Empty -> ast)
 
-    | FunCall {fname; rty; args} -> (
+    | FunCall q -> (
       match pt with
       | Node (vs, pstl) -> 
         q_aux_bis vs 
-          (FunCall {fname; rty; args = aux_call args pstl})
+          (FunCall {q with args = aux_call q.args pstl})
       | Empty -> ast)
       
     | Unop (op, x) -> Unop (op, quantify_aux x pt) 
-    | Forall {vars; body} -> 
-      Forall {vars; body = quantify_aux body pt}
-    | Exists {vars; body} -> 
-      Exists {vars; body = quantify_aux body pt}
+    | Forall q -> 
+      Forall {q with body = quantify_aux q.body pt}
+    | Exists q -> 
+      Exists {q with body = quantify_aux q.body pt}
     
     | _ -> ast
   in 
@@ -335,20 +547,26 @@ let quantify ast =
       x, y) -> 
         q_aux (0::path) x @  q_aux (1::path) y
     | Binop (_, x, y) -> 
-      let rpath = List.rev (List.tl path) in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars x @ get_vars y)
+      let rpath = 
+        if path = [] then [] else
+        List.rev (List.tl path) 
+      in 
+        List.map
+          ( fun x -> (rpath, x)) 
+          ( get_vars x @ get_vars y)
 
     | Unop (Not, x) -> 
       q_aux path x
     | Unop (_, x) -> 
-      let rpath = List.rev path in
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars x)
+      let rpath = 
+        if path = [] then [] else
+        List.rev (List.tl path) 
+      in 
+        List.map
+          ( fun x -> (rpath, x)) 
+          ( get_vars x)
 
-    | FunCall {args; rty = Tbool; _} -> 
+    | FunCall {args; rtyp = Tbool; _} -> 
       fst @@
       List.fold_left 
         ( fun (l, n) x -> 
@@ -356,7 +574,10 @@ let quantify ast =
         ([], 0)
         args
     | FunCall {args; _} -> 
-      let rpath = List.rev (List.tl path) in 
+      let rpath = 
+        if path = [] then [] else
+        List.rev (List.tl path) 
+      in 
       let vars = 
         List.fold_left 
           (fun acc x -> 
@@ -365,10 +586,14 @@ let quantify ast =
               (get_vars x) @ acc) 
           [] args 
       in 
-      vars 
+        vars 
 
     | Var ({vk = (EQ|UQ); _} as var) ->
-      [(List.rev path, var)]
+      let rpath = 
+        if path = [] then [] else
+        List.rev (List.tl path) 
+      in 
+        [(rpath, var)]
     | _ -> []
   in 
 
@@ -399,10 +624,9 @@ let quantify ast =
           insert_in_ptree p v acc)
         Empty nspll
     in 
-      (* print_ptree pt; *)
       quantify_aux ast pt
-  
-let rec ast_to_expr ast = 
+
+let rec ast_to_expr ?(vars = VM.empty) ast = 
   match ast with 
   | Cst (CstI x) -> 
     Expr.int (Int.to_string x)
@@ -413,245 +637,189 @@ let rec ast_to_expr ast =
   | Cst (CstB false) ->
     Expr.faux
   
-  | Binop (And, x, y) ->
-    Expr.mk_and 
-      (ast_to_expr x) (ast_to_expr y) true 0
-  | Binop (Or, x, y) ->
-    Expr.mk_or 
-      (ast_to_expr x) (ast_to_expr y) true 0
+  | Binop (((And | Or | Xor) as op), x, y) ->
+    let x' = ast_to_expr ~vars x in 
+    let y' = ast_to_expr ~vars y in 
+    begin 
+      match op with 
+      | And -> Expr.mk_and x' y' false 0 
+      | Or -> Expr.mk_or x' y' false 0
+      | Xor -> Expr.mk_xor x' y' 0
+      | _-> assert false 
+    end
+
   | Binop (Imp, x, y) ->
     Expr.mk_imp 
-      (ast_to_expr x) (ast_to_expr y) 0
-  | Binop (Xor, x, y) ->
-    Expr.mk_xor 
-      (ast_to_expr x) (ast_to_expr y) 0
+      (ast_to_expr ~vars x) (ast_to_expr ~vars y) 0
   | Binop (Iff, x, y) ->
     Expr.mk_eq ~iff:true 
-      (ast_to_expr x) (ast_to_expr y)
+      (ast_to_expr ~vars x) (ast_to_expr ~vars y)
 
-  | Binop (Lt, x, y) ->
-    Expr.mk_builtin ~is_pos:true Sy.LT
-      [ast_to_expr x; ast_to_expr y]
-  | Binop (Le, x, y) ->
-    Expr.mk_builtin ~is_pos:true Sy.LE
-      [ast_to_expr x; ast_to_expr y]
-  | Binop (Gt, x, y) ->
-    Expr.mk_builtin ~is_pos:false Sy.LE
-      [ast_to_expr x; ast_to_expr y]
-  | Binop (Ge, x, y) ->
-    Expr.mk_builtin ~is_pos:false Sy.LT
-      [ast_to_expr x; ast_to_expr y]
+  | Binop ((Lt | Le | Gt | Ge) as op , x, y) ->
+    let x' = ast_to_expr ~vars x in 
+    let y' = ast_to_expr ~vars y in 
+    let is_pos, sy = 
+      begin
+        match op with 
+        | Lt -> true, Sy.LT
+        | Le -> true, Sy.LE
+        | Gt -> false, Sy.LE
+        | Ge -> false, Sy.LT
+        | _ -> assert false 
+      end
+    in 
+      Expr.mk_builtin ~is_pos sy [x'; y']
 
   | Binop (Eq, x, y) ->
     Expr.mk_eq ~iff:false
-      (ast_to_expr x) (ast_to_expr y)
+      (ast_to_expr ~vars x) (ast_to_expr ~vars y)
   | Binop (Neq, x, y) ->
     Expr.mk_distinct ~iff:false 
-      [ast_to_expr x; ast_to_expr y]
-  
+      [ast_to_expr ~vars x; ast_to_expr ~vars y]
 
-  | Binop (IAdd, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Plus)
-      [ast_to_expr x; ast_to_expr y] Ty.Tint 
-  | Binop (ISub, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Minus)
-      [ast_to_expr x; ast_to_expr y] Ty.Tint 
-  | Binop (IMul, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Mult)
-      [ast_to_expr x; ast_to_expr y] Ty.Tint 
-  | Binop (IDiv, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Div)
-      [ast_to_expr x; ast_to_expr y] Ty.Tint 
-  | Binop (IMod, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Modulo) 
-      [ast_to_expr x; ast_to_expr y] Ty.Tint 
-  | Binop (IPow, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Pow) 
-      [ast_to_expr x; ast_to_expr y] Ty.Tint 
-  
-  | Binop (RAdd, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Plus)
-      [ast_to_expr x; ast_to_expr y] Ty.Treal 
-  | Binop (RSub, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Minus)
-      [ast_to_expr x; ast_to_expr y] Ty.Treal 
-  | Binop (RMul, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Mult)
-      [ast_to_expr x; ast_to_expr y] Ty.Treal 
-  | Binop (RDiv, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Div)
-      [ast_to_expr x; ast_to_expr y] Ty.Treal 
-  | Binop (RPow, x, y) ->
-    Expr.mk_term (Sy.Op Sy.Pow) 
-      [ast_to_expr x; ast_to_expr y] Ty.Treal 
+  | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
+    let x' = ast_to_expr ~vars x in 
+    let y' = ast_to_expr ~vars y in 
+    Expr.mk_term
+    begin
+      match op with 
+      | IAdd -> (Sy.Op Sy.Plus)
+      | ISub -> (Sy.Op Sy.Minus)
+      | IMul -> (Sy.Op Sy.Mult)
+      | IDiv -> (Sy.Op Sy.Div)
+      | IPow -> (Sy.Op Sy.Pow)
+      | IMod -> (Sy.Op Sy.Modulo)
+      | _ -> assert false 
+    end
+    [x'; y'] Ty.Tint
 
-  | Var {vname; ty = Tint; vk = US; _} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] Ty.Tint 
-  | Var {vname; ty = Treal; vk = US; _} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] Ty.Treal 
-  | Var {vname; ty = Tbool; vk = US; _} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] Ty.Tbool 
+  | Binop (((RAdd | RSub | RMul | RDiv | RPow) as op), x, y) ->
+    let x' = ast_to_expr ~vars x in 
+    let y' = ast_to_expr ~vars y in 
+    Expr.mk_term
+    begin
+      match op with 
+      | RAdd -> (Sy.Op Sy.Plus)
+      | RSub -> (Sy.Op Sy.Minus)
+      | RMul -> (Sy.Op Sy.Mult)
+      | RDiv -> (Sy.Op Sy.Div)
+      | RPow -> (Sy.Op Sy.Pow)
+      | _ -> assert false 
+    end
+    [x'; y'] Ty.Treal
 
-  | FunCall {fname; rty = Tint; args} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make fname, Sy.Other)) 
-      (List.map ast_to_expr args) Ty.Tint
-  | FunCall {fname; rty = Treal; args} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make fname, Sy.Other)) 
-      (List.map ast_to_expr args) Ty.Treal
-  | FunCall {fname; rty = Tbool; args} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make fname, Sy.Other)) 
-      (List.map ast_to_expr args) Ty.Tbool
-      
-  | Unop (Neg, x) -> ast_to_expr x
+  | Unop (Neg, x) -> ast_to_expr ~vars x
   | Unop (Not, x) -> 
-    Expr.neg (ast_to_expr x)
+    Expr.neg (ast_to_expr ~vars x)
 
-  | Var {vname; ty=Tint; vk=(EQ|UQ); _} -> 
+  | FunCall {fname; rtyp; args} ->
+    Expr.mk_term 
+      (Sy.Name (Hstring.make fname, Sy.Other)) 
+      (List.map (ast_to_expr ~vars) args)
+      (typ_to_ty rtyp)
+
+  | Var {vname; vty; vk = US; _} -> 
     Expr.mk_term 
       (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] Ty.Tint
-  | Var {vname; ty=Treal; vk=(EQ|UQ); _} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] Ty.Treal 
-  | Var {vname; ty=Tbool; vk=(EQ|UQ); _} -> 
-    Expr.mk_term 
-      (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] Ty.Tbool 
+      [] 
+      (typ_to_ty vty)
 
+  | Var {vname; vk = (EQ | UQ); vty; _} -> 
+    let hsv = Hstring.make vname in 
+    let vsy = Sy.Name (hsv, Sy.Other) in
+    let rvty = typ_to_ty vty in 
+      Expr.mk_term vsy [] rvty
 
-  (* ??? *)
-  | Var {vname; ty=Tbool; vk=ARG; _ } ->
-    Expr.mk_term 
-    (Sy.Name (Hstring.make vname, Sy.Other)) 
-    [] Ty.Tbool 
-  | Var {vname; ty=Treal; vk=ARG; _ } ->
-    Expr.mk_term 
-    (Sy.Name (Hstring.make vname, Sy.Other)) 
-    [] Ty.Treal 
-  | Var {vname; ty=Tint; vk=ARG; _ } ->
-    Expr.mk_term 
-    (Sy.Name (Hstring.make vname, Sy.Other)) 
-    [] Ty.Tint 
-  (* ??? *)
-
-  | Forall {vars = (vs, trs); body} -> 
-    let binders = 
-      List.fold_left 
-      ( fun acc v -> 
-          let rty = (
-            match v.ty with 
-            | Tint -> Ty.Tint
-            | Treal -> Ty.Treal
-            | Tbool -> Ty.Tbool) 
-          in
-          Sy.Map.add 
-            (Sy.Var (Var.of_string v.vname)) 
-            (rty, v.id) acc)
-      Sy.Map.empty vs
-    in
-    let triggers = (* ??? *)
-      List.fold_left 
-        ( fun acc x -> 
-            acc @ x)
-        []
-        @@
-      List.map 
-        ( fun x -> 
-          Expr.make_triggers 
-            (ast_to_expr x) 
-            binders 
-            Expr.Dgoal 
-            Util.{ (* ??? *)
-              nb_triggers = 1;
-              triggers_var = true;
-              no_ematching = false;
-              greedy = false;
-              use_cs = false;
-              backward = Util.Normal;
-            })
-        trs 
+  | Var {vk = ARG; id; _ } ->
+    let sy, ty = VM.find id vars in 
+      Expr.mk_term sy [] ty
+      
+  | Exists {qvars = vs; body; _} 
+  | Forall {qvars = vs; body; _} ->
+    let qvars, bset = 
+        VS.fold
+          (fun x (vs, es) -> 
+            let rty = typ_to_ty x.vty in
+            let hsv = Hstring.make x.vname in 
+            let vsy = Sy.Name (hsv, Sy.Other) in
+            let v = Var.of_hstring hsv in
+            let vsy_ = Sy.Var v in 
+              ES.add (Expr.mk_term vsy_ [] rty) vs,  
+              ES.add (Expr.mk_term vsy [] rty) es)
+          vs
+          (ES.empty, ES.empty)
     in 
-    Expr.mk_forall 
-      "" Loc.dummy 
-      binders
-      triggers (ast_to_expr body) (-42) 
-      ~toplevel:false 
-      ~decl_kind:Expr.Dgoal
-  | Exists {vars = (vs, trs); body} ->
-    let binders = 
-      List.fold_left 
-      ( fun acc v -> 
-          let rty = (
-            match v.ty with 
-            | Tint -> Ty.Tint
-            | Treal -> Ty.Treal
-            | Tbool -> Ty.Tbool) 
-          in
-          Sy.Map.add 
-            (Sy.Var (Var.of_string v.vname)) 
-            (rty, v.id) acc)
-          Sy.Map.empty vs
-    in
-    let triggers = (* ??? *)
-      List.fold_left 
-        ( fun acc x -> 
-            acc @ x)
-        []
-        @@
-      List.map 
-        ( fun x -> 
-          Expr.make_triggers 
-            (ast_to_expr x) 
-            binders 
-            Expr.Dgoal 
-            Util.{ (* ??? *)
-              nb_triggers = 1;
-              triggers_var = true;
-              no_ematching = false;
-              greedy = false;
-              use_cs = false;
-              backward = Util.Normal;
-            })
-        trs 
+    ignore bset;
+    let binders = Expr.mk_binders qvars in 
+    let triggers = [] (* ??? *)
     in 
-    Expr.mk_exists 
-      "" Loc.dummy 
+    begin 
+      match ast with 
+      | Forall _ -> Expr.mk_forall
+      | Exists _ -> Expr.mk_exists
+      | _ -> assert false 
+    end
+      ("q_"^(incr qid; string_of_int !qid))
+      Loc.dummy 
       binders
       triggers 
-      (ast_to_expr body) (-42) 
+      (ast_to_expr ~vars body) (-42) 
       ~toplevel:false 
       ~decl_kind:Expr.Dgoal
 
 let cmd_to_commad cmd = 
   match cmd with 
-  
   | Axiom {name; body} ->
     Commands.{ 
       st_loc = Loc.dummy;
       st_decl = Assume (name, ast_to_expr body, true)}
-      
   | Goal {name; body} ->
     Commands.{ 
       st_loc = Loc.dummy;
       st_decl = Query (name, ast_to_expr body, Typed.Thm)}
-  
-  | FuncDef {name; body; rty; _} -> (
-    match rty with 
-    | Tbool ->
-      Commands.{ 
-        st_loc = Loc.dummy;
-        st_decl = PredDef ( ast_to_expr body, name)}
-    | Tint | Treal ->
-      Commands.{
-        st_loc = Loc.dummy;
-        st_decl = Assume (name, ast_to_expr body, true)})
+  | FuncDef fdef -> 
+    (*Function signature *)
+    let fsy = Sy.Name (Hstring.make fdef.name, Sy.Other) in
+    let fty = typ_to_ty fdef.rtyp in 
+    let vars, es, xs_ =
+      List.fold_left 
+        (fun (vs, es, exps) var -> 
+          let v = Var.of_string var.vname in 
+          let vsy = Sy.Var v in
+          let ty = typ_to_ty var.vty in 
+          let exp = Expr.mk_term vsy [] ty in
+            VM.add var.id (vsy, ty) vs, 
+            ES.add exp es,
+            exp :: exps
+          )
+        (VM.empty, ES.empty, [])
+        fdef.atyp 
+    in
+    let xs = List.rev xs_ in 
+    let fsign = Expr.mk_term fsy xs fty in 
+    
+    (* Function body *)
+    let fbody = ast_to_expr ~vars fdef.body in 
+
+    (* Lemma *)
+    let lem = Expr.mk_eq ~iff:true fsign fbody in
+    let binders = Expr.mk_binders es in 
+      match fdef.rtyp with 
+      | Tint | Treal ->
+        let ret = 
+          Expr.mk_forall 
+            fdef.name Loc.dummy binders [] lem (-42) 
+            ~toplevel:true ~decl_kind:(Expr.Dfunction fsign)
+        in
+        Commands.{
+          st_loc = Loc.dummy;
+          st_decl = Assume (fdef.name, ret, true)}   
+      | Tbool -> 
+        let ret = 
+          Expr.mk_forall 
+            fdef.name Loc.dummy binders [] lem (-42) 
+            ~toplevel:true ~decl_kind:(Expr.Dfunction fsign)
+        in 
+          Commands.{
+            st_loc = Loc.dummy;
+            st_decl = PredDef (ret, fdef.name)}

@@ -31,14 +31,16 @@ let () =
   let (exp, cmdlist) : exn * cmd list = Marshal.from_string line 0 in 
   let msg = Printexc.to_string exp in 
   Format.printf "\nException: %s\n@." msg;
-  List.iter (Format.printf "####  %a" print_cmd) cmdlist;
+
+  List.iter (Format.printf "###  %a" print_cmd) cmdlist;
+  Format.printf "\n@.";
+
 
   let cmds = 
     List.map 
       cmd_to_commad
       cmdlist
   in
-  Format.printf "\n";
   List.iter (Format.printf ">>>>  %a@." Commands.print) cmds;
 
   let _, consistent, _ = 
