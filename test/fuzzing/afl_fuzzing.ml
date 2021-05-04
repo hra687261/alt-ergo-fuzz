@@ -110,7 +110,7 @@ let get_fcall_gens gen (fdefs: fdef list) rtyp fuel =
           | _ -> assert false))
   @@
   List.filter 
-    ( fun f -> f.rtyp = rtyp) 
+    (fun f -> f.rtyp = rtyp) 
     fdefs
 
 let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) ty =
@@ -255,10 +255,10 @@ let proc cmdlist =
       true
   with
   | exp ->
-    Printexc.print_backtrace stdout;
-    List.iter (Format.printf "\n###  %a\n@." print_cmd) cmdlist;
+    let exp_str = Printexc.get_backtrace () in 
+    List.iter (Format.printf "\n### %a@." print_cmd) cmdlist;
 
-    let tmp = Stdlib.Marshal.to_string (exp, cmdlist) [] in
+    let tmp = Stdlib.Marshal.to_string (exp_str, cmdlist) [] in
     let time = Unix.gettimeofday () in
     let file = 
       "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
@@ -279,8 +279,8 @@ let () =
   let funcs = !fdefs in 
   Cr.add_test ~name:"ae" 
     [ funcdef_gen ~funcs ();
-      axiom_gen ~funcs ();
-      goal_gen ~funcs ()] 
+      axiom_gen ~funcs:!fdefs ();
+      goal_gen ~funcs:!fdefs ()] 
     @@ 
     fun x y z -> Cr.check (proc [x; y; z])
   

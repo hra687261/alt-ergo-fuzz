@@ -2,7 +2,7 @@ open AltErgoLib
 
 module Sy = Symbols 
 
-let query_max_depth = 2
+let query_max_depth = 3
 let axiom_max_depth = 3
 let func_max_depth = 3
 

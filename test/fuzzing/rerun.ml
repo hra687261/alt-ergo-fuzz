@@ -28,13 +28,13 @@ let () =
   let file = List.hd !inputs in 
   let line = Core.In_channel.read_all file in 
   
-  let (exp, cmdlist) : exn * cmd list = Marshal.from_string line 0 in 
-  let msg = Printexc.to_string exp in 
-  Format.printf "\nException: %s\n@." msg;
+  let (exp_str, cmdlist) : string * cmd list = 
+    Marshal.from_string line 0 
+  in 
+  Format.printf "\nException: %s\n@." exp_str;
 
   List.iter (Format.printf "###  %a" print_cmd) cmdlist;
   Format.printf "\n@.";
-
 
   let cmds = 
     List.map 
