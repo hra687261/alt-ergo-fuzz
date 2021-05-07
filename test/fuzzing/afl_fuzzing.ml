@@ -113,7 +113,7 @@ let get_fcall_gens gen (fdefs: fdef list) rtyp fuel =
     (fun f -> f.rtyp = rtyp) 
     fdefs
 
-let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) ty =
+let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) max_depth ty =
   let rec ag_aux funcs ty fuel = 
     match fuel <= 0 with 
     | true -> 
@@ -127,7 +127,9 @@ let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) ty =
         cst_gen ty ::
         usymv_gen ty :: 
         usymf_genl ty (ag_aux funcs) fuel @
-        (if qvars then [qv_gen ty] else []) @
+        (if qvars && fuel < max_depth 
+          then [qv_gen ty] 
+          else []) @
 
         get_arg_gens ty args @
         get_fcall_gens (ag_aux funcs) funcs ty fuel @
@@ -152,11 +154,11 @@ let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) ty =
               (fun bop -> binop_gen Treal fuel bop (ag_aux funcs))
               [ Lt; Le; Gt; Ge; Eq; Neq])
   in 
-    ag_aux funcs ty query_max_depth
+    ag_aux funcs ty max_depth
 
 let goal_gen ?(funcs = []) () =
   Cr.map 
-    [ast_gen ~funcs Tbool]
+    [ast_gen ~funcs query_max_depth Tbool]
     ( fun ast ->
         Goal {
           name = "goal_" ^ (incr gid; string_of_int !gid);
@@ -164,7 +166,7 @@ let goal_gen ?(funcs = []) () =
 
 let axiom_gen ?(funcs = []) () =
   Cr.map 
-  [ast_gen ~funcs Tbool]
+  [ast_gen ~funcs axiom_max_depth Tbool]
   ( fun ast ->
       Axiom {
         name = "ax_" ^ (incr axid; string_of_int !axid);
@@ -185,7 +187,7 @@ let funcdef_gen ?(funcs = []) () =
         [aux "ia" Tint] 
       in 
       Cr.map 
-        [ast_gen ~qvars:false ~args:atyp ~funcs rtyp]
+        [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
         (fun body ->
           let name, _ = aux2 rtyp 0 in 
           let fd = {name; body; atyp; rtyp} in 
@@ -196,7 +198,7 @@ let funcdef_gen ?(funcs = []) () =
         [aux "ia" Tint; aux "ra" Treal] 
       in
       Cr.map 
-        [ast_gen ~qvars:false ~args:atyp ~funcs rtyp]
+        [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
         (fun body ->
           let name, _ = aux2 rtyp 1 in 
           let fd = {name; body = quantify body; atyp; rtyp} in 
@@ -207,7 +209,7 @@ let funcdef_gen ?(funcs = []) () =
         [aux "ia" Tint; aux "ra" Treal; aux "ba" Tbool] 
       in 
       Cr.map 
-        [ast_gen ~qvars:false ~args:atyp ~funcs rtyp]
+        [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
         (fun body ->
           let name, _ = aux2 rtyp 2 in 
           let fd = {name; body; atyp; rtyp} in 
@@ -240,12 +242,12 @@ let proc cmdlist =
 
     let _, consistent, ex = 
       List.fold_left 
-        ( fun acc d ->
-            FE.process_decl 
-              ( fun _ _ -> ()) (*FE.print_status*)
-              (FE.init_all_used_context ()) 
-              (Stack.create ()) 
-              acc d)
+        (fun acc d ->
+          FE.process_decl 
+            (fun _ _ -> ()) (*FE.print_status*)
+            (FE.init_all_used_context ()) 
+            (Stack.create ()) 
+            acc d)
         (SAT.empty (), true, Explanation.empty) 
         cmds
     in
@@ -265,7 +267,7 @@ let proc cmdlist =
     in
     let oc = open_out file in
     
-    Format.printf "\nWriting to file : %s\n@." file;
+    Format.printf "Writing to file : %s@." file;
     Printf.fprintf oc "%s" tmp;
     flush stdout;
     close_out oc;

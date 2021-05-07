@@ -26,22 +26,24 @@ let () =
   assert (List.length !inputs = 1);
   
   let file = List.hd !inputs in 
+  Format.printf "file = %s@." file;
   let line = Core.In_channel.read_all file in 
   
-  let (exp_str, cmdlist) : string * cmd list = 
+  let (exp_str, cmds) : string * cmd list = 
     Marshal.from_string line 0 
   in 
   Format.printf "\nException: %s\n@." exp_str;
 
-  List.iter (Format.printf "###  %a" print_cmd) cmdlist;
+  List.iter (Format.printf "###  %a" print_cmd) cmds;
   Format.printf "\n@.";
 
-  let cmds = 
+  let commands = 
     List.map 
       cmd_to_commad
-      cmdlist
+      cmds
   in
-  List.iter (Format.printf ">>>>  %a@." Commands.print) cmds;
+  List.iter (Format.printf ">>>>  %a@." Commands.print) commands;
+  Format.printf "\n@.";
 
   let _, consistent, _ = 
     List.fold_left 
@@ -52,7 +54,7 @@ let () =
             (Stack.create ()) 
             acc d)
       (SAT.empty (), true, Explanation.empty) 
-      cmds
+      commands
   in
     Format.printf "%s@."
       ( if consistent 

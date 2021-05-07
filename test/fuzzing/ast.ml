@@ -626,7 +626,7 @@ let quantify ast =
     in 
       quantify_aux ast pt
 
-let rec ast_to_expr ?(vars = VM.empty) ast = 
+let rec ast_to_expr ?(vars = VM.empty) ~decl_kind ast = 
   match ast with 
   | Cst (CstI x) -> 
     Expr.int (Int.to_string x)
@@ -638,8 +638,8 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
     Expr.faux
   
   | Binop (((And | Or | Xor) as op), x, y) ->
-    let x' = ast_to_expr ~vars x in 
-    let y' = ast_to_expr ~vars y in 
+    let x' = ast_to_expr ~vars ~decl_kind x in 
+    let y' = ast_to_expr ~vars ~decl_kind y in 
     begin 
       match op with 
       | And -> Expr.mk_and x' y' false 0 
@@ -650,14 +650,14 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
 
   | Binop (Imp, x, y) ->
     Expr.mk_imp 
-      (ast_to_expr ~vars x) (ast_to_expr ~vars y) 0
+      (ast_to_expr ~vars ~decl_kind x) (ast_to_expr ~vars ~decl_kind y) 0
   | Binop (Iff, x, y) ->
     Expr.mk_eq ~iff:true 
-      (ast_to_expr ~vars x) (ast_to_expr ~vars y)
+      (ast_to_expr ~vars ~decl_kind x) (ast_to_expr ~vars ~decl_kind y)
 
   | Binop ((Lt | Le | Gt | Ge) as op , x, y) ->
-    let x' = ast_to_expr ~vars x in 
-    let y' = ast_to_expr ~vars y in 
+    let x' = ast_to_expr ~vars ~decl_kind x in 
+    let y' = ast_to_expr ~vars ~decl_kind y in 
     let is_pos, sy = 
       begin
         match op with 
@@ -672,14 +672,14 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
 
   | Binop (Eq, x, y) ->
     Expr.mk_eq ~iff:false
-      (ast_to_expr ~vars x) (ast_to_expr ~vars y)
+      (ast_to_expr ~vars ~decl_kind x) (ast_to_expr ~vars ~decl_kind y)
   | Binop (Neq, x, y) ->
     Expr.mk_distinct ~iff:false 
-      [ast_to_expr ~vars x; ast_to_expr ~vars y]
+      [ast_to_expr ~vars ~decl_kind x; ast_to_expr ~vars ~decl_kind y]
 
   | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
-    let x' = ast_to_expr ~vars x in 
-    let y' = ast_to_expr ~vars y in 
+    let x' = ast_to_expr ~vars ~decl_kind x in 
+    let y' = ast_to_expr ~vars ~decl_kind y in 
     Expr.mk_term
     begin
       match op with 
@@ -694,8 +694,8 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
     [x'; y'] Ty.Tint
 
   | Binop (((RAdd | RSub | RMul | RDiv | RPow) as op), x, y) ->
-    let x' = ast_to_expr ~vars x in 
-    let y' = ast_to_expr ~vars y in 
+    let x' = ast_to_expr ~vars ~decl_kind x in 
+    let y' = ast_to_expr ~vars ~decl_kind y in 
     Expr.mk_term
     begin
       match op with 
@@ -708,14 +708,14 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
     end
     [x'; y'] Ty.Treal
 
-  | Unop (Neg, x) -> ast_to_expr ~vars x
+  | Unop (Neg, x) -> ast_to_expr ~vars ~decl_kind x
   | Unop (Not, x) -> 
-    Expr.neg (ast_to_expr ~vars x)
+    Expr.neg (ast_to_expr ~vars ~decl_kind x)
 
   | FunCall {fname; rtyp; args} ->
     Expr.mk_term 
       (Sy.Name (Hstring.make fname, Sy.Other)) 
-      (List.map (ast_to_expr ~vars) args)
+      (List.map (ast_to_expr ~vars ~decl_kind) args)
       (typ_to_ty rtyp)
 
   | Var {vname; vty; vk = US; _} -> 
@@ -724,35 +724,35 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
       [] 
       (typ_to_ty vty)
 
-  | Var {vname; vk = (EQ | UQ); vty; _} -> 
-    let hsv = Hstring.make vname in 
-    let vsy = Sy.Name (hsv, Sy.Other) in
-    let rvty = typ_to_ty vty in 
-      Expr.mk_term vsy [] rvty
+  | Var {vk = (ARG | EQ | UQ); id; _ } ->
 
-  | Var {vk = ARG; id; _ } ->
     let sy, ty = VM.find id vars in 
       Expr.mk_term sy [] ty
-      
+
   | Exists {qvars = vs; body; _} 
   | Forall {qvars = vs; body; _} ->
-    let qvars, bset = 
-        VS.fold
-          (fun x (vs, es) -> 
-            let rty = typ_to_ty x.vty in
-            let hsv = Hstring.make x.vname in 
-            let vsy = Sy.Name (hsv, Sy.Other) in
-            let v = Var.of_hstring hsv in
-            let vsy_ = Sy.Var v in 
-              ES.add (Expr.mk_term vsy_ [] rty) vs,  
-              ES.add (Expr.mk_term vsy [] rty) es)
-          vs
-          (ES.empty, ES.empty)
+    let qvars, vars = 
+      VS.fold
+        (fun x (vl,vm) -> 
+          let ty = typ_to_ty x.vty in
+          let hsv = Hstring.make x.vname in 
+          let v = Var.of_hstring hsv in
+          let sy = Sy.Var v in 
+            (sy, ty) :: vl,
+            VM.add x.id (sy,ty) vm)
+        vs ([], vars)
+    in
+    let qve = 
+      List.fold_left 
+        ( fun acc (sy, ty) ->
+            let e = Expr.mk_term sy [] ty in
+            ES.add e acc
+        ) ES.empty qvars
     in 
-    ignore bset;
-    let binders = Expr.mk_binders qvars in 
-    let triggers = [] (* ??? *)
-    in 
+
+    let binders = Expr.mk_binders qve in 
+    let triggers = [] (* ??? *) in
+     
     begin 
       match ast with 
       | Forall _ -> Expr.mk_forall
@@ -763,20 +763,48 @@ let rec ast_to_expr ?(vars = VM.empty) ast =
       Loc.dummy 
       binders
       triggers 
-      (ast_to_expr ~vars body) (-42) 
+      (ast_to_expr ~vars ~decl_kind body) (-42) 
       ~toplevel:false 
-      ~decl_kind:Expr.Dgoal
+      ~decl_kind
 
 let cmd_to_commad cmd = 
   match cmd with 
   | Axiom {name; body} ->
+    let ff = 
+      ast_to_expr ~decl_kind:Expr.Daxiom body
+    in 
+    assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
+    let ff = Expr.purify_form ff in
+    let ff = 
+      if Ty.Svty.is_empty (Expr.free_type_vars ff) 
+      then 
+        ff
+      else
+        let id = Expr.id ff in
+          Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel:true ~decl_kind:Expr.Daxiom
+    in 
     Commands.{ 
       st_loc = Loc.dummy;
-      st_decl = Assume (name, ast_to_expr body, true)}
+      st_decl = Assume (name, ff, true)}
+
   | Goal {name; body} ->
+    (*let body = Unop (Not,body) in*) 
+    let ff = 
+      ast_to_expr ~decl_kind:Expr.Dgoal body
+    in 
+    assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
+    let ff = Expr.purify_form ff in
+    let ff = 
+      if Ty.Svty.is_empty (Expr.free_type_vars ff) 
+      then ff
+      else
+        let id = Expr.id ff in
+          Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel:true ~decl_kind:Expr.Dgoal
+    in 
     Commands.{ 
       st_loc = Loc.dummy;
-      st_decl = Query (name, ast_to_expr body, Typed.Thm)}
+      st_decl = Query (name, ff, Typed.Thm)}
+
   | FuncDef fdef -> 
     (*Function signature *)
     let fsy = Sy.Name (Hstring.make fdef.name, Sy.Other) in
@@ -799,7 +827,7 @@ let cmd_to_commad cmd =
     let fsign = Expr.mk_term fsy xs fty in 
     
     (* Function body *)
-    let fbody = ast_to_expr ~vars fdef.body in 
+    let fbody = ast_to_expr ~vars ~decl_kind:(Expr.Dfunction fsign) fdef.body in 
 
     (* Lemma *)
     let lem = Expr.mk_eq ~iff:true fsign fbody in
@@ -818,7 +846,7 @@ let cmd_to_commad cmd =
         let ret = 
           Expr.mk_forall 
             fdef.name Loc.dummy binders [] lem (-42) 
-            ~toplevel:true ~decl_kind:(Expr.Dfunction fsign)
+            ~toplevel:true ~decl_kind:(Expr.Dpredicate fsign)
         in 
           Commands.{
             st_loc = Loc.dummy;
