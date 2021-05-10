@@ -232,15 +232,15 @@ let reinit_env () =
   Expr.clear_hc ();
   Shostak.Combine.empty_cache ()
   
-let proc cmdlist = 
+let proc cmds = 
   try
-    let cmds = 
+    let commands = 
       List.map 
         cmd_to_commad
-        cmdlist
+        cmds
     in
 
-    let _, consistent, ex = 
+    let _, consistent, _ = 
       List.fold_left 
         (fun acc d ->
           FE.process_decl 
@@ -249,18 +249,33 @@ let proc cmdlist =
             (Stack.create ()) 
             acc d)
         (SAT.empty (), true, Explanation.empty) 
-        cmds
+        commands
     in
-      ignore ex; 
       ignore consistent;
       reinit_env ();
       true
   with
-  | exp ->
+  | _ ->
     let exp_str = Printexc.get_backtrace () in 
-    List.iter (Format.printf "\n### %a@." print_cmd) cmdlist;
+    Format.printf "\nException: %s\n@." exp_str;
+    
+    Format.printf "cmds :@.";
+    List.iter (Format.printf "### %a\n@." print_cmd) cmds;
+    
+    
+    let commands = 
+      List.map 
+        cmd_to_commad
+        cmds
+    in
+    Format.printf "ae commands :@.";
+    List.iter (
+      fun x ->
+        Format.printf ">>>  %a@." Commands.print x) 
+      commands;
 
-    let tmp = Stdlib.Marshal.to_string (exp_str, cmdlist) [] in
+
+    let tmp = Stdlib.Marshal.to_string (exp_str, cmds) [] in
     let time = Unix.gettimeofday () in
     let file = 
       "test/fuzzing/crash_output/op_"^string_of_float time^".txt"
@@ -272,17 +287,15 @@ let proc cmdlist =
     flush stdout;
     close_out oc;
     reinit_env ();
-    raise exp
+    false
 
 let () =
   (*Memtrace.trace_if_requested ();*)
   Options.set_disable_weaks true;
-  Options.set_is_gui false;
-  let funcs = !fdefs in 
+  Options.set_is_gui false; 
+
   Cr.add_test ~name:"ae" 
-    [ funcdef_gen ~funcs ();
-      axiom_gen ~funcs:!fdefs ();
-      goal_gen ~funcs:!fdefs ()] 
+    [ axiom_gen ();
+      goal_gen ()] 
     @@ 
-    fun x y z -> Cr.check (proc [x; y; z])
-  
+    fun x y -> Cr.check (proc [x; y])

@@ -32,27 +32,25 @@ let () =
   let (exp_str, cmds) : string * cmd list = 
     Marshal.from_string line 0 
   in 
-  Format.printf "\nException: %s\n@." exp_str;
-
-  List.iter (Format.printf "###  %a" print_cmd) cmds;
-  Format.printf "\n@.";
+  Format.printf "\nException: %s\n\n@." exp_str;
+  
+  List.iter (Format.printf "### %a@." print_cmd) cmds;
 
   let commands = 
     List.map 
       cmd_to_commad
       cmds
   in
-  List.iter (Format.printf ">>>>  %a@." Commands.print) commands;
-  Format.printf "\n@.";
+  List.iter (Format.printf ">>>  %a@." Commands.print) commands;
 
   let _, consistent, _ = 
     List.fold_left 
-      ( fun acc d ->
-          FE.process_decl 
-            ( fun _ _ -> ()) (*FE.print_status*)
-            (FE.init_all_used_context ()) 
-            (Stack.create ()) 
-            acc d)
+      (fun acc d ->
+        FE.process_decl 
+          (fun _ _ -> ()) (*FE.print_status*)
+          (FE.init_all_used_context ()) 
+          (Stack.create ()) 
+          acc d)
       (SAT.empty (), true, Explanation.empty) 
       commands
   in

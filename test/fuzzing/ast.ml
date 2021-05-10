@@ -2,9 +2,9 @@ open AltErgoLib
 
 module Sy = Symbols 
 
-let query_max_depth = 3
-let axiom_max_depth = 3
-let func_max_depth = 3
+let query_max_depth = 2
+let axiom_max_depth = 2
+let func_max_depth = 2
 
 let nb_usym_vars = 3
 let nb_usym_funcs = 3
@@ -48,6 +48,8 @@ module VS = Set.Make(
   end 
 )
 
+(** VM is used to map tvar ids to the tvar's Expr.t   
+    representation as a variable or an uninterpreted symbol *)
 module VM = Map.Make(
   struct
     type t = int 
@@ -281,7 +283,7 @@ let get_ufunc_expr ate vars num ty args =
   let rargs = List.map (ate ~vars) args in  
     Expr.mk_term sy rargs rty
 
-(* User-defined function *)
+(* User-defined functions *)
 
 let mk_udfuncs nb_ud_funcs =
   let aux pref n = 
@@ -626,7 +628,8 @@ let quantify ast =
     in 
       quantify_aux ast pt
 
-let rec ast_to_expr ?(vars = VM.empty) ~decl_kind ast = 
+(** Translates an ast to an Expr.t *)
+let rec ast_to_expr ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast = 
   match ast with 
   | Cst (CstI x) -> 
     Expr.int (Int.to_string x)
@@ -719,13 +722,12 @@ let rec ast_to_expr ?(vars = VM.empty) ~decl_kind ast =
       (typ_to_ty rtyp)
 
   | Var {vname; vty; vk = US; _} -> 
+    (*???*)
     Expr.mk_term 
       (Sy.Name (Hstring.make vname, Sy.Other)) 
-      [] 
-      (typ_to_ty vty)
+      [] (typ_to_ty vty)
 
   | Var {vk = (ARG | EQ | UQ); id; _ } ->
-
     let sy, ty = VM.find id vars in 
       Expr.mk_term sy [] ty
 
@@ -733,14 +735,14 @@ let rec ast_to_expr ?(vars = VM.empty) ~decl_kind ast =
   | Forall {qvars = vs; body; _} ->
     let qvars, vars = 
       VS.fold
-        (fun x (vl,vm) -> 
-          let ty = typ_to_ty x.vty in
-          let hsv = Hstring.make x.vname in 
-          let v = Var.of_hstring hsv in
-          let sy = Sy.Var v in 
-            (sy, ty) :: vl,
-            VM.add x.id (sy,ty) vm)
-        vs ([], vars)
+      (fun x (vl,vm) -> 
+        let ty = typ_to_ty x.vty in
+        let hsv = Hstring.make x.vname in 
+        let v = Var.of_hstring hsv in
+        let sy = Sy.Var v in 
+          (sy, ty) :: vl,
+          VM.add x.id (sy,ty) vm)
+      vs ([], vars)
     in
     let qve = 
       List.fold_left 
@@ -752,7 +754,6 @@ let rec ast_to_expr ?(vars = VM.empty) ~decl_kind ast =
 
     let binders = Expr.mk_binders qve in 
     let triggers = [] (* ??? *) in
-     
     begin 
       match ast with 
       | Forall _ -> Expr.mk_forall
@@ -763,15 +764,18 @@ let rec ast_to_expr ?(vars = VM.empty) ~decl_kind ast =
       Loc.dummy 
       binders
       triggers 
-      (ast_to_expr ~vars ~decl_kind body) (-42) 
-      ~toplevel:false 
+      (ast_to_expr ~vars ~toplevel ~decl_kind body) (-42) 
+      ~toplevel
       ~decl_kind
 
+(** Translates a cmd to a Commands.sat_tdecl *)
 let cmd_to_commad cmd = 
   match cmd with 
   | Axiom {name; body} ->
+    let decl_kind = Expr.Daxiom in
+    let toplevel = true in 
     let ff = 
-      ast_to_expr ~decl_kind:Expr.Daxiom body
+      ast_to_expr ~toplevel ~decl_kind body
     in 
     assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
     let ff = Expr.purify_form ff in
@@ -781,16 +785,37 @@ let cmd_to_commad cmd =
         ff
       else
         let id = Expr.id ff in
-          Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel:true ~decl_kind:Expr.Daxiom
+          Expr.mk_forall 
+            name Loc.dummy Symbols.Map.empty [] ff 
+            id ~toplevel ~decl_kind
     in 
     Commands.{ 
       st_loc = Loc.dummy;
       st_decl = Assume (name, ff, true)}
 
   | Goal {name; body} ->
-    (*let body = Unop (Not,body) in*) 
+    let decl_kind = Expr.Dgoal in
+    let toplevel = true in 
     let ff = 
-      ast_to_expr ~decl_kind:Expr.Dgoal body
+      begin 
+        let rec rm_root_uqs ?(vars = VM.empty) body =
+          match body with 
+          | Forall {qvars; body; _} -> 
+            let vars =
+              VS.fold
+              (fun x vm -> 
+                let ty = typ_to_ty x.vty in
+                let hsv = Hstring.make x.vname in 
+                let sy = Sy.Name (hsv, Sy.Other) in 
+                  VM.add x.id (sy,ty) vm)
+              qvars vars
+            in 
+            rm_root_uqs body ~vars
+          | _ -> body, vars
+        in
+        let body, vars = rm_root_uqs body in 
+          ast_to_expr ~vars ~toplevel ~decl_kind (Unop (Not, body))
+      end
     in 
     assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
     let ff = Expr.purify_form ff in
@@ -799,13 +824,20 @@ let cmd_to_commad cmd =
       then ff
       else
         let id = Expr.id ff in
-          Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel:true ~decl_kind:Expr.Dgoal
-    in 
+          Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel ~decl_kind
+    in
     Commands.{ 
       st_loc = Loc.dummy;
       st_decl = Query (name, ff, Typed.Thm)}
 
-  | FuncDef fdef -> 
+  | FuncDef fdef ->
+    let mk_assume name e = 
+      Commands.Assume (name, e, true) 
+    in 
+    let mk_preddef name e = 
+      Commands.PredDef (e, name) 
+    in 
+
     (*Function signature *)
     let fsy = Sy.Name (Hstring.make fdef.name, Sy.Other) in
     let fty = typ_to_ty fdef.rtyp in 
@@ -823,31 +855,29 @@ let cmd_to_commad cmd =
         (VM.empty, ES.empty, [])
         fdef.atyp 
     in
+
     let xs = List.rev xs_ in 
     let fsign = Expr.mk_term fsy xs fty in 
-    
-    (* Function body *)
-    let fbody = ast_to_expr ~vars ~decl_kind:(Expr.Dfunction fsign) fdef.body in 
 
-    (* Lemma *)
+    let toplevel = true in 
+    let decl_kind, mk_func = 
+      begin 
+        match fdef.rtyp with 
+        | Tint | Treal -> Expr.Dfunction fsign, mk_assume
+        | Tbool -> Expr.Dpredicate fsign, mk_preddef
+      end
+    in 
+
+    let fbody = ast_to_expr ~vars ~toplevel ~decl_kind fdef.body in 
+
     let lem = Expr.mk_eq ~iff:true fsign fbody in
-    let binders = Expr.mk_binders es in 
-      match fdef.rtyp with 
-      | Tint | Treal ->
-        let ret = 
-          Expr.mk_forall 
-            fdef.name Loc.dummy binders [] lem (-42) 
-            ~toplevel:true ~decl_kind:(Expr.Dfunction fsign)
-        in
-        Commands.{
-          st_loc = Loc.dummy;
-          st_decl = Assume (fdef.name, ret, true)}   
-      | Tbool -> 
-        let ret = 
-          Expr.mk_forall 
-            fdef.name Loc.dummy binders [] lem (-42) 
-            ~toplevel:true ~decl_kind:(Expr.Dpredicate fsign)
-        in 
-          Commands.{
-            st_loc = Loc.dummy;
-            st_decl = PredDef (ret, fdef.name)}
+    let binders = Expr.mk_binders es in
+    
+    let ret = 
+      Expr.mk_forall 
+        fdef.name Loc.dummy binders [] lem (-42) 
+        ~toplevel ~decl_kind
+    in
+    Commands.{
+      st_loc = Loc.dummy;
+      st_decl = mk_func fdef.name ret}
