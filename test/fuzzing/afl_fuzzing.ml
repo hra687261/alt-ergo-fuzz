@@ -287,13 +287,11 @@ let proc cmds =
     
     Format.printf "Writing to file : %s@." file;
     Printf.fprintf oc "%s" tmp;
-    flush stdout;
     close_out oc;
     reinit_env ();
     false
 
 let () =
-  (*Memtrace.trace_if_requested ();*)
   Options.set_disable_weaks true;
   Options.set_is_gui false; 
 

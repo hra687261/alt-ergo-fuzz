@@ -27,12 +27,12 @@ let reinit_env () =
   Shostak.Combine.empty_cache ()
 
 let rerun_cmds_debug cmds =
-  let commands = 
+  let commands =
     List.map 
       (fun cmd ->
         let command = cmd_to_commad cmd in 
         Format.printf "### %a@." print_cmd cmd;
-        Format.printf ">>> %a@." Commands.print command;
+        Format.printf ">>> %a\n@." Commands.print command;
         command) 
       cmds
   in 
@@ -65,6 +65,4 @@ let () =
   in 
   Format.printf "\nException: %s\n\n@." exp_str;
   
-  List.iter (Format.printf "### %a@." print_cmd) cmds;
-
   rerun_cmds_debug cmds
