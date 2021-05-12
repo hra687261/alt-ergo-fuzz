@@ -157,20 +157,22 @@ let ast_gen ?(qvars = true) ?(args = []) ?(funcs = []) max_depth ty =
     ag_aux funcs ty max_depth
 
 let goal_gen ?(funcs = []) () =
-  Cr.map 
-    [ast_gen ~funcs query_max_depth Tbool]
-    ( fun ast ->
-        Goal {
-          name = "goal_" ^ (incr gid; string_of_int !gid);
-          body = quantify ast})
+  Cr.with_printer print_cmd (
+    Cr.map 
+      [ast_gen ~funcs query_max_depth Tbool]
+      ( fun ast ->
+          Goal {
+            name = "goal_" ^ (incr gid; string_of_int !gid);
+            body = quantify ast}))
 
 let axiom_gen ?(funcs = []) () =
-  Cr.map 
-  [ast_gen ~funcs axiom_max_depth Tbool]
-  ( fun ast ->
-      Axiom {
-        name = "ax_" ^ (incr axid; string_of_int !axid);
-        body = quantify ast})
+  Cr.with_printer print_cmd (
+    Cr.map 
+      [ast_gen ~funcs axiom_max_depth Tbool]
+      ( fun ast ->
+          Axiom {
+            name = "ax_" ^ (incr axid; string_of_int !axid);
+            body = quantify ast}))
 
 let funcdef_gen ?(funcs = []) () =
   let aux name vty = 
@@ -183,45 +185,40 @@ let funcdef_gen ?(funcs = []) () =
     | Tbool -> List.nth b_udfs num
   in   
   let genl rtyp =
-    [ (let atyp = 
-        [aux "ia" Tint] 
-      in 
-      Cr.map 
-        [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
-        (fun body ->
-          let name, _ = aux2 rtyp 0 in 
-          let fd = {name; body; atyp; rtyp} in 
-            fdefs := fd :: !fdefs;
-            FuncDef fd));
+    [ (let atyp = [aux "ia" Tint] in 
+        Cr.map 
+          [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
+          (fun body ->
+            let name, _ = aux2 rtyp 0 in 
+            let fd = {name; body; atyp; rtyp} in 
+              fdefs := fd :: !fdefs;
+              FuncDef fd));
       
-      (let atyp = 
-        [aux "ia" Tint; aux "ra" Treal] 
-      in
-      Cr.map 
-        [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
-        (fun body ->
-          let name, _ = aux2 rtyp 1 in 
-          let fd = {name; body = quantify body; atyp; rtyp} in 
-            fdefs := fd :: !fdefs;
-            FuncDef fd));
+      (let atyp = [aux "ia" Tint; aux "ra" Treal] in
+        Cr.map 
+          [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
+          (fun body ->
+            let name, _ = aux2 rtyp 1 in 
+            let fd = {name; body = quantify body; atyp; rtyp} in 
+              fdefs := fd :: !fdefs;
+              FuncDef fd));
 
-      (let atyp = 
-        [aux "ia" Tint; aux "ra" Treal; aux "ba" Tbool] 
-      in 
-      Cr.map 
-        [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
-        (fun body ->
-          let name, _ = aux2 rtyp 2 in 
-          let fd = {name; body; atyp; rtyp} in 
-            fdefs := fd :: !fdefs;
-            FuncDef fd))]
+      (let atyp = [aux "ia" Tint; aux "ra" Treal; aux "ba" Tbool] in 
+        Cr.map 
+          [ast_gen ~qvars:false ~args:atyp ~funcs func_max_depth rtyp]
+          (fun body ->
+            let name, _ = aux2 rtyp 2 in 
+            let fd = {name; body; atyp; rtyp} in 
+              fdefs := fd :: !fdefs;
+              FuncDef fd))]
   in 
   let typs = [Tint; Treal; Tbool] in 
-  Cr.choose 
-    ( List.fold_left 
-        (fun acc t ->
-          genl t @ acc)
-        [] typs)
+  Cr.with_printer print_cmd (
+    Cr.choose 
+      ( List.fold_left 
+          (fun acc t ->
+            genl t @ acc)
+          [] typs))
 
 
 module SAT = Fun_sat.Make(Theory.Main_Default)
@@ -232,7 +229,10 @@ let reinit_env () =
   Expr.clear_hc ();
   Shostak.Combine.empty_cache ()
   
+let cmdll = ref []
+
 let proc cmds = 
+  cmdll := !cmdll @ [cmds];
   try
     let commands = 
       List.map 
@@ -251,7 +251,10 @@ let proc cmds =
         (SAT.empty (), true, Explanation.empty) 
         commands
     in
-      ignore consistent;
+      Format.printf "%s@." (
+        if consistent 
+        then "unknown" 
+        else "unsat");
       reinit_env ();
       true
   with
@@ -271,11 +274,11 @@ let proc cmds =
     Format.printf "ae commands :@.";
     List.iter (
       fun x ->
-        Format.printf ">>>  %a@." Commands.print x) 
+        Format.printf ">>> %a@." Commands.print x) 
       commands;
 
 
-    let tmp = Stdlib.Marshal.to_string (exp_str, cmds) [] in
+    let tmp = Stdlib.Marshal.to_string (!cmdll, exp_str, cmds) [] in
     let time = Unix.gettimeofday () in
     let file = 
       "test/fuzzing/crash_output/op_"^string_of_float time^".txt"

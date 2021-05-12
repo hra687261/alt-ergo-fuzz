@@ -21,28 +21,21 @@ let () =
 
 let () = Options.set_is_gui false
 
-let () =
-  Format.printf "\n\nRERUNNING @.";
-  assert (List.length !inputs = 1);
-  
-  let file = List.hd !inputs in 
-  Format.printf "file = %s@." file;
-  let line = Core.In_channel.read_all file in 
-  
-  let (exp_str, cmds) : string * cmd list = 
-    Marshal.from_string line 0 
-  in 
-  Format.printf "\nException: %s\n\n@." exp_str;
-  
-  List.iter (Format.printf "### %a@." print_cmd) cmds;
+let reinit_env () = 
+  SAT.reset_refs ();
+  Expr.clear_hc ();
+  Shostak.Combine.empty_cache ()
 
+let rerun_cmds_debug cmds =
   let commands = 
     List.map 
-      cmd_to_commad
+      (fun cmd ->
+        let command = cmd_to_commad cmd in 
+        Format.printf "### %a@." print_cmd cmd;
+        Format.printf ">>> %a@." Commands.print command;
+        command) 
       cmds
-  in
-  List.iter (Format.printf ">>>  %a@." Commands.print) commands;
-
+  in 
   let _, consistent, _ = 
     List.fold_left 
       (fun acc d ->
@@ -59,3 +52,19 @@ let () =
         then "unknown" 
         else "unsat")
 
+let () =
+  Format.printf "\n\nRERUNNING @.";
+  assert (List.length !inputs = 1);
+  
+  let file = List.hd !inputs in 
+  Format.printf "file = %s@." file;
+  let line = Core.In_channel.read_all file in 
+  
+  let (_, exp_str, cmds) : cmd list list * string * cmd list = 
+    Marshal.from_string line 0 
+  in 
+  Format.printf "\nException: %s\n\n@." exp_str;
+  
+  List.iter (Format.printf "### %a@." print_cmd) cmds;
+
+  rerun_cmds_debug cmds

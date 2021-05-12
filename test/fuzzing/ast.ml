@@ -167,7 +167,7 @@ let print_cmd fmt cmd =
   | FuncDef {name; body; atyp; rtyp} -> 
     Format.fprintf 
       fmt 
-      "FuncDef %s %a -> %a :\n%a@." 
+      "FuncDef %s %a -> %a :\n%a" 
       name 
       (fun fmt args -> 
         let rec pr_iter args =
@@ -189,9 +189,9 @@ let print_cmd fmt cmd =
       print body
   
   | Axiom {name; body} ->
-    Format.fprintf fmt "Axiom(%s):\n%a@." name print body
+    Format.fprintf fmt "Axiom(%s):\n%a" name print body
   | Goal {name; body} ->
-    Format.fprintf fmt "Goal(%s):\n%a@." name print body
+    Format.fprintf fmt "Goal(%s):\n%a" name print body
 
 let mk_vname pref num = 
   pref ^ string_of_int num
