@@ -398,13 +398,13 @@ let rec print_silent fmt t =
 
       | Sy.F_Lemma, [], B_lemma { user_trs ; main ; name ; binders; _ } ->
         (*if get_verbose () then*)
-          fprintf fmt "(lemma: %s forall %a[%a].@  %a)"
-            name
-            print_binders binders
-            print_triggers user_trs
-            print_silent main
-        (*else
-          fprintf fmt "(lem %s)" name*)
+        fprintf fmt "(lemma: %s forall %a[%a].@  %a)"
+          name
+          print_binders binders
+          print_triggers user_trs
+          print_silent main
+      (*else
+        fprintf fmt "(lem %s)" name*)
 
       | Sy.F_Skolem, [], B_skolem { main; binders; _ } ->
         fprintf fmt "(<sko exists %a.> %a)"

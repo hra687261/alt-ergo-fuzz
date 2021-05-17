@@ -26,43 +26,46 @@ let reinit_env () =
   Expr.clear_hc ();
   Shostak.Combine.empty_cache ()
 
-let rerun_cmds_debug cmds =
-  let commands =
-    List.map 
-      (fun cmd ->
-        let command = cmd_to_commad cmd in 
-        Format.printf "### %a@." print_cmd cmd;
-        Format.printf ">>> %a\n@." Commands.print command;
-        command) 
-      cmds
-  in 
+let solve cmds =
   let _, consistent, _ = 
     List.fold_left 
-      (fun acc d ->
-        FE.process_decl 
-          (fun _ _ -> ()) (*FE.print_status*)
-          (FE.init_all_used_context ()) 
-          (Stack.create ()) 
-          acc d)
+      ( fun acc cmd ->
+          let command = cmd_to_commad cmd in 
+          Format.printf "### %a@." print_cmd cmd;
+          Format.printf ">>> %a\n@." Commands.print command;
+
+          FE.process_decl 
+            (fun _ _ -> ()) (*FE.print_status*)
+            (FE.init_all_used_context ()) 
+            (Stack.create ()) 
+            acc command)
       (SAT.empty (), true, Explanation.empty) 
-      commands
+      cmds
   in
-    Format.printf "%s@."
-      ( if consistent 
-        then "unknown" 
-        else "unsat")
+  Format.printf "%s@."
+    ( if consistent 
+      then "unknown" 
+      else "unsat")
 
 let () =
   Format.printf "\n\nRERUNNING @.";
   assert (List.length !inputs = 1);
   
-  let file = List.hd !inputs in 
-  Format.printf "file = %s@." file;
-  let line = Core.In_channel.read_all file in 
-  
-  let (_, exp_str, cmds) : cmd list list * string * cmd list = 
+  let file_name = List.hd !inputs in 
+  Format.printf "Reading from the file: %s@." file_name;
+  let line = Core.In_channel.read_all file_name in 
+
+  let (exp_str, exp_bt_str, cmds) : string * string * cmd list = 
     Marshal.from_string line 0 
   in 
-  Format.printf "\nException: %s\n\n@." exp_str;
-  
-  rerun_cmds_debug cmds
+  Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
+  Format.printf "\nCaused by: \n%a@." 
+    ( fun fmt cmdl ->
+        List.iter ( 
+          fun cmd ->
+            Format.fprintf fmt "\n### %a@." print_cmd cmd;
+            let command = cmd_to_commad cmd in 
+            Format.fprintf fmt ">>> %a@." Commands.print command
+        ) cmdl
+    ) cmds;
+  solve cmds
