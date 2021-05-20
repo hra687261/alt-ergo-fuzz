@@ -32,12 +32,8 @@ let binop_gen ty fuel bop gen =
 
 let usymv_gen ty = 
   Cr.map 
-    [Cr.range nb_usym_vars] 
-    ( fun pos -> 
-        ( match ty with
-          | Tint -> mk_var (mk_vname "iusv" pos)
-          | Treal -> mk_var (mk_vname "rusv" pos)
-          | Tbool -> mk_var (mk_vname "busv" pos)) ty US)
+    [Cr.range nb_us_vars] 
+    (fun pos -> get_uvar_ast pos ty)
 
 let usymf_genl ty gen fuel = 
   [ Cr.map 
@@ -86,24 +82,18 @@ let get_fcall_gens gen rtyp fuel =
   in
   List.map ( 
     fun (num, rtyp) -> ( 
-        let fname, _ = 
-          match rtyp with 
-          | Tint -> List.nth i_udfs num
-          | Treal -> List.nth r_udfs num
-          | Tbool -> List.nth b_udfs num
-        in 
         match num with 
         | 0 -> 
           Cr.map
             [gen Tint (fuel-1)]
             ( fun x1 -> 
-                FunCall {fname; rtyp; args = [x1]})
+                get_udfunc_ast num rtyp [x1])
         | 1 -> 
           Cr.map
             [ gen Tint (fuel-1); 
               gen Treal (fuel-1)]
             ( fun x1 x2 -> 
-                FunCall {fname; rtyp; args = [x1; x2]})
+                get_udfunc_ast num rtyp [x1; x2])
         | 2 -> 
           Cr.map
             [ gen Tint (fuel-1); 
@@ -111,7 +101,7 @@ let get_fcall_gens gen rtyp fuel =
               cst_gen Tbool
               (* gen Tbool (fuel-1) *)]
             ( fun x1 x2 x3 -> 
-                FunCall {fname; rtyp; args = [x1; x2; x3]})
+                get_udfunc_ast num rtyp [x1; x2; x3])
         | _ -> assert false))
     fl
 
@@ -185,12 +175,7 @@ let funcdef_gen (num, rtyp) () =
   let aux_vmk name vty = 
     mk_tvar name vty ARG
   in 
-  let name, _ = 
-    match rtyp with 
-    | Tint -> List.nth i_udfs num
-    | Treal -> List.nth r_udfs num
-    | Tbool -> List.nth b_udfs num
-  in
+  let name = get_udfunc_name num rtyp in
   let atyp = 
     match num with 
     | 0 -> [aux_vmk "ia" Tint]
@@ -273,17 +258,17 @@ let () =
 
 
   Options.set_disable_weaks true;
-  Options.set_is_gui false; 
+  Options.set_is_gui false;
   (*Memtrace.trace_if_requested ();*)
-  let fdi = (2, Tint) in
-  let fdr = (2, Treal) in
-  let fdb = (2, Tbool) in
-  fdefs := fdi :: fdr :: fdb :: [];  
+  let udif = (2, Tint) in
+  let udrf = (2, Treal) in
+  let udbf = (2, Tbool) in
+  fdefs := udif :: udrf :: udbf :: [];  
   begin 
     Cr.add_test ~name:"ae" 
-      [ funcdef_gen fdi ();
-        funcdef_gen fdr ();
-        funcdef_gen fdb ();
+      [ funcdef_gen udif ();
+        funcdef_gen udrf ();
+        funcdef_gen udbf ();
         axiom_gen ();
         goal_gen ()] 
     @@ 

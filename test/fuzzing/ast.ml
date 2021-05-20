@@ -6,9 +6,9 @@ let query_max_depth = 2
 let axiom_max_depth = 2
 let func_max_depth = 2
 
-let nb_usym_vars = 3
-let nb_usym_funcs = 3
-let nb_funs = 3
+let nb_us_vars = 3
+let nb_us_funcs = 3
+let nb_ud_funcs = 3
 let nb_q_vars = 3
 
 let v_id, thmid, axid, gid, qid, fid = 
@@ -26,14 +26,6 @@ type cst =
   | CstI of int 
   | CstR of float 
   | CstB of bool 
-
-type binop = 
-  | And | Or | Xor | Imp | Iff
-  | Lt | Le | Gt | Ge | Eq | Neq
-  | RAdd | RSub | RMul | RDiv | RPow
-  | IAdd | ISub | IMul | IDiv | IMod | IPow  
-
-type unop = Neg | Not 
 
 type tvar = 
   { vname: string; vty: typ; 
@@ -64,6 +56,14 @@ type ast =
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
+
+and binop = 
+  | And | Or | Xor | Imp | Iff
+  | Lt | Le | Gt | Ge | Eq | Neq
+  | RAdd | RSub | RMul | RDiv | RPow
+  | IAdd | ISub | IMul | IDiv | IMod | IPow  
+and unop = Neg | Not 
+
 and quant =
   {qvars: VS.t; trgs: ast list; body: ast}
 and fcall =
@@ -77,11 +77,7 @@ and fdef =
   { name: string; body: ast; 
     atyp: tvar list; rtyp : typ}
 
-let typ_to_ty typ = 
-  match typ with  
-  | Tint -> Ty.Tint
-  | Treal -> Ty.Treal
-  | Tbool -> Ty.Tbool
+(* Pretty printing *)
 
 let print_typ fmt typ = 
   match typ with 
@@ -189,6 +185,14 @@ let print_cmd fmt cmd =
   | Goal {name; body} ->
     Format.fprintf fmt "Goal(%s):\n%a" name print body
 
+(* Auxiliary functions *)
+
+let typ_to_ty typ = 
+  match typ with  
+  | Tint -> Ty.Tint
+  | Treal -> Ty.Treal
+  | Tbool -> Ty.Tbool
+
 let mk_vname pref num = 
   pref ^ string_of_int num
 
@@ -196,136 +200,84 @@ let mk_tvar vname vty vk =
   {vname; vty; vk; id = (incr v_id; !v_id)}
 
 let mk_var vname vty vk = 
-  Var (mk_tvar vname vty vk)
+  Var {vname; vty; vk; id = (incr v_id; !v_id)}
 
-(* Uninterpreted variables *)
-
-let mk_usymvars nb_usym_vars =
-  let aux pref ty n = 
-    let vname = mk_vname pref n in 
-    mk_var vname ty US ,
-    Sy.Name (Hstring.make vname, Sy.Other)
-  in
-  let tmp = 
-    List.init nb_usym_vars (fun x -> x+1) 
-  in 
-  List.map (aux "iuqv" Tint) tmp,
-  List.map (aux "ruqv" Treal) tmp,
-  List.map (aux "buqv" Tbool) tmp
-
-let i_uvars, r_uvars, b_uvars = mk_usymvars nb_usym_vars
-
-let get_uvar_ast num ty =
-  fst
-    begin
-      match ty with
-      | Tint -> List.nth i_uvars num
-      | Treal -> List.nth r_uvars num
-      | Tbool -> List.nth b_uvars num
-    end
-
-let get_uvar_syty num ty =
-  let (_, sy), rty = 
-    match ty with
-    | Tint -> List.nth i_uvars num, Ty.Tint
-    | Treal -> List.nth r_uvars num, Ty.Treal
-    | Tbool -> List.nth b_uvars num, Ty.Tbool
-  in 
-  sy, rty
-
-let get_uvar_expr num ty =
-  let sy, rty = get_uvar_syty num ty in 
-  Expr.mk_term sy [] rty
-
-(* Uninterpreted functions *)
-
-let mk_usymfuncs nb_usym_funcs =
-  let aux pref n = 
-    let fname = mk_vname pref n in 
-    fname,
-    Sy.Name (Hstring.make fname, Sy.Other)
-  in
-  let tmp = 
-    List.init nb_usym_funcs (fun x -> x+1) 
-  in 
-  List.map (aux "iuf_") tmp,
-  List.map (aux "ruf_") tmp,
-  List.map (aux "buf_") tmp
-
-let i_ufuncs, r_ufuncs, b_ufuncs = mk_usymfuncs nb_usym_funcs
-
-let get_ufunc_ast num ty args = 
-  let (fname, _), rtyp = 
-    begin 
-      match ty with 
-      | Tint -> List.nth i_ufuncs num, Tint
-      | Treal -> List.nth r_ufuncs num, Treal
-      | Tbool -> List.nth b_ufuncs num, Tbool
-    end 
-  in 
-  FunCall {fname; rtyp; args}
-
-let get_ufunc_syty num ty =
-  let (_, sy), rty = 
-    match ty with 
-    | Tint -> List.nth i_ufuncs num, Ty.Tint
-    | Treal -> List.nth r_ufuncs num, Ty.Treal
-    | Tbool -> List.nth b_ufuncs num, Ty.Tbool
-  in 
-  sy, rty
-
-let get_ufunc_expr ate vars num ty args =
-  let sy, rty = get_ufunc_syty num ty in 
-  let rargs = List.map (ate ~vars) args in  
-  Expr.mk_term sy rargs rty
-
-(* User-defined functions *)
-
-let mk_udfuncs nb_ud_funcs =
-  let aux pref n = 
-    let fname = mk_vname pref n in 
-    fname,
-    Sy.Name (Hstring.make fname, Sy.Other)
-  in
-  let tmp = 
-    List.init nb_ud_funcs (fun x -> x+1) 
-  in 
-  List.map (aux "iudf_") tmp,
-  List.map (aux "rudf_") tmp,
-  List.map (aux "budf_") tmp
-
-let i_udfs, r_udfs, b_udfs = mk_udfuncs nb_usym_funcs
-
-let get_udfunc_ast num ty args =
-  let (fname, _), rtyp = 
-    begin 
-      match ty with 
-      | Tint -> List.nth i_udfs num, Tint
-      | Treal -> List.nth r_udfs num, Treal
-      | Tbool -> List.nth b_udfs num, Tbool
-    end 
-  in 
-  FunCall {fname; rtyp; args}
-
-let get_udfunc_syty num ty =
-  let (_, sy), rty = 
-    match ty with
-    | Tint -> List.nth i_udfs num, Ty.Tint
-    | Treal -> List.nth r_udfs num, Ty.Treal
-    | Tbool -> List.nth b_udfs num, Ty.Tbool
-  in 
-  sy, rty    
-
-let get_udfunc_expr ate vars num ty args =
-  let sy, rty = get_udfunc_syty num ty in 
-  let rargs = List.map (ate ~vars) args in  
-  Expr.mk_term sy rargs rty
+let mk_usv vname ty = 
+  Var (mk_tvar vname ty US)
 
 let mk_binop bop x y =
   Binop (bop, x, y)
 
-let mk_unop uop x =
-  Unop (uop, x)
+let mk_nsy1 pref ty n = 
+  let vname = mk_vname pref n in 
+  mk_usv vname ty
+
+let mk_nsy2 pref n = 
+  let fname = mk_vname pref n in 
+  fname
+
+(* Uninterpreted variables *)
+
+let mk_us_vars nb_us_vars pref ty =
+  let tmp = 
+    List.init nb_us_vars (fun x -> x+1) 
+  in 
+  List.map (mk_nsy1 pref ty) tmp    
+
+let i_uvars, r_uvars, b_uvars = 
+  let f = mk_us_vars nb_us_vars in   
+  f "iuv" Tint, f "ruv" Treal, f "buv" Tbool
+
+let get_uvar_ast num ty =
+  match ty with
+  | Tint -> List.nth i_uvars num
+  | Treal -> List.nth r_uvars num
+  | Tbool -> List.nth b_uvars num
+
+(* Uninterpreted functions *)
+
+let mk_us_funcs nb_us_funcs pref =
+  let tmp = 
+    List.init nb_us_funcs (fun x -> x+1) 
+  in 
+  List.map (mk_nsy2 pref) tmp
+
+let i_ufuncs, r_ufuncs, b_ufuncs = 
+  let f = mk_us_funcs nb_us_funcs in 
+  f "iuf_", f "ruf_", f "buf_"
+
+let get_ufunc_ast num rtyp args = 
+  let fname = 
+    match rtyp with 
+    | Tint -> List.nth i_ufuncs num
+    | Treal -> List.nth r_ufuncs num
+    | Tbool -> List.nth b_ufuncs num
+  in 
+  FunCall {fname; rtyp; args}
+
+(* User-defined functions *)
+
+let mk_udfs nb_ud_funcs pref =
+  let tmp = 
+    List.init nb_ud_funcs (fun x -> x+1) 
+  in 
+  List.map (mk_nsy2 pref) tmp
+
+let i_udfs, r_udfs, b_udfs = 
+  let f = mk_udfs nb_ud_funcs in
+  f "iudf_", f "rudf_", f "budf_"
+
+let get_udfunc_name num rtyp =
+  match rtyp with 
+  | Tint -> List.nth i_udfs num
+  | Treal -> List.nth r_udfs num
+  | Tbool -> List.nth b_udfs num
+
+let get_udfunc_ast num rtyp args =
+  let fname = get_udfunc_name num rtyp in 
+  FunCall {fname; rtyp; args}
+
+(* Quantification and Triggers*)
 
 type ptree =  
   | Node of tvar list * ptree list
@@ -622,6 +574,8 @@ let quantify ast =
         Empty nspll
     in 
     quantify_aux ast pt
+
+(* Translation to Alt-Ergo Expressions *)
 
 (** Translates an ast to an Expr.t *)
 let rec ast_to_expr ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast = 
