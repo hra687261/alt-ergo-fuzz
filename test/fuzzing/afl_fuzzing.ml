@@ -4,6 +4,12 @@ open Ast
 module Cr = Crowbar 
 module Sy = Symbols 
 
+module FCS = Set.Make(String)
+
+type gares = {gast : ast; args : VS.t; funcalls: FCS.t}
+
+type gcres = {gcmd : cmd; args : VS.t; funcalls: FCS.t}
+
 let fdefs : (int * typ) list ref = ref []
 
 let cst_gen ty = 
@@ -11,67 +17,112 @@ let cst_gen ty =
   | Tint -> 
     Cr.map 
       [Cr.int] 
-      (fun x -> Cst (CstI x))
+      (fun x -> 
+         let gast = Cst (CstI x) in 
+         {gast; args = VS.empty; funcalls = FCS.empty})
   | Treal -> 
     Cr.map 
       [Cr.float] 
       (fun x -> 
-         Cst (CstR (
-             if Float.is_nan x then 0. else x)))
+         let gast = 
+           Cst (CstR (
+               if Float.is_nan x then 0. else x)) in 
+         {gast; args = VS.empty; funcalls = FCS.empty})
   | Tbool -> 
     Cr.map 
       [Cr.bool] 
-      (fun x -> Cst (CstB x))
+      (fun x -> 
+         let gast =
+           Cst (CstB x) in 
+         {gast; args = VS.empty; funcalls = FCS.empty})
 
 let binop_gen ty fuel bop gen = 
   Cr.map 
     [ gen ty (fuel - 1);
       gen ty (fuel - 1)] 
     ( fun x y -> 
-        mk_binop bop x y)  
+        let gast = 
+          mk_binop bop x.gast y.gast in 
+        { gast; 
+          args = VS.union x.args y.args; 
+          funcalls = FCS.union x.funcalls y.funcalls})   
 
 let usymv_gen ty = 
   Cr.map 
     [Cr.range nb_us_vars] 
-    (fun pos -> get_uvar_ast pos ty)
+    (fun pos -> 
+       let gast =
+         get_uvar_ast pos ty 
+       in 
+       {gast; args = VS.empty; funcalls = FCS.empty})
+
 
 let usymf_genl ty gen fuel = 
   [ Cr.map 
       [ gen Tint (fuel-1)] 
       ( fun arg1 -> 
-          get_ufunc_ast 0 ty [arg1]);
+          let gast = 
+            get_ufunc_ast 0 ty [arg1.gast]
+          in 
+          { gast = gast; 
+            args = arg1.args; 
+            funcalls = arg1.funcalls});
     Cr.map 
       [ gen Tint (fuel-1); 
         gen Treal (fuel-1)] 
       ( fun arg1 arg2 -> 
-          get_ufunc_ast 1 ty [arg1; arg2]);
+          let gast =
+            get_ufunc_ast 1 ty [arg1.gast; arg2.gast]
+          in 
+          { gast; 
+            args = 
+              VS.union arg1.args arg2.args; 
+            funcalls = 
+              FCS.union arg1.funcalls arg2.funcalls});
     Cr.map 
       [ gen Tint (fuel-1); 
         gen Treal (fuel-1); 
         cst_gen Tbool
         (* gen Tbool (fuel-1) *)]
       ( fun arg1 arg2 arg3 -> 
-          get_ufunc_ast 2 ty [arg1; arg2; arg3]);]
-
+          let gast =
+            get_ufunc_ast 2 ty [arg1.gast; arg2.gast; arg3.gast]
+          in 
+          { gast; 
+            args = 
+              VS.union 
+                (VS.union arg1.args arg2.args) 
+                arg3.args; 
+            funcalls = 
+              FCS.union 
+                (FCS.union arg1.funcalls arg2.funcalls) 
+                arg3.funcalls});]
 let qv_gen ty = 
   Cr.map 
     [Cr.bool; Cr.range nb_q_vars] 
     ( fun b pos -> 
-        match b with 
-        | true -> 
-          ( match ty with
-            | Tint -> mk_var (mk_vname "iuqv" pos)
-            | Treal -> mk_var (mk_vname "ruqv" pos)
-            | Tbool -> mk_var (mk_vname "buqv" pos)) ty UQ
-        | false -> 
-          ( match ty with
-            | Tint -> mk_var (mk_vname "ieqv" pos)
-            | Treal -> mk_var (mk_vname "reqv" pos)
-            | Tbool -> mk_var (mk_vname "beqv" pos)) ty EQ)
+        let gast =
+          match b with 
+          | true -> 
+            ( match ty with
+              | Tint -> mk_var (mk_vname "iuqv" pos)
+              | Treal -> mk_var (mk_vname "ruqv" pos)
+              | Tbool -> mk_var (mk_vname "buqv" pos)) ty UQ
+          | false -> 
+            ( match ty with
+              | Tint -> mk_var (mk_vname "ieqv" pos)
+              | Treal -> mk_var (mk_vname "reqv" pos)
+              | Tbool -> mk_var (mk_vname "beqv" pos)) ty EQ
+        in  
+        {gast; args = VS.empty; funcalls = FCS.empty})
 
 let get_arg_gens ty args =
   List.map 
-    ( fun x -> Cr.const @@ Var x)
+    ( fun x -> 
+        Cr.const (
+          { gast = Var x; 
+            args = VS.add x VS.empty; 
+            funcalls = FCS.empty}))
     ( List.filter 
         (fun x -> ty = x.vty) 
         args)
@@ -87,13 +138,31 @@ let get_fcall_gens gen rtyp fuel =
           Cr.map
             [gen Tint (fuel-1)]
             ( fun x1 -> 
-                get_udfunc_ast num rtyp [x1])
+                let fc =
+                  get_udfunc_ast num rtyp [x1.gast] 
+                in 
+                let gast = FunCall fc in 
+                { gast; 
+                  args = x1.args; 
+                  funcalls = 
+                    FCS.add 
+                      fc.fname
+                      x1.funcalls})
         | 1 -> 
           Cr.map
             [ gen Tint (fuel-1); 
               gen Treal (fuel-1)]
             ( fun x1 x2 -> 
-                get_udfunc_ast num rtyp [x1; x2])
+                let fc =
+                  get_udfunc_ast num rtyp [x1.gast; x2.gast]
+                in 
+                let gast = FunCall fc in 
+                { gast; 
+                  args = VS.union x1.args x2.args; 
+                  funcalls = 
+                    FCS.add 
+                      fc.fname
+                      (FCS.union x1.funcalls x2.funcalls)})
         | 2 -> 
           Cr.map
             [ gen Tint (fuel-1); 
@@ -101,7 +170,22 @@ let get_fcall_gens gen rtyp fuel =
               cst_gen Tbool
               (* gen Tbool (fuel-1) *)]
             ( fun x1 x2 x3 -> 
-                get_udfunc_ast num rtyp [x1; x2; x3])
+                let fc =
+                  get_udfunc_ast num rtyp 
+                    [x1.gast; x2.gast; x3.gast] 
+                in 
+                let gast = FunCall fc in 
+                { gast; 
+                  args = 
+                    VS.union 
+                      (VS.union x1.args x2.args) 
+                      x3.args; 
+                  funcalls = 
+                    FCS.add 
+                      fc.fname 
+                      ( FCS.union 
+                          (FCS.union x1.funcalls x2.funcalls) 
+                          x3.funcalls)})
         | _ -> assert false))
     fl
 
@@ -149,22 +233,28 @@ let ast_gen ?(qvars = true) ?(args = []) max_depth ty =
   ag_aux ty max_depth
 
 let goal_gen () =
-  Cr.with_printer print_cmd (
-    Cr.map 
-      [ast_gen query_max_depth Tbool]
-      ( fun ast ->
+  Cr.map 
+    [ast_gen query_max_depth Tbool]
+    ( fun x ->
+        let gcmd =
           Goal {
             name = "goal_" ^ (incr gid; string_of_int !gid);
-            body = quantify ast}))
+            body = quantify x.gast}
+        in 
+        {gcmd; args = x.args; funcalls = x.funcalls}
+    )
 
 let axiom_gen () =
-  Cr.with_printer print_cmd (
-    Cr.map 
-      [ast_gen axiom_max_depth Tbool]
-      ( fun ast ->
+  Cr.map 
+    [ast_gen axiom_max_depth Tbool]
+    ( fun x ->
+        let gcmd =
           Axiom {
             name = "ax_" ^ (incr axid; string_of_int !axid);
-            body = quantify ast}))
+            body = quantify x.gast}
+        in 
+        {gcmd; args = x.args; funcalls = x.funcalls}
+    )
 
 (* num determines the types of the arguments
  * 0 : int
@@ -184,9 +274,20 @@ let funcdef_gen (num, rtyp) () =
     | _ -> assert false 
   in
   let qvars = false in 
-  Cr.with_printer print_cmd (
-    Cr.map [ast_gen ~qvars ~args:atyp func_max_depth rtyp] ( 
-      fun body -> FuncDef {name; body = quantify body; atyp; rtyp}))
+  Cr.map [ast_gen ~qvars ~args:atyp func_max_depth rtyp] ( 
+    fun x -> 
+      let gcmd =
+        FuncDef 
+          { name; 
+            body = x.gast; 
+            atyp = 
+              List.filter (
+                fun v -> VS.mem v x.args
+              ) atyp; 
+            rtyp}
+      in 
+      {gcmd; args = x.args; funcalls = x.funcalls}
+  )
 
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
@@ -272,8 +373,29 @@ let () =
         axiom_gen ();
         goal_gen ()] 
     @@ 
-    fun fi fr fb x y -> Cr.check (proc [fi; fr; fb; x; y])
-  end
+    fun fi fr fb x y -> 
+    Cr.check ( 
+      proc (
+        let gcmdl =
+          [fi; fr; fb; x; y]
+        in
+        let fs, rl =
+          let x, y = 
+            List.fold_left (
+              fun (acc, cl) x -> 
+                FCS.union acc x.funcalls, x.gcmd :: cl
+            ) (FCS.empty, []) gcmdl
+          in
+          x, List.rev y
+        in
+        List.filter 
+          ( fun x -> 
+              match x with 
+              | FuncDef { name; _} -> FCS.mem name fs 
+              | _ -> true)  
+          rl
+      ) 
+    )  end
 
   (*
   begin 

@@ -275,7 +275,7 @@ let get_udfunc_name num rtyp =
 
 let get_udfunc_ast num rtyp args =
   let fname = get_udfunc_name num rtyp in 
-  FunCall {fname; rtyp; args}
+  {fname; rtyp; args}
 
 (* Quantification and Triggers*)
 
