@@ -14,7 +14,7 @@ let nb_q_vars = 3
 let v_id, thmid, axid, gid, qid, fid = 
   ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
 
-type typ = Tint | Treal | Tbool 
+type typ = Tint | Treal | Tbool | TBitV of int
 
 type vkind = 
   | EQ (* Exisancially quantified *)
@@ -26,6 +26,8 @@ type cst =
   | CstI of int 
   | CstR of float 
   | CstB of bool 
+  | CstBv of bitv 
+and bitv = {length : int; bits : string}
 
 type tvar = 
   { vname: string; vty: typ; 
@@ -61,8 +63,9 @@ and binop =
   | And | Or | Xor | Imp | Iff
   | Lt | Le | Gt | Ge | Eq | Neq
   | RAdd | RSub | RMul | RDiv | RPow
-  | IAdd | ISub | IMul | IDiv | IMod | IPow  
-and unop = Neg | Not 
+  | IAdd | ISub | IMul | IDiv | IMod | IPow 
+  | Concat of int
+and unop = Neg | Not | Extract of {l: int; r: int}
 
 and quant =
   {qvars: VS.t; trgs: ast list; body: ast}
@@ -79,26 +82,34 @@ and fdef =
 
 (* Pretty printing *)
 
+let print_bitv fmt bitv = 
+  if bitv.length <= 8 then
+    Format.fprintf fmt "[|%s|]" bitv.bits 
+  else 
+    Format.fprintf fmt "[|size=%d|]" bitv.length
+
 let print_typ fmt typ = 
   match typ with 
   | Tint -> Format.fprintf fmt "int"
   | Treal -> Format.fprintf fmt "real"
   | Tbool -> Format.fprintf fmt "bool"
+  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
 
 let print_binop fmt binop =
-  Format.fprintf fmt @@
-  match binop with 
-  | And ->  "&&"   | Or -> "||"     | Xor -> "xor"
-  | Imp -> "->"    | Iff-> "<->"
+  Format.fprintf fmt (
+    match binop with 
+    | And -> "&&"    | Or -> "||"     | Xor -> "xor"
+    | Imp -> "->"    | Iff-> "<->"
 
-  | Lt -> "<"      | Le -> "<="     | Gt -> ">"
-  | Ge -> ">="     | Eq -> "="      | Neq -> "<>" 
+    | Lt -> "<"      | Le -> "<="     | Gt -> ">"
+    | Ge -> ">="     | Eq -> "="      | Neq -> "<>" 
 
-  | RAdd -> "+."   | RSub -> "-."   | RMul -> "*." 
-  | RDiv -> "/."   | RPow -> "**."
+    | RAdd -> "+."   | RSub -> "-."   | RMul -> "*." 
+    | RDiv -> "/."   | RPow -> "**."
 
-  | IAdd -> "+"    | ISub -> "-"    | IMul -> "*" 
-  | IDiv -> "/"    | IMod -> "%%"   | IPow -> "**" 
+    | IAdd -> "+"    | ISub -> "-"    | IMul -> "*" 
+    | IDiv -> "/"    | IMod -> "%%"   | IPow -> "**" 
+    | Concat _ -> "%@")
 
 let rec print fmt ast = 
   match ast with 
@@ -110,6 +121,8 @@ let rec print fmt ast =
       (Hstring.view (Hstring.make (Float.to_string x)))
   | Cst (CstB x) ->
     Format.fprintf fmt "%b" x
+  | Cst (CstBv x) ->
+    Format.fprintf fmt "%a" print_bitv x 
 
   | Var {vname; _} ->
     Format.fprintf fmt "%s" vname
@@ -118,6 +131,9 @@ let rec print fmt ast =
     Format.fprintf fmt "- (%a)" print ast 
   | Unop (Not, ast) ->
     Format.fprintf fmt "not (%a)" print ast 
+  | Unop (Extract {l;r}, ast) ->
+    Format.fprintf fmt "(%a)^{%d,%d}" 
+      print ast l r 
 
   | Binop (binop, x, y) ->
     Format.fprintf fmt "(%a %a %a)" print x print_binop binop print y 
@@ -157,10 +173,8 @@ let rec print fmt ast =
 let print_cmd fmt cmd = 
   match cmd with 
   | FuncDef {name; body; atyp; rtyp} -> 
-    Format.fprintf 
-      fmt 
-      "FuncDef %s %a -> %a :\n%a" 
-      name 
+    Format.fprintf fmt 
+      "FuncDef %s %a -> %a :\n%a" name 
       ( fun fmt args -> 
           let rec pr_iter args =
             match args with 
@@ -173,11 +187,11 @@ let print_cmd fmt cmd =
               pr_iter tl
             | [] -> ()
           in
-          pr_iter args)
-      atyp
+          pr_iter args
+      ) atyp
       ( fun fmt rty -> 
-          Format.fprintf fmt "%a" print_typ rty)
-      rtyp
+          Format.fprintf fmt "%a" print_typ rty
+      ) rtyp
       print body
 
   | Axiom {name; body} ->
@@ -192,6 +206,7 @@ let typ_to_ty typ =
   | Tint -> Ty.Tint
   | Treal -> Ty.Treal
   | Tbool -> Ty.Tbool
+  | TBitV n -> Ty.Tbitv n 
 
 let mk_vname pref num = 
   pref ^ string_of_int num
@@ -216,6 +231,52 @@ let mk_nsy2 pref n =
   let fname = mk_vname pref n in 
   fname
 
+let int_to_bitv ?(wl = 0) n =
+  assert (n > 0);
+  let rec add_zeros l nbz =
+    if nbz = 0
+    then l 
+    else add_zeros (0::l) (nbz-1)
+  in 
+  let rec trim l nbtr = 
+    if nbtr = 0
+    then l
+    else 
+      match l with 
+      | _ :: t -> trim t (nbtr-1) 
+      | [] -> []
+  in
+  let rec aux n =
+    if n = 0 
+    then 0, []
+    else
+      let m, d = n mod 2, n / 2 in
+      let len, l = aux d in
+      len + 1, m::l  
+  in
+  let length, lst = aux n in
+  let rlst =  
+    begin  
+      if (wl > length)
+      then 
+        begin 
+          add_zeros (List.rev lst) (wl - length)
+        end 
+      else 
+        begin 
+          if (wl <> 0 && wl < length)
+          then trim (List.rev lst) (length - wl)
+          else List.rev lst 
+        end 
+    end 
+  in 
+  let b = Buffer.create length in 
+  List.iter 
+    (fun x -> Buffer.add_char b (Char.chr (48+x))) 
+    rlst; 
+  let bits = Buffer.contents b in
+  {length; bits} 
+
 (* Uninterpreted variables *)
 
 let mk_us_vars nb_us_vars pref ty =
@@ -224,15 +285,23 @@ let mk_us_vars nb_us_vars pref ty =
   in 
   List.map (mk_nsy1 pref ty) tmp    
 
-let i_uvars, r_uvars, b_uvars = 
+let i_uvars, r_uvars, b_uvars, 
+    bv8_uvs, bv16_uvs, bv24_uvs = 
   let f = mk_us_vars nb_us_vars in   
-  f "iuv" Tint, f "ruv" Treal, f "buv" Tbool
+  f "iuv" Tint, f "ruv" Treal, f "buv" Tbool,
+  f "bv8uv" (TBitV 8),
+  f "bv16uv" (TBitV 16),
+  f "bv24uv" (TBitV 24) 
 
 let get_uvar_ast num ty =
   match ty with
   | Tint -> List.nth i_uvars num
   | Treal -> List.nth r_uvars num
   | Tbool -> List.nth b_uvars num
+  | TBitV 8 -> List.nth bv8_uvs num
+  | TBitV 16 -> List.nth bv16_uvs num
+  | TBitV 24 -> List.nth bv24_uvs num
+  | _ -> assert false
 
 (* Uninterpreted functions *)
 
@@ -242,9 +311,13 @@ let mk_us_funcs nb_us_funcs pref =
   in 
   List.map (mk_nsy2 pref) tmp
 
-let i_ufuncs, r_ufuncs, b_ufuncs = 
+let i_ufuncs, r_ufuncs, b_ufuncs, 
+    bv8_ufs, bv16_ufs, bv24_ufs = 
   let f = mk_us_funcs nb_us_funcs in 
-  f "iuf_", f "ruf_", f "buf_"
+  f "iuf_", f "ruf_", f "buf_",
+  f "bv8uf_",
+  f "bv16uf_",
+  f "bv24uf_"
 
 let get_ufunc_ast num rtyp args = 
   let fname = 
@@ -252,6 +325,10 @@ let get_ufunc_ast num rtyp args =
     | Tint -> List.nth i_ufuncs num
     | Treal -> List.nth r_ufuncs num
     | Tbool -> List.nth b_ufuncs num
+    | TBitV 8 -> List.nth bv8_ufs num
+    | TBitV 16 -> List.nth bv16_ufs num
+    | TBitV 24 -> List.nth bv24_ufs num
+    | _ -> assert false   
   in 
   FunCall {fname; rtyp; args}
 
@@ -263,15 +340,27 @@ let mk_udfs nb_ud_funcs pref =
   in 
   List.map (mk_nsy2 pref) tmp
 
-let i_udfs, r_udfs, b_udfs = 
+let i_udfs, r_udfs, b_udfs, 
+    bv8_udfs, bv16_udfs, bv24_udfs = 
   let f = mk_udfs nb_ud_funcs in
-  f "iudf_", f "rudf_", f "budf_"
+  f "iudf_",
+  f "rudf_",
+  f "budf_",
+  f "bv8udf_",
+  f "bv16udf_",
+  f "bv24udf_"
 
 let get_udfunc_name num rtyp =
   match rtyp with 
   | Tint -> List.nth i_udfs num
   | Treal -> List.nth r_udfs num
   | Tbool -> List.nth b_udfs num
+  | TBitV 8 -> List.nth bv8_udfs num
+  | TBitV 16 -> List.nth bv16_udfs num
+  | TBitV 24 -> List.nth bv24_udfs num
+  | TBitV _ -> 
+    Format.printf "%a" print_typ rtyp;
+    assert false
 
 let get_udfunc_ast num rtyp args =
   let fname = get_udfunc_name num rtyp in 
@@ -589,6 +678,20 @@ let rec ast_to_expr ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
   | Cst (CstB false) ->
     Expr.faux
 
+  | Cst (CstBv b) ->
+    Expr.bitv b.bits (Ty.Tbitv b.length)
+
+  | Binop (Concat n, x, y) ->
+    let x' = ast_to_expr ~vars ~decl_kind x in 
+    let y' = ast_to_expr ~vars ~decl_kind y in 
+    Expr.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
+
+  | Unop (Extract {l; r}, b) -> 
+    let l' = Expr.int (Int.to_string l) in 
+    let r' = Expr.int (Int.to_string r) in 
+    let b' = ast_to_expr ~vars ~decl_kind b in 
+    Expr.mk_term (Sy.Op Sy.Extract) [b'; l'; r'] (Ty.Tbitv (r-l))
+
   | Binop (((And | Or | Xor) as op), x, y) ->
     let x' = ast_to_expr ~vars ~decl_kind x in 
     let y' = ast_to_expr ~vars ~decl_kind y in 
@@ -814,10 +917,15 @@ let cmd_to_commad cmd =
         match fdef.rtyp with 
         | Tint | Treal -> Expr.Dfunction fsign, mk_assume
         | Tbool -> Expr.Dpredicate fsign, mk_preddef
+        | TBitV _ -> 
+          Format.printf "%a" print_typ fdef.rtyp;
+          assert false
       end
     in 
 
-    let fbody = ast_to_expr ~vars ~toplevel ~decl_kind fdef.body in 
+    let fbody =
+      ast_to_expr ~vars ~toplevel ~decl_kind fdef.body
+    in 
 
     let lem = Expr.mk_eq ~iff:true fsign fbody in
     let binders = Expr.mk_binders es in

@@ -13,6 +13,10 @@ type gcres = {gcmd : cmd; args : VS.t; funcalls: FCS.t}
 let fdefs : (int * typ) list ref = ref []
 
 let cst_gen ty = 
+  let rec pow x y =
+    if y<=0 then 1
+    else x * pow x (y-1)
+  in
   match ty with 
   | Tint -> 
     Cr.map 
@@ -34,6 +38,15 @@ let cst_gen ty =
       (fun x -> 
          let gast =
            Cst (CstB x) in 
+         {gast; args = VS.empty; funcalls = FCS.empty})
+
+  | TBitV n -> 
+    Cr.map 
+      [Cr.range ((pow 2 n)-1)] 
+      (fun x -> 
+         let gast =
+           Cst (CstBv (int_to_bitv ~wl:n x)) 
+         in 
          {gast; args = VS.empty; funcalls = FCS.empty})
 
 let binop_gen ty fuel bop gen = 
@@ -107,12 +120,20 @@ let qv_gen ty =
             ( match ty with
               | Tint -> mk_var (mk_vname "iuqv" pos)
               | Treal -> mk_var (mk_vname "ruqv" pos)
-              | Tbool -> mk_var (mk_vname "buqv" pos)) ty UQ
+              | Tbool -> mk_var (mk_vname "buqv" pos)
+              | TBitV n ->
+                let pref = Format.sprintf "bv%duqv" n in 
+                mk_var (mk_vname pref pos)
+            ) ty UQ
           | false -> 
             ( match ty with
               | Tint -> mk_var (mk_vname "ieqv" pos)
               | Treal -> mk_var (mk_vname "reqv" pos)
-              | Tbool -> mk_var (mk_vname "beqv" pos)) ty EQ
+              | Tbool -> mk_var (mk_vname "beqv" pos)
+              | TBitV n ->
+                let pref = Format.sprintf "bv%deqv" n in 
+                mk_var (mk_vname pref pos)
+            ) ty EQ
         in  
         {gast; args = VS.empty; funcalls = FCS.empty})
 
@@ -228,7 +249,48 @@ let ast_gen ?(qvars = true) ?(args = []) max_depth ty =
               [ Lt; Le; Gt; Ge; Eq; Neq] @   
             List.map 
               (fun bop -> binop_gen Treal fuel bop ag_aux)
-              [ Lt; Le; Gt; Ge; Eq; Neq]))
+              [ Lt; Le; Gt; Ge; Eq; Neq]
+
+          | TBitV len ->
+            [ (* Extract *)
+              Cr.dynamic_bind 
+                ( Cr.map 
+                    [ Cr.range ~min:1 (len - 1);
+                      Cr.range ~min:1 (len - 1);]
+                    (fun x y -> x, y))
+                ( fun (x,y) ->
+                    let l, r = 
+                      if x <= y then x, y else y, x
+                    in
+                    Cr.map 
+                      [ ag_aux (TBitV (r - l)) (fuel - 1)] 
+                      (fun b -> 
+                         let gast = 
+                           Unop (Extract {l; r}, b.gast)
+                         in
+                         { gast; 
+                           args = b.args; 
+                           funcalls = b.funcalls}
+                      ));
+              (* Concat *)
+              Cr.dynamic_bind 
+                (Cr.range ~min:1 (len - 1))
+                (fun n -> 
+                   Cr.map 
+                     [ ag_aux (TBitV n) (fuel - 1);
+                       ag_aux (TBitV (len - n)) (fuel - 1)] 
+                     ( fun x y -> 
+                         let gast =
+                           Binop (Concat len, x.gast, y.gast)
+                         in
+                         { gast; 
+                           args = 
+                             VS.union x.args y.args; 
+                           funcalls = 
+                             FCS.union x.funcalls y.funcalls}
+                     ))
+            ]
+        ))
   in 
   ag_aux ty max_depth
 
