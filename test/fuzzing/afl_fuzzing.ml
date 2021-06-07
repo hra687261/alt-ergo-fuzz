@@ -39,7 +39,6 @@ let cst_gen ty =
          let gast =
            Cst (CstB x) in 
          {gast; args = VS.empty; funcalls = FCS.empty})
-
   | TBitV n -> 
     Cr.map 
       [Cr.range ((pow 2 n)-1)] 
@@ -48,6 +47,7 @@ let cst_gen ty =
            Cst (CstBv (int_to_bitv ~wl:n x)) 
          in 
          {gast; args = VS.empty; funcalls = FCS.empty})
+  | TFArray _ -> assert false
 
 let binop_gen ty fuel bop gen = 
   Cr.map 
@@ -110,7 +110,17 @@ let usymf_genl ty gen fuel =
               FCS.union 
                 (FCS.union arg1.funcalls arg2.funcalls) 
                 arg3.funcalls});]
-let qv_gen ty = 
+let qv_gen ty =
+  let rec tts t = 
+    match t with 
+    | Tint -> "i" 
+    | Treal -> "r"
+    | Tbool -> "b"
+    | TBitV n -> Format.sprintf "bv%d" n
+    | TFArray {ti; tv} -> 
+      Format.sprintf "%s%sfa" 
+        (tts ti) (tts tv)
+  in
   Cr.map 
     [Cr.bool; Cr.range nb_q_vars] 
     ( fun b pos -> 
@@ -124,6 +134,12 @@ let qv_gen ty =
               | TBitV n ->
                 let pref = Format.sprintf "bv%duqv" n in 
                 mk_var (mk_vname pref pos)
+              | TFArray {ti; tv} -> 
+                let pref = 
+                  Format.sprintf "%s%sfa_uqv" 
+                    (tts ti) (tts tv) 
+                in 
+                mk_var (mk_vname pref pos)
             ) ty UQ
           | false -> 
             ( match ty with
@@ -132,6 +148,12 @@ let qv_gen ty =
               | Tbool -> mk_var (mk_vname "beqv" pos)
               | TBitV n ->
                 let pref = Format.sprintf "bv%deqv" n in 
+                mk_var (mk_vname pref pos)
+              | TFArray {ti; tv} -> 
+                let pref = 
+                  Format.sprintf "%s%sfa_eqv" 
+                    (tts ti) (tts tv) 
+                in 
                 mk_var (mk_vname pref pos)
             ) ty EQ
         in  
@@ -289,6 +311,11 @@ let ast_gen ?(qvars = true) ?(args = []) max_depth ty =
                            funcalls = 
                              FCS.union x.funcalls y.funcalls}
                      ))
+            ]
+          | TFArray {ti; tv} -> ignore (ti, tv);
+            [ (* Access *)
+
+              (* Extract *)
             ]
         ))
   in 

@@ -2,32 +2,17 @@ open AltErgoLib
 
 module Sy = Symbols 
 
-let query_max_depth = 2
-let axiom_max_depth = 2
-let func_max_depth = 2
 
-let nb_us_vars = 3
-let nb_us_funcs = 3
-let nb_ud_funcs = 3
-let nb_q_vars = 3
-
-let v_id, thmid, axid, gid, qid, fid = 
-  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
-
-type typ = Tint | Treal | Tbool | TBitV of int
+type typ = 
+  | Tint | Treal | Tbool 
+  | TBitV of int 
+  | TFArray of {ti: typ; tv: typ}
 
 type vkind = 
   | EQ (* Exisancially quantified *)
   | UQ (* Universally quantified *)
   | US (* Uninterpreted symbol *)
   | ARG (* Function/predicate argument *)
-
-type cst = 
-  | CstI of int 
-  | CstR of float 
-  | CstB of bool 
-  | CstBv of bitv 
-and bitv = {length : int; bits : string}
 
 type tvar = 
   { vname: string; vty: typ; 
@@ -50,11 +35,32 @@ module VM = Map.Make(
     let compare = Int.compare
   end)
 
+let query_max_depth = 2
+let axiom_max_depth = 2
+let func_max_depth = 2
+
+let nb_us_vars = 3
+let nb_us_funcs = 3
+let nb_ud_funcs = 3
+let nb_q_vars = 3
+
+let v_id, thmid, axid, gid, qid, fid = 
+  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
+
+type cst = 
+  | CstI of int 
+  | CstR of float 
+  | CstB of bool 
+  | CstBv of bitv 
+and bitv = {length : int; bits : string}
+
+
 type ast = 
   | Cst of cst
   | Var of tvar
   | Unop of unop * ast 
   | Binop of binop * ast * ast
+  | FAUpdate of {ty: typ * typ; fa: ast; i: ast; v: ast}
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
@@ -65,7 +71,10 @@ and binop =
   | RAdd | RSub | RMul | RDiv | RPow
   | IAdd | ISub | IMul | IDiv | IMod | IPow 
   | Concat of int
-and unop = Neg | Not | Extract of {l: int; r: int}
+and unop = 
+  | Neg | Not 
+  | Extract of {l: int; r: int}
+  | Access of {ty: typ * typ; fa: ast}
 
 and quant =
   {qvars: VS.t; trgs: ast list; body: ast}
@@ -88,12 +97,21 @@ let print_bitv fmt bitv =
   else 
     Format.fprintf fmt "[|size=%d|]" bitv.length
 
-let print_typ fmt typ = 
+let rec print_typ fmt typ = 
   match typ with 
   | Tint -> Format.fprintf fmt "int"
   | Treal -> Format.fprintf fmt "real"
   | Tbool -> Format.fprintf fmt "bool"
   | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
+  | TFArray {ti = Tint; tv} ->
+    Format.fprintf fmt 
+      "<%a> farray"
+      print_typ tv
+  | TFArray {ti; tv} ->
+    Format.fprintf fmt 
+      "(<%a>, <%a>) farray"
+      print_typ ti
+      print_typ tv
 
 let print_binop fmt binop =
   Format.fprintf fmt (
@@ -134,7 +152,12 @@ let rec print fmt ast =
   | Unop (Extract {l;r}, ast) ->
     Format.fprintf fmt "(%a)^{%d,%d}" 
       print ast l r 
+  | Unop (Access {ty = _; fa} , i) -> 
+    Format.fprintf fmt "%a[%a]" print fa print i
 
+  | FAUpdate {ty = _; fa; i; v} -> 
+    Format.fprintf fmt "%a[%a <- %a]" 
+      print fa print i print v;
   | Binop (binop, x, y) ->
     Format.fprintf fmt "(%a %a %a)" print x print_binop binop print y 
 
@@ -201,12 +224,14 @@ let print_cmd fmt cmd =
 
 (* Auxiliary functions *)
 
-let typ_to_ty typ = 
+let rec typ_to_ty typ = 
   match typ with  
   | Tint -> Ty.Tint
   | Treal -> Ty.Treal
   | Tbool -> Ty.Tbool
   | TBitV n -> Ty.Tbitv n 
+  | TFArray {ti; tv} ->
+    Ty.Tfarray (typ_to_ty ti, typ_to_ty tv)
 
 let mk_vname pref num = 
   pref ^ string_of_int num
@@ -286,23 +311,31 @@ let mk_us_vars nb_us_vars pref ty =
   List.map (mk_nsy1 pref ty) tmp    
 
 let i_uvars, r_uvars, b_uvars, 
-    bv8_uvs, bv16_uvs, bv24_uvs = 
+    bv8_uvs, bv16_uvs, bv24_uvs, 
+    iifa_uvs, irfa_uvs, ibfa_uvs = 
   let f = mk_us_vars nb_us_vars in   
   f "iuv" Tint, f "ruv" Treal, f "buv" Tbool,
   f "bv8uv" (TBitV 8),
   f "bv16uv" (TBitV 16),
-  f "bv24uv" (TBitV 24) 
+  f "bv24uv" (TBitV 24),
+  f "iifuv" (TFArray {ti = Tint; tv = Tint}),
+  f "irfuv" (TFArray {ti = Tint; tv = Treal}),
+  f "ibfuv" (TFArray {ti = Tint; tv = Tbool})
 
 let get_uvar_ast num ty =
-  match ty with
-  | Tint -> List.nth i_uvars num
-  | Treal -> List.nth r_uvars num
-  | Tbool -> List.nth b_uvars num
-  | TBitV 8 -> List.nth bv8_uvs num
-  | TBitV 16 -> List.nth bv16_uvs num
-  | TBitV 24 -> List.nth bv24_uvs num
-  | _ -> assert false
-
+  List.nth (
+    match ty with
+    | Tint -> i_uvars
+    | Treal -> r_uvars
+    | Tbool -> b_uvars
+    | TBitV 8 -> bv8_uvs
+    | TBitV 16 -> bv16_uvs
+    | TBitV 24 -> bv24_uvs
+    | TFArray {ti = Tint; tv = Tint} -> iifa_uvs
+    | TFArray {ti = Tint; tv = Treal} -> irfa_uvs
+    | TFArray {ti = Tint; tv = Tbool} -> ibfa_uvs
+    | _ -> assert false
+  ) num
 (* Uninterpreted functions *)
 
 let mk_us_funcs nb_us_funcs pref =
@@ -312,23 +345,29 @@ let mk_us_funcs nb_us_funcs pref =
   List.map (mk_nsy2 pref) tmp
 
 let i_ufuncs, r_ufuncs, b_ufuncs, 
-    bv8_ufs, bv16_ufs, bv24_ufs = 
+    bv8_ufs, bv16_ufs, bv24_ufs, 
+    iifa_ufs, irfa_ufs, ibfa_ufs = 
   let f = mk_us_funcs nb_us_funcs in 
   f "iuf_", f "ruf_", f "buf_",
-  f "bv8uf_",
-  f "bv16uf_",
-  f "bv24uf_"
+  f "bv8uf_", f "bv16uf_", f "bv24uf_",
+  f "iifuf_", f "irfuf_", f "ibfuf_"
+
 
 let get_ufunc_ast num rtyp args = 
   let fname = 
-    match rtyp with 
-    | Tint -> List.nth i_ufuncs num
-    | Treal -> List.nth r_ufuncs num
-    | Tbool -> List.nth b_ufuncs num
-    | TBitV 8 -> List.nth bv8_ufs num
-    | TBitV 16 -> List.nth bv16_ufs num
-    | TBitV 24 -> List.nth bv24_ufs num
-    | _ -> assert false   
+    List.nth (
+      match rtyp with 
+      | Tint -> i_ufuncs
+      | Treal -> r_ufuncs
+      | Tbool -> b_ufuncs
+      | TBitV 8 -> bv8_ufs
+      | TBitV 16 -> bv16_ufs
+      | TBitV 24 -> bv24_ufs
+      | TFArray {ti = Tint; tv = Tint} -> iifa_ufs
+      | TFArray {ti = Tint; tv = Treal} -> irfa_ufs
+      | TFArray {ti = Tint; tv = Tbool} -> ibfa_ufs
+      | _ -> assert false   
+    ) num
   in 
   FunCall {fname; rtyp; args}
 
@@ -341,26 +380,27 @@ let mk_udfs nb_ud_funcs pref =
   List.map (mk_nsy2 pref) tmp
 
 let i_udfs, r_udfs, b_udfs, 
-    bv8_udfs, bv16_udfs, bv24_udfs = 
+    bv8_udfs, bv16_udfs, bv24_udfs, 
+    iifa_udfs, irfa_udfs, ibfa_udfs = 
   let f = mk_udfs nb_ud_funcs in
-  f "iudf_",
-  f "rudf_",
-  f "budf_",
-  f "bv8udf_",
-  f "bv16udf_",
-  f "bv24udf_"
+  f "iudf_", f "rudf_", f "budf_",
+  f "bv8udf_", f "bv16udf_", f "bv24udf_",
+  f "iifudf_", f "irfudf_", f "ibfudf_"
 
 let get_udfunc_name num rtyp =
-  match rtyp with 
-  | Tint -> List.nth i_udfs num
-  | Treal -> List.nth r_udfs num
-  | Tbool -> List.nth b_udfs num
-  | TBitV 8 -> List.nth bv8_udfs num
-  | TBitV 16 -> List.nth bv16_udfs num
-  | TBitV 24 -> List.nth bv24_udfs num
-  | TBitV _ -> 
-    Format.printf "%a" print_typ rtyp;
-    assert false
+  List.nth (
+    match rtyp with 
+    | Tint -> i_udfs
+    | Treal -> r_udfs
+    | Tbool -> b_udfs
+    | TBitV 8 -> bv8_udfs
+    | TBitV 16 -> bv16_udfs
+    | TBitV 24 -> bv24_udfs
+    | TFArray {ti = Tint; tv = Tint} -> iifa_udfs
+    | TFArray {ti = Tint; tv = Treal} -> irfa_udfs
+    | TFArray {ti = Tint; tv = Tbool} -> ibfa_udfs
+    | _ -> assert false
+  ) num
 
 let get_udfunc_ast num rtyp args =
   let fname = get_udfunc_name num rtyp in 
@@ -681,6 +721,27 @@ let rec ast_to_expr ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
   | Cst (CstBv b) ->
     Expr.bitv b.bits (Ty.Tbitv b.length)
 
+  | Unop (Neg, x) -> ast_to_expr ~vars ~decl_kind x
+  | Unop (Not, x) -> 
+    Expr.neg (ast_to_expr ~vars ~decl_kind x)
+
+  | Unop (Access { ty = (ti, tv); fa}, i) -> 
+    let fa' = ast_to_expr fa ~vars ~toplevel ~decl_kind in
+    let i' = ast_to_expr i ~vars ~toplevel ~decl_kind in
+    Expr.mk_term 
+      (Sy.Op Sy.Get) 
+      [fa'; i'] 
+      (typ_to_ty (TFArray {ti; tv}))
+
+  | FAUpdate { ty = (ti, tv); fa; i; v}-> 
+    let fa' = ast_to_expr fa ~vars ~toplevel ~decl_kind in
+    let i' = ast_to_expr i ~vars ~toplevel ~decl_kind in
+    let v' = ast_to_expr v ~vars ~toplevel ~decl_kind in
+    Expr.mk_term 
+      (Sy.Op Sy.Set) 
+      [fa'; i'; v'] 
+      (typ_to_ty (TFArray {ti; tv}))
+
   | Binop (Concat n, x, y) ->
     let x' = ast_to_expr ~vars ~decl_kind x in 
     let y' = ast_to_expr ~vars ~decl_kind y in 
@@ -762,10 +823,6 @@ let rec ast_to_expr ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
         | _ -> assert false 
       end
       [x'; y'] Ty.Treal
-
-  | Unop (Neg, x) -> ast_to_expr ~vars ~decl_kind x
-  | Unop (Not, x) -> 
-    Expr.neg (ast_to_expr ~vars ~decl_kind x)
 
   | FunCall {fname; rtyp; args} ->
     Expr.mk_term 
@@ -915,11 +972,8 @@ let cmd_to_commad cmd =
     let decl_kind, mk_func = 
       begin 
         match fdef.rtyp with 
-        | Tint | Treal -> Expr.Dfunction fsign, mk_assume
         | Tbool -> Expr.Dpredicate fsign, mk_preddef
-        | TBitV _ -> 
-          Format.printf "%a" print_typ fdef.rtyp;
-          assert false
+        | _ -> Expr.Dfunction fsign, mk_assume
       end
     in 
 
