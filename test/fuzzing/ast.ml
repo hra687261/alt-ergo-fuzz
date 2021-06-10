@@ -4,7 +4,7 @@ module Sy = Symbols
 
 
 type typ = 
-  | Tint | Treal | Tbool 
+  | Tint | Treal | Tbool | TDummy
   | TBitV of int 
   | TFArray of {ti: typ; tv: typ}
 
@@ -35,14 +35,15 @@ module VM = Map.Make(
     let compare = Int.compare
   end)
 
-let query_max_depth = 2
-let axiom_max_depth = 2
-let func_max_depth = 2
+let dpt = 3 
+let query_max_depth = dpt
+let axiom_max_depth = dpt
+let func_max_depth = dpt
 
-let nb_us_vars = 3
-let nb_us_funcs = 3
-let nb_ud_funcs = 3
-let nb_q_vars = 3
+let nb_us_vars = 5
+let nb_q_vars = 5
+
+let max_nb_fun_args = 5
 
 let v_id, thmid, axid, gid, qid, fid = 
   ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
@@ -54,7 +55,6 @@ type cst =
   | CstBv of bitv 
 and bitv = {length : int; bits : string}
 
-
 type ast = 
   | Cst of cst
   | Var of tvar
@@ -64,6 +64,7 @@ type ast =
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
+  | Dummy
 
 and binop = 
   | And | Or | Xor | Imp | Iff
@@ -81,6 +82,9 @@ and quant =
 and fcall =
   {fname: string; rtyp: typ; args: ast list}
 
+(* tuple with the max of arguments a function can have*)
+type aty = typ * typ * typ * typ * typ 
+
 type cmd =
   | Axiom of {name: string; body: ast} 
   | Goal of {name: string; body: ast}
@@ -88,6 +92,9 @@ type cmd =
 and fdef = 
   { name: string; body: ast; 
     atyp: tvar list; rtyp : typ}
+
+type fd_info = 
+  {fn: string; params: aty; rtyp: typ}
 
 (* Pretty printing *)
 
@@ -112,6 +119,7 @@ let rec print_typ fmt typ =
       "(<%a>, <%a>) farray"
       print_typ ti
       print_typ tv
+  | TDummy -> Format.fprintf fmt "tdummy"
 
 let print_binop fmt binop =
   Format.fprintf fmt (
@@ -192,6 +200,7 @@ let rec print fmt ast =
     Format.fprintf fmt ".{";
     List.iter (Format.fprintf fmt " %a;" print) trgs; 
     Format.fprintf fmt "} %a" print body
+  | Dummy -> assert false 
 
 let print_cmd fmt cmd = 
   match cmd with 
@@ -224,6 +233,22 @@ let print_cmd fmt cmd =
 
 (* Auxiliary functions *)
 
+let rec typ_to_str ty =
+  match ty with
+  | Tint -> "i"
+  | Treal -> "r"
+  | Tbool -> "b"
+  | TBitV n -> "bv" ^ string_of_int n
+  | TFArray {ti; tv} -> 
+    Format.sprintf "s%s_%se" 
+      (typ_to_str ti) (typ_to_str tv)
+  | _ -> assert false
+
+let is_dummy_tvar {vty; _} =
+  match vty with 
+  | TDummy -> true 
+  | _ -> false 
+
 let rec typ_to_ty typ = 
   match typ with  
   | Tint -> Ty.Tint
@@ -232,29 +257,22 @@ let rec typ_to_ty typ =
   | TBitV n -> Ty.Tbitv n 
   | TFArray {ti; tv} ->
     Ty.Tfarray (typ_to_ty ti, typ_to_ty tv)
+  | TDummy -> assert false
 
 let mk_vname pref num = 
   pref ^ string_of_int num
 
+let mk_tvar_b vname vty vk id = 
+  {vname; vty; vk; id}
+
 let mk_tvar vname vty vk = 
-  {vname; vty; vk; id = (incr v_id; !v_id)}
+  mk_tvar_b vname vty vk (incr v_id; !v_id)
 
 let mk_var vname vty vk = 
   Var {vname; vty; vk; id = (incr v_id; !v_id)}
 
-let mk_usv vname ty = 
-  Var (mk_tvar vname ty US)
-
 let mk_binop bop x y =
   Binop (bop, x, y)
-
-let mk_nsy1 pref ty n = 
-  let vname = mk_vname pref n in 
-  mk_usv vname ty
-
-let mk_nsy2 pref n = 
-  let fname = mk_vname pref n in 
-  fname
 
 let int_to_bitv ?(wl = 0) n =
   assert (n > 0);
@@ -302,109 +320,59 @@ let int_to_bitv ?(wl = 0) n =
   let bits = Buffer.contents b in
   {length; bits} 
 
+let is_dummy a = 
+  match a with 
+  | Dummy -> true 
+  | _ -> false
 (* Uninterpreted variables *)
 
-let mk_us_vars nb_us_vars pref ty =
-  let tmp = 
-    List.init nb_us_vars (fun x -> x+1) 
-  in 
-  List.map (mk_nsy1 pref ty) tmp    
-
-let i_uvars, r_uvars, b_uvars, 
-    bv8_uvs, bv16_uvs, bv24_uvs, 
-    iifa_uvs, irfa_uvs, ibfa_uvs = 
-  let f = mk_us_vars nb_us_vars in   
-  f "iuv" Tint, f "ruv" Treal, f "buv" Tbool,
-  f "bv8uv" (TBitV 8),
-  f "bv16uv" (TBitV 16),
-  f "bv24uv" (TBitV 24),
-  f "iifuv" (TFArray {ti = Tint; tv = Tint}),
-  f "irfuv" (TFArray {ti = Tint; tv = Treal}),
-  f "ibfuv" (TFArray {ti = Tint; tv = Tbool})
-
-let get_uvar_ast num ty =
-  List.nth (
-    match ty with
-    | Tint -> i_uvars
-    | Treal -> r_uvars
-    | Tbool -> b_uvars
-    | TBitV 8 -> bv8_uvs
-    | TBitV 16 -> bv16_uvs
-    | TBitV 24 -> bv24_uvs
-    | TFArray {ti = Tint; tv = Tint} -> iifa_uvs
-    | TFArray {ti = Tint; tv = Treal} -> irfa_uvs
-    | TFArray {ti = Tint; tv = Tbool} -> ibfa_uvs
+let get_uvar_ast num ty = 
+  let vname =
+    match ty with 
+    | Tint -> "ui_"^ string_of_int num 
+    | Treal -> "ur_"^ string_of_int num
+    | Tbool -> "ub_"^ string_of_int num
+    | TBitV n -> "ubv_"^string_of_int n^"_"^ string_of_int num
+    | TFArray {ti; tv} -> 
+      (Format.sprintf "ufa_%s_%s_"
+         (typ_to_str ti) (typ_to_str tv))^ string_of_int num
     | _ -> assert false
-  ) num
+  in    
+  Var (mk_tvar_b vname ty US 0)
+
 (* Uninterpreted functions *)
 
-let mk_us_funcs nb_us_funcs pref =
-  let tmp = 
-    List.init nb_us_funcs (fun x -> x+1) 
-  in 
-  List.map (mk_nsy2 pref) tmp
+let get_args num = 
+  match num with
+  | 1 -> [Tint; TDummy; TDummy; TDummy; TDummy]
+  | 2 -> [Tint; Treal; TDummy; TDummy; TDummy]
+  | 3 -> [Tint; Treal; Tbool; TDummy; TDummy]
+  | 4 -> [Tint; Treal; Tbool; Tint; TDummy]
+  | 5 -> [Tint; Treal; Tbool; Tint; Treal]
+  | _ -> assert false 
 
-let i_ufuncs, r_ufuncs, b_ufuncs, 
-    bv8_ufs, bv16_ufs, bv24_ufs, 
-    iifa_ufs, irfa_ufs, ibfa_ufs = 
-  let f = mk_us_funcs nb_us_funcs in 
-  f "iuf_", f "ruf_", f "buf_",
-  f "bv8uf_", f "bv16uf_", f "bv24uf_",
-  f "iifuf_", f "irfuf_", f "ibfuf_"
+let mk_aty l = 
+  match l with 
+  | [a; b; c; d; e] -> a, b, c, d, e
+  | _ -> assert false
 
-
-let get_ufunc_ast num rtyp args = 
-  let fname = 
-    List.nth (
-      match rtyp with 
-      | Tint -> i_ufuncs
-      | Treal -> r_ufuncs
-      | Tbool -> b_ufuncs
-      | TBitV 8 -> bv8_ufs
-      | TBitV 16 -> bv16_ufs
-      | TBitV 24 -> bv24_ufs
-      | TFArray {ti = Tint; tv = Tint} -> iifa_ufs
-      | TFArray {ti = Tint; tv = Treal} -> irfa_ufs
-      | TFArray {ti = Tint; tv = Tbool} -> ibfa_ufs
-      | _ -> assert false   
-    ) num
-  in 
-  FunCall {fname; rtyp; args}
-
-(* User-defined functions *)
-
-let mk_udfs nb_ud_funcs pref =
-  let tmp = 
-    List.init nb_ud_funcs (fun x -> x+1) 
-  in 
-  List.map (mk_nsy2 pref) tmp
-
-let i_udfs, r_udfs, b_udfs, 
-    bv8_udfs, bv16_udfs, bv24_udfs, 
-    iifa_udfs, irfa_udfs, ibfa_udfs = 
-  let f = mk_udfs nb_ud_funcs in
-  f "iudf_", f "rudf_", f "budf_",
-  f "bv8udf_", f "bv16udf_", f "bv24udf_",
-  f "iifudf_", f "irfudf_", f "ibfudf_"
-
-let get_udfunc_name num rtyp =
-  List.nth (
+let get_ufunc_ast num rtyp = 
+  let fn =
     match rtyp with 
-    | Tint -> i_udfs
-    | Treal -> r_udfs
-    | Tbool -> b_udfs
-    | TBitV 8 -> bv8_udfs
-    | TBitV 16 -> bv16_udfs
-    | TBitV 24 -> bv24_udfs
-    | TFArray {ti = Tint; tv = Tint} -> iifa_udfs
-    | TFArray {ti = Tint; tv = Treal} -> irfa_udfs
-    | TFArray {ti = Tint; tv = Tbool} -> ibfa_udfs
+    | Tint -> "ufi_"^ string_of_int num 
+    | Treal -> "ufr_"^ string_of_int num
+    | Tbool -> "ufb_"^ string_of_int num
+    | TBitV n -> "ufbv_"^string_of_int n^"_"^ string_of_int num
+    | TFArray {ti; tv} -> 
+      (Format.sprintf "uffa_%s_%s_"
+         (typ_to_str ti) (typ_to_str tv))^ string_of_int num
     | _ -> assert false
-  ) num
+  in
+  let params =
+    mk_aty (get_args num)
+  in
+  {fn; params; rtyp}
 
-let get_udfunc_ast num rtyp args =
-  let fname = get_udfunc_name num rtyp in 
-  {fname; rtyp; args}
 
 (* Quantification and Triggers*)
 
@@ -876,6 +844,8 @@ let rec ast_to_expr ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (ast_to_expr ~vars ~toplevel ~decl_kind body) (-42) 
       ~toplevel
       ~decl_kind
+
+  | Dummy -> assert false 
 
 (** Translates a cmd to a Commands.sat_tdecl *)
 let cmd_to_commad cmd = 
