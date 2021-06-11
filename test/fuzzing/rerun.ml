@@ -8,6 +8,8 @@ first place.
 *)
 open AltErgoLib 
 open Ast
+open Translate_ae
+
 
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
@@ -30,7 +32,7 @@ let solve cmds =
   let _, consistent, _ = 
     List.fold_left 
       ( fun acc cmd ->
-          let command = cmd_to_commad cmd in 
+          let command = translate_decl cmd in 
           Format.printf "### %a@." print_cmd cmd;
           Format.printf ">>> %a\n@." Commands.print command;
 
@@ -50,7 +52,7 @@ let solve cmds =
 let () =
   Format.printf "\n\nRERUNNING @.";
   assert (List.length !inputs = 1);
-  
+
   let file_name = List.hd !inputs in 
   Format.printf "Reading from the file: %s@." file_name;
   let line = Core.In_channel.read_all file_name in 
@@ -64,7 +66,7 @@ let () =
         List.iter ( 
           fun cmd ->
             Format.fprintf fmt "\n### %a@." print_cmd cmd;
-            let command = cmd_to_commad cmd in 
+            let command = translate_decl cmd in 
             Format.fprintf fmt ">>> %a@." Commands.print command
         ) cmdl
     ) cmds;
