@@ -470,61 +470,75 @@ let quantify ast =
         in 
         let nnvs = (l, k) :: nvs in 
 
-        List.fold_left  
-          ( fun exp (vl, kd) ->
-              let vs = 
-                List.fold_left 
-                  (fun acc x -> VS.add x acc)
-                  VS.empty vl
-              in 
-              match kd with 
-              | EQ -> 
-                Exists {
-                  qvars = vs; 
-                  trgs = [](*add_triggers vs exp*); 
-                  body = exp}
-              | UQ -> 
-                Forall {
-                  qvars = vs; 
-                  trgs = [](*add_triggers vs exp*); 
-                  body = exp}
-              | US | ARG -> assert false)
-          ast nnvs
+        (* needs to be replace with a recursive call*)
+        List.fold_left ( 
+          fun exp (vl, kd) ->
+            let vs = 
+              List.fold_left 
+                (fun acc x -> VS.add x acc)
+                VS.empty vl
+            in 
+            match kd with 
+            | EQ -> 
+              Exists {
+                qvars = vs; 
+                trgs = [](*add_triggers vs exp*); 
+                body = exp}
+            | UQ -> 
+              Forall {
+                qvars = vs; 
+                trgs = [](*add_triggers vs exp*); 
+                body = exp}
+            | US | ARG -> assert false
+        ) ast nnvs
 
       | [] -> ast
     in 
 
-    match ast with 
-    | Binop (op, x, y) -> (
-        match pt with
-        | Node (vs, pstl) -> 
-          q_aux_bis vs (
+    match pt with 
+    | Node (vs, []) ->
+      q_aux_bis vs ast
+    | Node (vs, pstl) -> 
+      begin
+        match ast with 
+        | Binop (op, x, y) -> 
+          q_aux_bis vs ( 
             match pstl with 
-            | [] -> Binop (op, x, y)
             | [_] ->
-              Binop (op, 
-                     quantify_aux x (List.hd pstl), y)
+              let x' = quantify_aux x (List.hd pstl) in 
+              Binop (op, x', y)
             | [_; _] ->
-              Binop (op, 
-                     quantify_aux x (List.nth pstl 0), 
-                     quantify_aux y (List.nth pstl 1))
-            | _ -> assert false)
-        | Empty -> ast)
+              let x' = quantify_aux x (List.nth pstl 0) in
+              let y' = quantify_aux y (List.nth pstl 1) in
+              Binop (op, x', y')
+            | _ -> assert false
+          )
 
-    | FunCall q -> (
-        match pt with
-        | Node (vs, pstl) -> 
-          q_aux_bis vs 
-            (FunCall {q with args = aux_call q.args pstl})
-        | Empty -> ast)
+        | Unop (Access _, _) -> (
+            match pt with 
+            | Node (vs, pstl) -> 
+              assert (List.for_all (fun x -> x == Empty) pstl);
+              q_aux_bis vs ast
+            | Empty -> ast
+          )
 
-    | Unop (op, x) -> Unop (op, quantify_aux x pt) 
-    | Forall q -> 
-      Forall {q with body = quantify_aux q.body pt}
-    | Exists q -> 
-      Exists {q with body = quantify_aux q.body pt}
+        | Unop (op, x) -> 
+          Unop (op, quantify_aux x pt)
 
-    | _ -> ast
+        | FunCall q -> (
+            match pt with
+            | Node (vs, pstl) -> 
+              q_aux_bis vs 
+                (FunCall {q with args = aux_call q.args pstl})
+            | Empty -> ast)
+
+        | Forall q -> 
+          Forall {q with body = quantify_aux q.body pt}
+        | Exists q -> 
+          Exists {q with body = quantify_aux q.body pt}
+        | _ -> ast
+      end 
+    | Empty -> ast
   in 
   (* takes a list of couples (list of paths, var) 
    * and returns a a list of couples (common path prefix, var) *)
@@ -551,15 +565,25 @@ let quantify ast =
       match ast with 
       | Binop (_, x, y) ->
         get_vars x @ get_vars y 
+
+      | Unop (Access {fa; _}, x) ->
+        get_vars fa @ get_vars x 
+
       | Unop (_, x) -> get_vars x
+
       | FunCall {args; _} -> 
         List.fold_left 
           ( fun l x -> 
               get_vars x @ l)
           ([])
           args 
+
+      | FAUpdate {fa; i; v; _} ->
+        get_vars fa @ get_vars i @ get_vars v
+
       | Var ({vk = (EQ|UQ); _} as var) -> [var]
-      | _ -> []
+
+      | Dummy | Cst _ | Forall _ | Exists _ | Var _ -> []
     in 
 
     match ast with 
@@ -579,6 +603,16 @@ let quantify ast =
 
     | Unop (Not, x) -> 
       q_aux path x
+
+    | Unop (Access {fa; _}, x) ->
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in 
+      List.map
+        ( fun x -> (rpath, x)) 
+        ( get_vars fa @ get_vars x)
+
     | Unop (_, x) -> 
       let rpath = 
         if path = [] then [] else
@@ -595,6 +629,7 @@ let quantify ast =
             q_aux (n::path) x @ l, n + 1)
         ([], 0)
         args
+
     | FunCall {args; _} -> 
       let rpath = 
         if path = [] then [] else
@@ -610,13 +645,23 @@ let quantify ast =
       in 
       vars 
 
+    | FAUpdate  {fa; i; v; _} -> 
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in 
+      List.map
+        ( fun x -> (rpath, x)) 
+        ( get_vars fa @ get_vars i @ get_vars v)
+
     | Var ({vk = (EQ|UQ); _} as var) ->
       let rpath = 
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
       [(rpath, var)]
-    | _ -> []
+
+    | Dummy | Cst _ |Forall _ |Exists _ | Var _ -> []
   in 
 
   (* sorted list of (path, var) couples by var.id *)

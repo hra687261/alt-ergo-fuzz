@@ -44,13 +44,13 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
   | Unop (Not, x) -> 
     Expr.neg (translate_ast ~vars ~decl_kind x)
 
-  | Unop (Access { ty = (ti, tv); fa}, i) -> 
+  | Unop (Access { ty = _, tv; fa}, i) -> 
     let fa' = translate_ast fa ~vars ~toplevel ~decl_kind in
     let i' = translate_ast i ~vars ~toplevel ~decl_kind in
     Expr.mk_term 
       (Sy.Op Sy.Get) 
       [fa'; i'] 
-      (typ_to_ty (TFArray {ti; tv}))
+      (typ_to_ty tv)
 
   | FAUpdate { ty = (ti, tv); fa; i; v}-> 
     let fa' = translate_ast fa ~vars ~toplevel ~decl_kind in
@@ -150,7 +150,6 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (typ_to_ty rtyp)
 
   | Var {vname; vty; vk = US; _} -> 
-    (*???*)
     Expr.mk_term 
       (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] (typ_to_ty vty)
@@ -182,6 +181,9 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
     let binders = Expr.mk_binders qve in 
     let triggers = [] (* ??? *) in
+    let qbody = 
+      translate_ast ~vars ~toplevel ~decl_kind body
+    in
     begin 
       match ast with 
       | Forall _ -> Expr.mk_forall
@@ -192,7 +194,8 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       Loc.dummy 
       binders
       triggers 
-      (translate_ast ~vars ~toplevel ~decl_kind body) (-42) 
+      qbody 
+      (-42) 
       ~toplevel
       ~decl_kind
 

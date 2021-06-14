@@ -3,9 +3,12 @@ module Cr = Crowbar
 module FCS = Set.Make(String)
 
 type ast_gen_res = 
-  {gast : ast; usedargs : VS.t; calledfuncs: FCS.t}
+  { gast : ast; 
+    usedargs : VS.t; 
+    calledfuncs: FCS.t}
 type cmd_gen_res = 
-  {gcmd : cmd; calledfuncs: FCS.t}
+  { gcmd : cmd; 
+    calledfuncs: FCS.t}
 
 type declkind = (* declaration kind *) 
   | FD (* function declaration *)
@@ -35,7 +38,9 @@ let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
   Format.fprintf fmt "\n}"
 
 let dummy_gar = 
-  {gast = Dummy; usedargs = VS.empty; calledfuncs = FCS.empty}
+  { gast = Dummy; 
+    usedargs = VS.empty; 
+    calledfuncs = FCS.empty}
 
 let typ_gen = 
   Cr.choose [
@@ -150,57 +155,53 @@ let usymf_genl ty gen fuel =
   Cr.dynamic_bind g1 g2
 
 
-let qv_gen ty =
-  let rec tts t = 
-    match t with 
-    | Tint -> "i" 
-    | Treal -> "r"
-    | Tbool -> "b"
-    | TBitV n -> Format.sprintf "bv%d" n
-    | TFArray {ti; tv} -> 
-      Format.sprintf "%s%sfa" 
-        (tts ti) (tts tv)
-    | TDummy -> assert false
+let qv_gen qvars ty =
+  let aux pref pos = 
+    mk_var (mk_vname pref pos)
   in
-  Cr.map 
-    [Cr.bool; Cr.range nb_q_vars] 
-    ( fun b pos -> 
-        let gast =
-          match b with 
-          | true -> 
-            ( match ty with
-              | Tint -> mk_var (mk_vname "iuqv" pos)
-              | Treal -> mk_var (mk_vname "ruqv" pos)
-              | Tbool -> mk_var (mk_vname "buqv" pos)
-              | TBitV n ->
-                let pref = Format.sprintf "bv%duqv" n in 
-                mk_var (mk_vname pref pos)
-              | TFArray {ti; tv} -> 
-                let pref = 
-                  Format.sprintf "%s%sfa_uqv" 
-                    (tts ti) (tts tv) 
-                in 
-                mk_var (mk_vname pref pos)
-              | TDummy -> assert false
-            ) ty UQ
-          | false -> 
-            ( match ty with
-              | Tint -> mk_var (mk_vname "ieqv" pos)
-              | Treal -> mk_var (mk_vname "reqv" pos)
-              | Tbool -> mk_var (mk_vname "beqv" pos)
-              | TBitV n ->
-                let pref = Format.sprintf "bv%deqv" n in 
-                mk_var (mk_vname pref pos)
-              | TFArray {ti; tv} -> 
-                let pref = 
-                  Format.sprintf "%s%sfa_eqv" 
-                    (tts ti) (tts tv) 
-                in 
-                mk_var (mk_vname pref pos)
-              | TDummy -> assert false
-            ) ty EQ
-        in  
-        {gast; usedargs = VS.empty; calledfuncs = FCS.empty})
+  if qvars then 
+    [ Cr.map 
+        [Cr.bool; Cr.range nb_q_vars] 
+        ( fun b pos -> 
+            let gast =
+              match b with 
+              | true -> 
+                ( match ty with
+                  | Tint -> aux "iuqv" pos
+                  | Treal -> aux "ruqv" pos
+                  | Tbool -> aux "buqv" pos
+                  | TBitV n ->
+                    let pref = Format.sprintf "bv%duqv" n in 
+                    aux pref pos
+                  | TFArray {ti; tv} -> 
+                    let pref = 
+                      Format.sprintf "%s%sfa_uqv" 
+                        (typ_to_str ti) (typ_to_str tv) 
+                    in 
+                    aux pref pos
+                  | TDummy -> assert false
+                ) ty UQ
+              | false -> 
+                ( match ty with
+                  | Tint -> aux "ieqv" pos
+                  | Treal -> aux "reqv" pos
+                  | Tbool -> aux "beqv" pos
+                  | TBitV n ->
+                    let pref = Format.sprintf "bv%deqv" n in 
+                    aux pref pos
+                  | TFArray {ti; tv} -> 
+                    let pref = 
+                      Format.sprintf "%s%sfa_eqv" 
+                        (typ_to_str ti) (typ_to_str tv) 
+                    in 
+                    aux pref pos
+                  | TDummy -> assert false
+                ) ty EQ
+            in  
+            {gast; usedargs = VS.empty; calledfuncs = FCS.empty}
+        )
+    ]
+  else []
 
 let get_arg_gens ty args =
   let l = List.filter (fun x -> ty = x.vty) args in
@@ -258,98 +259,155 @@ let func_call_gen :
   then []
   else [Cr.choose fdgs]
 
+let get_fa_access gen fuel tv = 
+  Cr.dynamic_bind 
+    typ_gen
+    ( fun ti -> 
+        Cr.map 
+          [ gen (fuel - 1) (TFArray {ti;tv});
+            gen (fuel - 1) ti]
+          ( fun fa i ->
+              let gast =
+                Unop (Access {ty = ti, tv; fa = fa.gast}, i.gast)
+              in 
+              { gast;
+                usedargs = 
+                  VS.union fa.usedargs i.usedargs;
+                calledfuncs = 
+                  FCS.union fa.calledfuncs i.calledfuncs}
+          )
+    )
+
+let get_fa_update gen fuel ti tv =
+  let ty = 
+    TFArray {ti; tv}
+  in
+  Cr.map 
+    [ gen (fuel - 1) ty;
+      gen (fuel - 1) ti;
+      gen (fuel - 1) tv]
+    ( fun fa i v ->
+        let gast = 
+          FAUpdate {
+            ty = (ti, tv); 
+            fa = fa.gast; 
+            i = i.gast; 
+            v = v.gast}
+        in
+        { gast; 
+          usedargs = 
+            VS.union fa.usedargs 
+              (VS.union i.usedargs v.usedargs); 
+          calledfuncs = 
+            FCS.union fa.calledfuncs 
+              (FCS.union i.calledfuncs v.calledfuncs); }
+    )
+
+let get_bv_gens gen fuel len =
+  [ (* Extract *)
+    Cr.dynamic_bind 
+      ( Cr.map 
+          [ Cr.range ~min:1 (len - 1);
+            Cr.range ~min:1 (len - 1);]
+          (fun x y -> x, y))
+      ( fun (x,y) ->
+          let l, r = 
+            if x <= y then x, y else y, x
+          in
+          Cr.map 
+            [ gen (fuel - 1) (TBitV (r - l))] 
+            (fun b -> 
+               let gast = 
+                 Unop (Extract {l; r}, b.gast)
+               in
+               { gast; 
+                 usedargs = b.usedargs; 
+                 calledfuncs = b.calledfuncs}
+            ));
+    (* Concat *)
+    Cr.dynamic_bind 
+      (Cr.range ~min:1 (len - 1))
+      (fun n -> 
+         Cr.map 
+           [ gen (fuel - 1) (TBitV n);
+             gen (fuel - 1) (TBitV (len - n))] 
+           ( fun x y -> 
+               let gast =
+                 Binop (Concat len, x.gast, y.gast)
+               in
+               { gast; 
+                 usedargs = 
+                   VS.union x.usedargs y.usedargs; 
+                 calledfuncs = 
+                   FCS.union x.calledfuncs y.calledfuncs}
+           ))
+  ]
 
 (********************************************************************)
 let generate_ast ?(qvars = true) ?(args = []) 
     ?(fdefs: fd_info list = []) max_depth ty =
   let rec ag_aux fuel ty = 
-    match fuel <= 0 with 
-    | true -> 
-      Cr.choose ( 
-        [cst_gen ty; usymv_gen ty]
-        @ (
-          if qvars then [qv_gen ty] else []) 
-        @ get_arg_gens ty args
-      )
-
-    | false -> 
+    if fuel <= 0 
+    then
+      begin 
+        Cr.choose (
+          ( match ty with 
+            | TFArray _ -> []
+            | _ -> [cst_gen ty]
+          ) @ ( 
+            usymv_gen ty ::
+            qv_gen qvars ty @  
+            get_arg_gens ty args
+          )
+        )
+      end
+    else 
       Cr.choose (
-        cst_gen ty ::
-        usymv_gen ty :: 
-        [usymf_genl ty ag_aux fuel] @
-        ( if qvars && fuel < max_depth 
-          then [qv_gen ty] 
-          else []) @
-
-        get_arg_gens ty args @
-        func_call_gen ag_aux fuel ty fdefs @
-
         ( match ty with 
-          | Tint -> 
-            List.map 
-              (fun bop -> binop_gen ty fuel bop ag_aux)
-              [ IAdd; ISub; IMul; IDiv; IMod; IPow]
-          | Treal ->
-            List.map 
-              (fun bop -> binop_gen ty fuel bop ag_aux)
-              [ RAdd; RSub; RMul; RDiv; RPow]
-          | Tbool ->
-            List.map 
-              (fun bop -> binop_gen ty fuel bop ag_aux)
-              [ And; Or; Xor; Imp; Iff] @   
-            List.map 
-              (fun bop -> binop_gen Tint fuel bop ag_aux)
-              [ Lt; Le; Gt; Ge; Eq; Neq] @   
-            List.map 
-              (fun bop -> binop_gen Treal fuel bop ag_aux)
-              [ Lt; Le; Gt; Ge; Eq; Neq]
+          | TFArray _ -> []
+          | _ -> [cst_gen ty]
+        ) @ ( 
+          usymv_gen ty :: 
 
-          | TBitV len ->
-            [ (* Extract *)
-              Cr.dynamic_bind 
-                ( Cr.map 
-                    [ Cr.range ~min:1 (len - 1);
-                      Cr.range ~min:1 (len - 1);]
-                    (fun x y -> x, y))
-                ( fun (x,y) ->
-                    let l, r = 
-                      if x <= y then x, y else y, x
-                    in
-                    Cr.map 
-                      [ ag_aux (fuel - 1) (TBitV (r - l))] 
-                      (fun b -> 
-                         let gast = 
-                           Unop (Extract {l; r}, b.gast)
-                         in
-                         { gast; 
-                           usedargs = b.usedargs; 
-                           calledfuncs = b.calledfuncs}
-                      ));
-              (* Concat *)
-              Cr.dynamic_bind 
-                (Cr.range ~min:1 (len - 1))
-                (fun n -> 
-                   Cr.map 
-                     [ ag_aux (fuel - 1) (TBitV n);
-                       ag_aux (fuel - 1) (TBitV (len - n))] 
-                     ( fun x y -> 
-                         let gast =
-                           Binop (Concat len, x.gast, y.gast)
-                         in
-                         { gast; 
-                           usedargs = 
-                             VS.union x.usedargs y.usedargs; 
-                           calledfuncs = 
-                             FCS.union x.calledfuncs y.calledfuncs}
-                     ))
-            ]
-          | TFArray {ti; tv} -> ignore (ti, tv);
-            [ (* Access *)
+          usymf_genl ty ag_aux fuel ::
 
-              (* Extract *)
-            ]
-          | TDummy -> assert false 
-        ))
+          get_fa_access ag_aux fuel ty ::
+
+          (qv_gen qvars ty) @
+
+          get_arg_gens ty args @
+          func_call_gen ag_aux fuel ty fdefs @
+
+          ( match ty with 
+            | Tint -> 
+              List.map 
+                (fun bop -> binop_gen ty fuel bop ag_aux)
+                [ IAdd; ISub; IMul; IDiv; IMod; IPow]
+            | Treal ->
+              List.map 
+                (fun bop -> binop_gen ty fuel bop ag_aux)
+                [ RAdd; RSub; RMul; RDiv; RPow]
+            | Tbool ->
+              List.map 
+                (fun bop -> binop_gen ty fuel bop ag_aux)
+                [ And; Or; Xor; Imp; Iff] @   
+              List.map 
+                (fun bop -> binop_gen Tint fuel bop ag_aux)
+                [ Lt; Le; Gt; Ge; Eq; Neq] @   
+              List.map 
+                (fun bop -> binop_gen Treal fuel bop ag_aux)
+                [ Lt; Le; Gt; Ge; Eq; Neq]
+
+            | TBitV len ->
+              get_bv_gens ag_aux fuel len
+            | TFArray {ti; tv} -> 
+              [ 
+                get_fa_update ag_aux fuel ti tv
+              ]
+            | TDummy -> assert false 
+          )
+        )
+      )
   in 
   ag_aux max_depth ty
 
@@ -457,7 +515,10 @@ let generate_decl ?(fdefs = []) ?(name = "") kind =
 (********************************************************************)
 let mk_gen : fd_info list -> declkind -> cmd_gen_res Cr.gen =
   fun fdefs e ->
-  Cr.map [generate_decl ~fdefs ~name:"" e] (fun gres -> gres) 
+  Cr.map [
+    generate_decl ~fdefs 
+      ~name:("udf_"^string_of_int(incr fid; !fid)) e
+  ] (fun gres -> gres) 
 
 let mk_fd_info fn (vs: tvar list) rtyp =
   { params = begin 
@@ -522,7 +583,7 @@ and liter :
         Cr.const decls
     )
 
-
+(********************************************************************)
 let gen_decls = 
   Cr.dynamic_bind (
     Cr.map 
