@@ -23,7 +23,7 @@ val pr_fdi : Format.formatter -> fd_info -> unit
 val get_gen : fd_info list -> declkind -> cmd_gen_res Cr.gen
 
 val generate_ast : 
-  ?qvars:bool -> ?args:tvar list -> ?fdefs:fd_info list -> int -> typ -> 
+  ?isform:bool -> ?qvars:bool -> ?args:tvar list -> ?fdefs:fd_info list -> int -> typ -> 
   ast_gen_res Cr.gen
 
 val generate_decl : 

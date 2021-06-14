@@ -344,7 +344,7 @@ let get_bv_gens gen fuel len =
   ]
 
 (********************************************************************)
-let generate_ast ?(qvars = true) ?(args = []) 
+let generate_ast ?(isform = false) ?(qvars = true) ?(args = []) 
     ?(fdefs: fd_info list = []) max_depth ty =
   let rec ag_aux fuel ty = 
     if fuel <= 0 
@@ -371,7 +371,9 @@ let generate_ast ?(qvars = true) ?(args = [])
 
           usymf_genl ty ag_aux fuel ::
 
-          get_fa_access ag_aux fuel ty ::
+          ( if isform 
+            then []  
+            else [get_fa_access ag_aux fuel ty]) @
 
           (qv_gen qvars ty) @
 
@@ -460,7 +462,7 @@ let fdef_gen ?(fdefs = []) name func_max_depth =
 let goal_gen ?(fdefs = []) query_max_depth =
   Cr.with_printer pr_gcr @@
   Cr.map 
-    [generate_ast ~fdefs query_max_depth Tbool]
+    [generate_ast ~isform:true ~fdefs query_max_depth Tbool]
     ( fun x ->
         let gcmd =
           Goal {
@@ -473,7 +475,7 @@ let goal_gen ?(fdefs = []) query_max_depth =
 let axiom_gen ?(fdefs = []) axiom_max_depth =
   Cr.with_printer pr_gcr @@
   Cr.map 
-    [generate_ast ~fdefs axiom_max_depth Tbool]
+    [generate_ast ~isform:true ~fdefs axiom_max_depth Tbool]
     ( fun x ->
         let gcmd =
           Axiom {
