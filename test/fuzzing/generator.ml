@@ -303,6 +303,8 @@ let get_fa_update gen fuel ti tv =
               (FCS.union i.calledfuncs v.calledfuncs); }
     )
 
+let _ = ignore (get_fa_access, get_fa_update)
+
 let get_bv_gens gen fuel len =
   [ (* Extract *)
     Cr.dynamic_bind 
@@ -346,6 +348,7 @@ let get_bv_gens gen fuel len =
 (********************************************************************)
 let generate_ast ?(isform = false) ?(qvars = true) ?(args = []) 
     ?(fdefs: fd_info list = []) max_depth ty =
+  ignore isform;
   let rec ag_aux fuel ty = 
     if fuel <= 0 
     then
@@ -371,9 +374,11 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
 
           usymf_genl ty ag_aux fuel ::
 
+          (*
           ( if isform 
             then []  
             else [get_fa_access ag_aux fuel ty]) @
+          *)
 
           (qv_gen qvars ty) @
 
@@ -402,11 +407,13 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
 
             | TBitV len ->
               get_bv_gens ag_aux fuel len
+            (*
             | TFArray {ti; tv} -> 
               [ 
                 get_fa_update ag_aux fuel ti tv
               ]
-            | TDummy -> assert false 
+            *)
+            | _ -> assert false 
           )
         )
       )
