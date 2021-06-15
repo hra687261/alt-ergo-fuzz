@@ -300,6 +300,12 @@ let is_dummy a =
   match a with 
   | Dummy -> true 
   | _ -> false
+
+let is_goal d = 
+  match d with 
+  | Goal _ -> true 
+  | _ -> false
+
 (* Uninterpreted variables *)
 
 let get_uvar_ast num ty = 

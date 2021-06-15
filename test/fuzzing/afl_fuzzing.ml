@@ -8,6 +8,8 @@ module Cr = Crowbar
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
+exception Timeout
+
 let reinit_env () = 
   SAT.reset_refs ();
   Expr.clear_hc ();
@@ -15,29 +17,53 @@ let reinit_env () =
   Gc.major ()
 
 let solve cmds =
-  let _, consistent, _ = 
-    List.fold_left 
-      ( fun acc cmd ->
-          let command = translate_decl cmd in 
+  reinit_env ();
+  Format.printf "\n";
+  let _ = 
+    List.fold_left ( 
+      fun (env, consistent, ex) cmd ->
+
+        let command = translate_decl cmd in 
+
+        let env, consistent, ex = 
           FE.process_decl 
             (fun _ _ -> ()) (*FE.print_status*)
             (FE.init_all_used_context ()) 
             (Stack.create ()) 
-            acc command)
+            (env, consistent, ex) command
+        in
+
+        if is_goal cmd 
+        then 
+          Format.printf "%s@."
+            ( if consistent 
+              then "unknown" 
+              else "unsat");
+        env, consistent, ex
+    )
       (SAT.empty (), true, Explanation.empty) 
       cmds
-  in 
-  Format.printf "%s@."
-    ( if consistent 
-      then "unknown" 
-      else "unsat")
+  in ()
 
-let crash_cpt = ref 0 
+let run_with_timeout timeout solve cmds =
+  let old_handler = Sys.signal Sys.sigalrm
+      (Sys.Signal_handle (fun _ -> raise Timeout)) in
+  let finish () =
+    ignore (Unix.alarm 0);
+    ignore (Sys.signal Sys.sigalrm old_handler) in
+  try
+    ignore (Unix.alarm timeout);
+    ignore (solve cmds);
+    finish ()
+  with
+  | Timeout -> finish (); raise Timeout
+  | exn -> finish (); raise exn
 
 let proc cmds = 
   try
-    solve cmds;
-    reinit_env ();
+    (try
+       run_with_timeout 5 solve cmds;
+     with Timeout -> Format.printf "timed out@.");
     true
   with
   | exp ->
@@ -65,10 +91,10 @@ let proc cmds =
               Format.fprintf fmt ">>> %a@." Commands.print command
           ) cmdl
       ) cmds;
-    Format.printf "Marshalled and written to the file : %s@." file_name;
-
-    reinit_env ();
-    (*Printexc.raise_with_backtrace exp exp_raw_bt*)
+    Format.printf 
+      "Marshalled and written to the file : %s@." 
+      file_name;
+      
     false
 
 let () =
