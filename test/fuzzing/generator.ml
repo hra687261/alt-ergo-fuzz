@@ -4,26 +4,34 @@ module FCS = Set.Make(String)
 
 type ast_gen_res = 
   { gast : ast; 
-    usedargs : VS.t; 
-    calledfuncs: FCS.t}
+    u_args : VS.t; 
+    u_bvars : VS.t; 
+    c_funcs : FCS.t}
+
 type cmd_gen_res = 
   { gcmd : cmd; 
-    calledfuncs: FCS.t}
+    c_funcs : FCS.t}
 
 type declkind = (* declaration kind *) 
   | FD (* function declaration *)
   | AxD (* axiom declaration *)
   | GD (* goal declaration *)
 
+let mk_empty_agr gast =
+  { gast; 
+    u_args = VS.empty;
+    u_bvars = VS.empty; 
+    c_funcs = FCS.empty}
+
 let pr_gar fmt {gast; _} =
   print fmt gast
 
-let pr_gcr fmt {gcmd; calledfuncs} =
+let pr_gcr fmt {gcmd; c_funcs} =
   Format.fprintf fmt "{";  
   Format.fprintf fmt "\n  gcmd = \n    %a;" print_cmd gcmd;
   Format.fprintf fmt "\n  cldf = \n    %a;" 
     (fun fmt e -> 
-       FCS.iter (Format.fprintf fmt "(%s)") e ) calledfuncs;
+       FCS.iter (Format.fprintf fmt "(%s)") e ) c_funcs;
   Format.fprintf fmt "\n}"
 
 let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
@@ -39,8 +47,9 @@ let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
 
 let dummy_gar = 
   { gast = Dummy; 
-    usedargs = VS.empty; 
-    calledfuncs = FCS.empty}
+    u_args = VS.empty; 
+    u_bvars = VS.empty; 
+    c_funcs = FCS.empty}
 
 let typ_gen = 
   Cr.choose [
@@ -71,22 +80,26 @@ let cst_gen ty =
       [Cr.int] 
       (fun x -> 
          let gast = Cst (CstI x) in 
-         {gast; usedargs = VS.empty; calledfuncs = FCS.empty})
+         { gast; 
+           u_args = VS.empty;
+           u_bvars = VS.empty; 
+           c_funcs = FCS.empty})
   | Treal -> 
     Cr.map 
       [Cr.float] 
       (fun x -> 
          let gast = 
            Cst (CstR (
-               if Float.is_nan x then 0. else x)) in 
-         {gast; usedargs = VS.empty; calledfuncs = FCS.empty})
+               if Float.is_nan x then 0. else x)) 
+         in 
+         mk_empty_agr gast)
   | Tbool -> 
     Cr.map 
       [Cr.bool] 
       (fun x -> 
          let gast =
            Cst (CstB x) in 
-         {gast; usedargs = VS.empty; calledfuncs = FCS.empty})
+         mk_empty_agr gast)
   | TBitV n -> 
     Cr.map 
       [Cr.range ((pow 2 n)-1)] 
@@ -94,10 +107,12 @@ let cst_gen ty =
          let gast =
            Cst (CstBv (int_to_bitv ~wl:n x)) 
          in 
-         {gast; usedargs = VS.empty; calledfuncs = FCS.empty})
+         mk_empty_agr gast)
   | _ -> assert false
 
-let binop_gen ty fuel bop gen = 
+let binop_gen : 'a -> int -> binop -> 
+  (int -> typ -> ast_gen_res Cr.gen) -> ast_gen_res Cr.gen =
+  fun ty fuel bop gen ->
   Cr.map 
     [ gen (fuel - 1) ty;
       gen (fuel - 1) ty] 
@@ -105,8 +120,9 @@ let binop_gen ty fuel bop gen =
         let gast = 
           mk_binop bop x.gast y.gast in 
         { gast; 
-          usedargs = VS.union x.usedargs y.usedargs; 
-          calledfuncs = FCS.union x.calledfuncs y.calledfuncs})   
+          u_args = VS.union x.u_args y.u_args; 
+          u_bvars = VS.union x.u_bvars y.u_bvars; 
+          c_funcs = FCS.union x.c_funcs y.c_funcs})   
 
 let usymv_gen ty = 
   Cr.map 
@@ -115,9 +131,7 @@ let usymv_gen ty =
         let gast =
           get_uvar_ast pos ty 
         in 
-        { gast; 
-          usedargs = VS.empty; 
-          calledfuncs = FCS.empty})
+        mk_empty_agr gast)
 
 let usymf_genl ty gen fuel = 
   let g1 =
@@ -137,23 +151,26 @@ let usymf_genl ty gen fuel =
         auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
       ] (
         fun a1 a2 a3 a4 a5 ->
-          let args, usedargs, calledfuncs = 
+          let args, u_args, u_bvars, c_funcs = 
             List.fold_left (
-              fun (l, vs, fcs) b -> 
+              fun (l, vs, bv, fcs) b -> 
                 if is_dummy b.gast
-                then l, vs, fcs
+                then l, vs, bv, fcs
                 else 
                   b.gast :: l, 
-                  VS.union b.usedargs vs,
-                  FCS.union b.calledfuncs fcs
-            ) ([], VS.empty, FCS.empty) 
+                  VS.union b.u_args vs,
+                  VS.union b.u_bvars bv,
+                  FCS.union b.c_funcs fcs
+            ) ([], VS.empty, VS.empty, FCS.empty) 
               [a1; a2; a3; a4; a5]
           in
-          {gast = FunCall {fname = fn; rtyp; args}; usedargs; calledfuncs}
+          { gast = FunCall {fname = fn; rtyp; args}; 
+            u_args;
+            u_bvars;  
+            c_funcs}
       )
   in
   Cr.dynamic_bind g1 g2
-
 
 let qv_gen qvars ty =
   let aux pref pos = 
@@ -198,7 +215,7 @@ let qv_gen qvars ty =
                   | TDummy -> assert false
                 ) ty EQ
             in  
-            {gast; usedargs = VS.empty; calledfuncs = FCS.empty}
+            mk_empty_agr gast
         )
     ]
   else []
@@ -210,8 +227,9 @@ let get_arg_gens ty args =
       ( fun x -> 
           Cr.const (
             { gast = Var x; 
-              usedargs = VS.add x VS.empty; 
-              calledfuncs = FCS.empty})
+              u_args = VS.add x VS.empty; 
+              u_bvars = VS.empty; 
+              c_funcs = FCS.empty})
       ) l
   else []
 
@@ -233,19 +251,25 @@ let func_call_gen :
       auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
     ] (
       fun a1 a2 a3 a4 a5 ->
-        let args, usedargs, calledfuncs = 
+        let args, u_args, u_bvars, c_funcs = 
           List.fold_left (
-            fun (l, vs, fcs) b -> 
+            fun (l, vs, bv,fcs) b -> 
               if is_dummy b.gast
               then 
-                (l, vs, fcs)
+                l, vs, bv, fcs
               else 
                 ( b.gast :: l, 
-                  VS.union b.usedargs vs, 
-                  FCS.union b.calledfuncs fcs)
-          ) ([], VS.empty, FCS.add fname FCS.empty) [a1; a2; a3; a4; a5]
+                  VS.union b.u_args vs, 
+                  VS.union b.u_bvars bv,  
+                  FCS.union b.c_funcs fcs)
+          ) 
+            ([], VS.empty, VS.empty, FCS.add fname FCS.empty) 
+            [a1; a2; a3; a4; a5]
         in
-        { gast = FunCall {fname; rtyp; args}; usedargs; calledfuncs}
+        { gast = FunCall {fname; rtyp; args}; 
+          u_args; 
+          u_bvars;
+          c_funcs}
     )
   in
 
@@ -271,10 +295,12 @@ let get_fa_access gen fuel tv =
                 Unop (Access {ty = ti, tv; fa = fa.gast}, i.gast)
               in 
               { gast;
-                usedargs = 
-                  VS.union fa.usedargs i.usedargs;
-                calledfuncs = 
-                  FCS.union fa.calledfuncs i.calledfuncs}
+                u_args = 
+                  VS.union fa.u_args i.u_args;
+                u_bvars = 
+                  VS.union fa.u_bvars i.u_bvars;
+                c_funcs = 
+                  FCS.union fa.c_funcs i.c_funcs}
           )
     )
 
@@ -295,15 +321,18 @@ let get_fa_update gen fuel ti tv =
             v = v.gast}
         in
         { gast; 
-          usedargs = 
-            VS.union fa.usedargs 
-              (VS.union i.usedargs v.usedargs); 
-          calledfuncs = 
-            FCS.union fa.calledfuncs 
-              (FCS.union i.calledfuncs v.calledfuncs); }
+          u_args = 
+            VS.union fa.u_args 
+              (VS.union i.u_args v.u_args); 
+          u_bvars = 
+            VS.union fa.u_bvars 
+              (VS.union i.u_bvars v.u_bvars); 
+          c_funcs = 
+            FCS.union fa.c_funcs 
+              (FCS.union i.c_funcs v.c_funcs); }
     )
 
-let _ = ignore (get_fa_access, get_fa_update)
+let _ = ignore (get_fa_update, get_fa_access)
 
 let get_bv_gens gen fuel len =
   [ (* Extract *)
@@ -323,8 +352,9 @@ let get_bv_gens gen fuel len =
                  Unop (Extract {l; r}, b.gast)
                in
                { gast; 
-                 usedargs = b.usedargs; 
-                 calledfuncs = b.calledfuncs}
+                 u_args = b.u_args; 
+                 u_bvars = b.u_bvars;
+                 c_funcs = b.c_funcs}
             ));
     (* Concat *)
     Cr.dynamic_bind 
@@ -333,23 +363,73 @@ let get_bv_gens gen fuel len =
          Cr.map 
            [ gen (fuel - 1) (TBitV n);
              gen (fuel - 1) (TBitV (len - n))] 
-           ( fun x y -> 
-               let gast =
-                 Binop (Concat len, x.gast, y.gast)
-               in
-               { gast; 
-                 usedargs = 
-                   VS.union x.usedargs y.usedargs; 
-                 calledfuncs = 
-                   FCS.union x.calledfuncs y.calledfuncs}
+           (fun x y -> 
+              let gast =
+                Binop (Concat len, x.gast, y.gast)
+              in
+              {  gast; 
+                 u_args = 
+                   VS.union x.u_args y.u_args; 
+                 u_bvars = 
+                   VS.union x.u_bvars y.u_bvars; 
+                 c_funcs = 
+                   FCS.union x.c_funcs y.c_funcs}
            ))
   ]
+
+
+let ite_gen gen fuel ty = 
+  Cr.map 
+    [ gen (fuel - 1) Tbool;
+      gen (fuel - 1) ty;
+      gen (fuel - 1) ty]
+    (
+      fun cond cons alt -> 
+        { gast = 
+            ITE {ty; 
+                 cond = cond.gast; 
+                 cons = cons.gast; 
+                 alt = alt.gast}; 
+          u_args = 
+            VS.union cond.u_args 
+              (VS.union cons.u_args alt.u_args); 
+          u_bvars = 
+            VS.union cond.u_bvars 
+              (VS.union cons.u_bvars alt.u_bvars); 
+          c_funcs =
+            FCS.union cond.c_funcs 
+              (FCS.union cons.c_funcs alt.c_funcs); 
+        }
+    )
+
+let letin_gen : (?bvars:VS.t -> int -> typ -> ast_gen_res Cr.gen) ->
+  VS.t -> int -> typ -> ast_gen_res Cr.gen =
+  fun gen bvars fuel ty -> 
+  let nv = mk_bound_var ty in
+  Cr.map 
+    [ gen ~bvars (fuel - 1) ty;
+      gen ~bvars:(VS.add nv bvars) (fuel - 1) ty]
+    (
+      fun e b -> 
+        { gast = 
+            if VS.mem nv b.u_bvars 
+            then b.gast 
+            else LetIn (nv , e.gast, b.gast); 
+          u_args = 
+            VS.union e.u_args b.u_args; 
+          u_bvars = 
+            VS.union e.u_bvars b.u_bvars;
+          c_funcs =
+            FCS.union e.c_funcs b.c_funcs; 
+        }
+    )
+
 
 (********************************************************************)
 let generate_ast ?(isform = false) ?(qvars = true) ?(args = []) 
     ?(fdefs: fd_info list = []) max_depth ty =
   ignore isform;
-  let rec ag_aux fuel ty = 
+  let rec ag_aux ?(bvars = VS.empty) fuel ty = 
     if fuel <= 0 
     then
       begin 
@@ -373,6 +453,10 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
           usymv_gen ty :: 
 
           usymf_genl ty ag_aux fuel ::
+
+          ite_gen ag_aux fuel ty ::
+
+          letin_gen ag_aux bvars fuel ty ::
 
           (*
           ( if isform 
@@ -413,7 +497,7 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
                 get_fa_update ag_aux fuel ti tv
               ]
             *)
-            | _ -> assert false 
+            | _ -> assert false
           )
         )
       )
@@ -449,16 +533,16 @@ let fdef_gen ?(fdefs = []) name func_max_depth =
 
       let ge =
         Cr.map [gen] ( 
-          fun {gast = body; usedargs; calledfuncs} ->
+          fun {gast = body; u_args; c_funcs; _} ->
             let atyp = 
               List.map (
                 fun v -> 
-                  if VS.mem v usedargs
+                  if VS.mem v u_args
                   then v
                   else {vname = ""; vty = TDummy; vk = US; id = 0}
               ) atyp
             in
-            {gcmd = FuncDef {name; body; atyp; rtyp}; calledfuncs}
+            {gcmd = FuncDef {name; body; atyp; rtyp}; c_funcs}
         )
       in 
       ge
@@ -476,7 +560,7 @@ let goal_gen ?(fdefs = []) query_max_depth =
             name = "goal_" ^ (incr gid; string_of_int !gid);
             body = quantify x.gast}
         in 
-        {gcmd; calledfuncs = x.calledfuncs}
+        {gcmd; c_funcs = x.c_funcs}
     )
 
 let axiom_gen ?(fdefs = []) axiom_max_depth =
@@ -489,7 +573,7 @@ let axiom_gen ?(fdefs = []) axiom_max_depth =
             name = "ax_" ^ (incr axid; string_of_int !axid);
             body = quantify x.gast}
         in 
-        {gcmd; calledfuncs = x.calledfuncs}
+        {gcmd; c_funcs = x.c_funcs}
     )
 
 (********************************************************************)
@@ -558,7 +642,7 @@ let rec iter :
     let b : cmd_gen_res -> cmd list Cr.gen = 
       fun x -> 
         let fds = get_fdis fds x in 
-        let cfs = FCS.union cfs x.calledfuncs in
+        let cfs = FCS.union cfs x.c_funcs in
         iter fds cfs t (x :: acc)
     in
     Cr.dynamic_bind a b
@@ -570,7 +654,7 @@ and liter :
   Cr.dynamic_bind 
     (mk_gen fds GD) 
     ( fun fg ->
-        let cfs = FCS.union cfs fg.calledfuncs in 
+        let cfs = FCS.union cfs fg.c_funcs in 
         let decls = 
           List.fold_right (
             fun {gcmd; _} acc ->

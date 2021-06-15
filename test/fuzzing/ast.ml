@@ -9,6 +9,7 @@ type vkind =
   | UQ (* Universally quantified *)
   | US (* Uninterpreted symbol *)
   | ARG (* Function/predicate argument *)
+  | BLI (* Bound to a "let-in" *)
 
 type tvar = 
   { vname: string; vty: typ; 
@@ -32,8 +33,8 @@ let nb_q_vars = 5
 
 let max_nb_fun_args = 5
 
-let v_id, thmid, axid, gid, qid, fid = 
-  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
+let v_id, thmid, axid, gid, qid, fid, bid = 
+  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
 
 type cst = 
   | CstI of int 
@@ -47,6 +48,8 @@ type ast =
   | Var of tvar
   | Unop of unop * ast 
   | Binop of binop * ast * ast
+  | ITE of {ty: typ; cond: ast; cons: ast; alt: ast}
+  | LetIn of tvar * ast * ast
   | FAUpdate of {ty: typ * typ; fa: ast; i: ast; v: ast}
   | FunCall of fcall
   | Forall of quant
@@ -150,11 +153,22 @@ let rec print fmt ast =
   | Unop (Access {ty = _; fa} , i) -> 
     Format.fprintf fmt "%a[%a]" print fa print i
 
+  | Binop (binop, x, y) ->
+    Format.fprintf fmt "(%a %a %a)" print x print_binop binop print y 
+
+  | ITE {cond; cons; alt; _} -> 
+    Format.fprintf fmt 
+      "if (%a) then (%a) else (%a)" 
+      print cond print cons print alt 
+
+  | LetIn ({vname;_}, e, b) -> 
+    Format.fprintf fmt 
+      "let %s = (%a) in (%a)" 
+      vname print e print b 
+
   | FAUpdate {ty = _; fa; i; v} -> 
     Format.fprintf fmt "%a[%a <- %a]" 
       print fa print i print v;
-  | Binop (binop, x, y) ->
-    Format.fprintf fmt "(%a %a %a)" print x print_binop binop print y 
 
   | FunCall {fname; args; _} -> 
     Format.fprintf fmt "%s(" fname;
@@ -198,11 +212,11 @@ let print_cmd fmt cmd =
           let rec pr_iter args =
             match args with 
             | hd :: [] ->
-              Format.fprintf fmt "(%s: %a)" 
-                hd.vname print_typ hd.vty
+              Format.fprintf fmt "(%d, %s: %a)"  
+                hd.id hd.vname print_typ hd.vty
             | hd :: tl ->
-              Format.fprintf fmt "(%s: %a) -> " 
-                hd.vname print_typ hd.vty;
+              Format.fprintf fmt "(%d, %s: %a) -> " 
+                hd.id hd.vname print_typ hd.vty;
               pr_iter tl
             | [] -> ()
           in
@@ -245,7 +259,7 @@ let mk_tvar vname vty vk =
   mk_tvar_b vname vty vk (incr v_id; !v_id)
 
 let mk_var vname vty vk = 
-  Var {vname; vty; vk; id = (incr v_id; !v_id)}
+  Var (mk_tvar vname vty vk)
 
 let mk_binop bop x y =
   Binop (bop, x, y)
@@ -355,6 +369,12 @@ let get_ufunc_ast num rtyp =
   in
   {fn; params; rtyp}
 
+(* Bound variables *)
+
+let mk_bound_var ty = 
+  mk_tvar 
+    ("bli_"^typ_to_str ty^"_"^string_of_int (incr bid; !bid))
+    ty BLI
 
 (* Quantification and Triggers*)
 
@@ -495,7 +515,7 @@ let quantify ast =
                 qvars = vs; 
                 trgs = [](*add_triggers vs exp*); 
                 body = exp}
-            | US | ARG -> assert false
+            | US | ARG | BLI -> assert false
         ) ast nnvs
 
       | [] -> ast
@@ -517,6 +537,37 @@ let quantify ast =
               let x' = quantify_aux x (List.nth pstl 0) in
               let y' = quantify_aux y (List.nth pstl 1) in
               Binop (op, x', y')
+            | _ -> assert false
+          )
+
+        | ITE {ty; cond; cons; alt} ->  
+          q_aux_bis vs ( 
+            match pstl with 
+            | [_] ->
+              let cond = quantify_aux cond (List.hd pstl) in 
+              ITE {ty; cond; cons; alt}
+            | [_; _] ->
+              let cond = quantify_aux cond (List.hd pstl) in 
+              let cons = quantify_aux cons (List.nth pstl 1) in
+              ITE {ty; cond; cons; alt}
+            | [_; _; _] ->
+              let cond = quantify_aux cond (List.hd pstl) in 
+              let cons = quantify_aux cons (List.nth pstl 1) in
+              let alt = quantify_aux alt (List.nth pstl 2) in
+              ITE {ty; cond; cons; alt}
+            | _ -> assert false
+          )
+
+        | LetIn (v, e, b) ->  
+          q_aux_bis vs ( 
+            match pstl with 
+            | [_] ->
+              let e' = quantify_aux e (List.hd pstl) in
+              LetIn (v, e', b)
+            | [_; _] ->
+              let e' = quantify_aux e (List.hd pstl) in
+              let b' = quantify_aux b (List.nth pstl 1) in
+              LetIn (v, e', b')
             | _ -> assert false
           )
 
@@ -542,7 +593,8 @@ let quantify ast =
           Forall {q with body = quantify_aux q.body pt}
         | Exists q -> 
           Exists {q with body = quantify_aux q.body pt}
-        | _ -> ast
+
+        | Dummy | Cst _ | Var _ | FAUpdate _ -> assert false 
       end 
     | Empty -> ast
   in 
@@ -584,10 +636,16 @@ let quantify ast =
           ([])
           args 
 
+      | Var ({vk = (EQ|UQ); _} as var) -> 
+        [var]
+
       | FAUpdate {fa; i; v; _} ->
         get_vars fa @ get_vars i @ get_vars v
 
-      | Var ({vk = (EQ|UQ); _} as var) -> [var]
+      | ITE {cond; cons; alt; _} -> 
+        get_vars cond @ get_vars cons @ get_vars alt
+      | LetIn (_, e, b) ->  
+        get_vars e @ get_vars b
 
       | Dummy | Cst _ | Forall _ | Exists _ | Var _ -> []
     in 
@@ -598,6 +656,7 @@ let quantify ast =
           Lt | Le | Gt | Ge | Eq | Neq), 
         x, y) -> 
       q_aux (0::path) x @  q_aux (1::path) y
+
     | Binop (_, x, y) -> 
       let rpath = 
         if path = [] then [] else
@@ -606,6 +665,45 @@ let quantify ast =
       List.map
         ( fun x -> (rpath, x)) 
         ( get_vars x @ get_vars y)
+
+
+    | ITE {cond; cons; alt; ty = Tbool} -> 
+      q_aux (0::path) cond @ 
+      q_aux (1::path) cons @ 
+      q_aux (2::path) alt
+
+    | ITE {cond; cons; alt; _} -> 
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in 
+      List.map
+        ( fun x -> (rpath, x)) 
+        ( get_vars cond @ get_vars cons @ get_vars alt)
+
+
+    | LetIn ({vty = Tbool;_}, e, b) ->  
+      q_aux (0::path) e @ 
+      q_aux (1::path) b
+
+    | LetIn (_, e, b) ->  
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in 
+      (List.map 
+         (fun x -> rpath, x) 
+         (get_vars e @ get_vars b)) 
+
+
+    | FAUpdate  {fa; i; v; _} -> 
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in 
+      List.map
+        ( fun x -> (rpath, x)) 
+        ( get_vars fa @ get_vars i @ get_vars v)
 
     | Unop (Not, x) -> 
       q_aux path x
@@ -651,15 +749,6 @@ let quantify ast =
       in 
       vars 
 
-    | FAUpdate  {fa; i; v; _} -> 
-      let rpath = 
-        if path = [] then [] else
-          List.rev (List.tl path) 
-      in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars fa @ get_vars i @ get_vars v)
-
     | Var ({vk = (EQ|UQ); _} as var) ->
       let rpath = 
         if path = [] then [] else
@@ -689,7 +778,7 @@ let quantify ast =
     in 
     let rspll = (l, v) :: spll in 
     (* list of couples (longest common prefix of paths, var) *)
-    let nspll = get_q_paths rspll  in 
+    let nspll = get_q_paths rspll in 
     (* building a path tree*)
     let pt = 
       List.fold_left 

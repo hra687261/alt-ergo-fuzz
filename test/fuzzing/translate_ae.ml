@@ -106,10 +106,10 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
     Expr.mk_builtin ~is_pos sy [x'; y']
 
   | Binop (Eq, x, y) ->
-    Expr.mk_eq ~iff:false
+    Expr.mk_eq ~iff:true
       (translate_ast ~vars ~decl_kind x) (translate_ast ~vars ~decl_kind y)
   | Binop (Neq, x, y) ->
-    Expr.mk_distinct ~iff:false 
+    Expr.mk_distinct ~iff:true 
       [translate_ast ~vars ~decl_kind x; translate_ast ~vars ~decl_kind y]
 
   | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
@@ -154,22 +154,22 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] (typ_to_ty vty)
 
-  | Var {vk = (ARG | EQ | UQ); id; _ } ->
+  | Var {vk = (ARG | EQ | UQ | BLI); id; _ } -> 
     let sy, ty = VM.find id vars in 
     Expr.mk_term sy [] ty
 
   | Exists {qvars = vs; body; _} 
   | Forall {qvars = vs; body; _} ->
     let qvars, vars = 
-      VS.fold
-        ( fun x (vl,vm) -> 
-            let ty = typ_to_ty x.vty in
-            let hsv = Hstring.make x.vname in 
-            let v = Var.of_hstring hsv in
-            let sy = Sy.Var v in 
-            (sy, ty) :: vl,
-            VM.add x.id (sy,ty) vm)
-        vs ([], vars)
+      VS.fold ( 
+        fun x (vl,vm) -> 
+          let ty = typ_to_ty x.vty in
+          let hsv = Hstring.make x.vname in 
+          let v = Var.of_hstring hsv in
+          let sy = Sy.Var v in 
+          (sy, ty) :: vl,
+          VM.add x.id (sy,ty) vm
+      ) vs ([], vars)
     in
     let qve = 
       List.fold_left 
@@ -198,6 +198,43 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (-42) 
       ~toplevel
       ~decl_kind
+
+  | ITE {cond; cons; alt; _} ->
+    let cond' = 
+      translate_ast ~vars 
+        ~toplevel:false 
+        ~decl_kind:Expr.Daxiom cond 
+    in 
+    let cons' = translate_ast ~vars ~toplevel ~decl_kind cons in 
+    let alt' = translate_ast ~vars ~toplevel ~decl_kind alt in 
+    Expr.mk_ite cond' cons' alt' 0
+
+  | LetIn (v, e, b) ->
+    let rec get_bindings acc ast = 
+      match ast with
+      | LetIn (v, e, b) -> get_bindings ((v, e) :: acc) b
+      | _ -> acc, ast 
+    in
+    let bds, rb = get_bindings [v, e] b in 
+
+    let binders, vars = 
+      List.fold_right (
+        fun ({vname; vty; id; _}, e) (bindings, vars) -> 
+          let sy = Sy.var (Var.of_string vname) in 
+          let ty = typ_to_ty vty in
+          let vars = VM.add id (sy, ty) vars in 
+          let expr = 
+            translate_ast ~vars ~toplevel ~decl_kind e
+          in 
+          (sy, expr) :: bindings, vars
+      ) bds ([], vars)
+    in 
+    List.fold_left
+      (fun acc (sy, e) ->
+         Expr.mk_let sy e acc 0
+      )
+      (translate_ast ~vars ~toplevel ~decl_kind rb) 
+      binders
 
   | Dummy -> assert false 
 
