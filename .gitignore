@@ -60,3 +60,5 @@ bisect.log
 
 spacetime-*
 *.ctf
+
+.vscode

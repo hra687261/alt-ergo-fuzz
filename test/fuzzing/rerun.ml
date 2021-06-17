@@ -14,6 +14,12 @@ open Translate_ae
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
+type bug_info = { 
+  id: int;
+  exp_str: string; 
+  exp_bt_str: string; 
+  decls: cmd list}
+
 let inputs = ref []
 
 let () =
@@ -21,19 +27,20 @@ let () =
     (fun s -> inputs := s::!inputs)
     "Usage: ./rerun.exe file"
 
-let () = Options.set_is_gui false
 
 let reinit_env () = 
   SAT.reset_refs ();
   Expr.clear_hc ();
-  Shostak.Combine.empty_cache ()
+  Shostak.Combine.empty_cache ();
+  Gc.major ()
 
-let solve cmds =
+let solve decls =
+  reinit_env ();
   let _, consistent, _ = 
     List.fold_left 
-      ( fun acc cmd ->
-          let command = translate_decl cmd in 
-          Format.printf "### %a@." print_cmd cmd;
+      ( fun acc decl ->
+          let command = translate_decl decl in 
+          Format.printf "### %a@." print_cmd decl;
           Format.printf ">>> %a\n@." Commands.print command;
 
           FE.process_decl 
@@ -42,7 +49,7 @@ let solve cmds =
             (Stack.create ()) 
             acc command)
       (SAT.empty (), true, Explanation.empty) 
-      cmds
+      decls
   in
   Format.printf "%s@."
     ( if consistent 
@@ -50,6 +57,9 @@ let solve cmds =
       else "unsat")
 
 let () =
+  Options.set_disable_weaks true;
+  Options.set_is_gui false;
+
   Format.printf "\n\nRERUNNING @.";
   assert (List.length !inputs = 1);
 
@@ -57,9 +67,10 @@ let () =
   Format.printf "Reading from the file: %s@." file_name;
   let line = Core.In_channel.read_all file_name in 
 
-  let (exp_str, exp_bt_str, cmds) : string * string * cmd list = 
+  let {decls; exp_str; exp_bt_str; _} : bug_info = 
     Marshal.from_string line 0 
   in 
+
   Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
   Format.printf "\nCaused by: \n%a@." 
     ( fun fmt cmdl ->
@@ -69,5 +80,5 @@ let () =
             let command = translate_decl cmd in 
             Format.fprintf fmt ">>> %a@." Commands.print command
         ) cmdl
-    ) cmds;
-  solve cmds
+    ) decls;
+  solve decls

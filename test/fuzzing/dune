@@ -1,7 +1,7 @@
 (executables
- (names afl_fuzzing rerun)
- (public_names afl_fuzzing rerun)
- (libraries alt-ergo-lib crowbar core memtrace)
+ (names afl_fuzzing rerun to_input_format)
+ (public_names afl_fuzzing rerun to_input_format)
+ (libraries alt-ergo-lib crowbar core lwt lwt.unix memtrace)
  (package alt-ergo-lib)
  (instrumentation (backend bisect_ppx))
 )

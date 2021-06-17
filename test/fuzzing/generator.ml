@@ -164,7 +164,13 @@ let usymf_genl ty gen fuel =
             ) ([], VS.empty, VS.empty, FCS.empty) 
               [a1; a2; a3; a4; a5]
           in
-          { gast = FunCall {fname = fn; rtyp; args}; 
+          { gast = FunCall {
+                fname = fn; fk = USF; 
+                atyp = 
+                  List.filter 
+                    (fun x -> x <> TDummy) 
+                    [p1; p2; p3; p4; p5];
+                rtyp; args}; 
             u_args;
             u_bvars;  
             c_funcs}
@@ -266,7 +272,14 @@ let func_call_gen :
             ([], VS.empty, VS.empty, FCS.add fname FCS.empty) 
             [a1; a2; a3; a4; a5]
         in
-        { gast = FunCall {fname; rtyp; args}; 
+        { gast = FunCall {
+              fname; fk = UDF; 
+              atyp = 
+                List.filter 
+                  (fun x -> x <> TDummy) 
+                  [p1; p2; p3; p4; p5];
+              rtyp; 
+              args}; 
           u_args; 
           u_bvars;
           c_funcs}

@@ -2,6 +2,7 @@
 
 open AltErgoLib
 open Ast
+
 module Sy = Symbols 
 module ES = Expr.Set
 
@@ -14,6 +15,7 @@ module VM = Map.Make(
     let compare = Int.compare
   end)
 
+type t = Commands.sat_tdecl
 
 let rec typ_to_ty typ = 
   match typ with  
@@ -143,7 +145,7 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       end
       [x'; y'] Ty.Treal
 
-  | FunCall {fname; rtyp; args} ->
+  | FunCall {fname; rtyp; args; _} ->
     Expr.mk_term 
       (Sy.Name (Hstring.make fname, Sy.Other)) 
       (List.map (translate_ast ~vars ~decl_kind) args)
@@ -354,3 +356,282 @@ let translate_decl cmd =
       st_loc = Loc.dummy;
       st_decl = mk_func fdef.name ret}
 
+
+(** Printing a list of declarations in Alt-Ergo's native format *)
+
+module SS = Set.Make(String)
+
+module GTM = Map.Make(
+  struct 
+    type t = gtyp 
+    let compare = gtyp_compare
+  end
+  )
+
+(** Pretty printing *)
+
+let print_binop fmt binop =
+  Format.fprintf fmt (
+    match binop with 
+    | And -> "and"   | Or -> "or"     | Xor -> "xor"
+    | Imp -> "->"    | Iff-> "<->"
+
+    | Lt -> "<"      | Le -> "<="     | Gt -> ">"
+    | Ge -> ">="     | Eq -> "="      | Neq -> "<>" 
+    | IPow -> "**"   | RPow -> "**."  | IMod -> "%%"    
+
+    | RAdd | IAdd -> "+"   
+    | RSub | ISub -> "-"   
+    | RMul | IMul -> "*" 
+    | RDiv | IDiv -> "/"
+
+    | Concat _ -> "%@")
+
+let rec print_typ fmt typ = 
+  match typ with 
+  | Tint -> Format.fprintf fmt "int"
+  | Treal -> Format.fprintf fmt "real"
+  | Tbool -> Format.fprintf fmt "bool"
+  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
+  | TFArray {ti = Tint; tv} ->
+    Format.fprintf fmt 
+      "%a farray"
+      print_typ tv
+  | TFArray {ti; tv} ->
+    Format.fprintf fmt 
+      "(%a, %a) farray"
+      print_typ ti
+      print_typ tv
+  | TDummy -> assert false 
+
+let print_gtyp fmt gtyp =
+  match gtyp with 
+  | A t -> 
+    Format.fprintf fmt "%a" print_typ t
+  | F {atyp; rtyp} ->
+    match atyp with 
+    | h :: t ->
+      Format.fprintf fmt "%a" print_typ h;
+      List.iter (
+        fun x ->
+          Format.fprintf fmt ", %a" print_typ x
+      ) t;
+      Format.fprintf fmt " -> %a" print_typ rtyp
+
+    | [] -> assert false 
+
+let rec print_ast fmt ast = 
+  match ast with 
+  | Cst (CstI x) ->
+    Format.fprintf fmt "%s" 
+      (Int.to_string x)
+  | Cst (CstR x) ->
+    Format.fprintf fmt "%s" 
+      (Float.to_string x)
+  | Cst (CstB x) ->
+    Format.fprintf fmt "%b" x
+  | Cst (CstBv x) ->
+    Format.fprintf fmt "[|%s|]" x.bits
+
+  | Var {vname; _} ->
+    Format.fprintf fmt "%s" vname
+  | Unop (Neg, ast) ->
+    Format.fprintf fmt "(- %a)" print_ast ast 
+  | Unop (Not, ast) ->
+    Format.fprintf fmt "(not %a)" print_ast ast 
+  | Unop (Extract {l;r}, ast) ->
+    Format.fprintf fmt "%a^{%d,%d}" 
+      print_ast ast l r 
+  | Unop (Access {ty = _; fa} , i) -> 
+    Format.fprintf fmt "%a[%a]" print_ast fa print_ast i
+
+  | Binop (binop, x, y) ->
+    Format.fprintf fmt "(%a %a %a)" print_ast x print_binop binop print_ast y 
+
+  | ITE {cond; cons; alt; _} -> 
+    Format.fprintf fmt 
+      "(if %a then %a else %a)" 
+      print_ast cond print_ast cons print_ast alt 
+
+  | LetIn ({vname;_}, e, b) -> 
+    Format.fprintf fmt 
+      "(let %s = %a in %a)" 
+      vname print_ast e print_ast b 
+
+  | FAUpdate {ty = _; fa; i; v} -> 
+    Format.fprintf fmt "%a[%a <- %a]" 
+      print_ast fa print_ast i print_ast v;
+
+  | FunCall {fname; args; _} -> 
+    Format.fprintf fmt "%s(" fname;
+    begin match List.rev args with 
+      | h :: t ->
+        Format.fprintf fmt "%a" print_ast h;
+        List.iter (
+          fun x ->
+            Format.fprintf fmt ", %a" print_ast x
+        ) t
+      | [] -> ()
+    end;
+    Format.fprintf fmt ")";
+
+  | Forall {qvars; body; _} ->
+    Format.fprintf fmt "forall ";
+
+    let _ = 
+      VS.fold (
+        fun {vname; vty; _} notfirst ->
+          if notfirst 
+          then (
+            Format.fprintf fmt ", %s: %a"
+              vname print_typ vty; true
+          ) else (
+            Format.fprintf fmt "%s: %a"
+              vname print_typ vty; true
+          )
+      ) qvars false 
+    in
+    Format.fprintf fmt ". %a " print_ast body
+
+  | Exists {qvars; body; _} -> 
+    Format.fprintf fmt "exists ";
+
+    let _ = 
+      VS.fold (
+        fun {vname; vty; _} notfirst ->
+          if notfirst 
+          then (
+            Format.fprintf fmt ", %s: %a"
+              vname print_typ vty; true
+          ) else (
+            Format.fprintf fmt "%s: %a"
+              vname print_typ vty; true
+          )
+      ) qvars false 
+    in
+    Format.fprintf fmt ". %a " print_ast body
+
+  | Dummy -> assert false
+
+let print_ss fmt ss = 
+  ignore (
+    SS.fold (
+      fun s notfst ->
+        if notfst 
+        then (Format.fprintf fmt ", %s" s; true)
+        else (Format.fprintf fmt "%s" s; true)
+    ) ss false
+  )
+
+let print_gtm fmt (gtm: SS.t GTM.t) = 
+  GTM.iter (
+    fun gt ss -> 
+      Format.fprintf fmt "logic %a: %a@."
+        print_ss ss
+        print_gtyp gt
+  ) gtm 
+
+let print_tvar_list fmt atyp =
+  match atyp with
+  | {vname; vty; _} :: t ->
+    Format.fprintf fmt "%s: %a" vname print_typ vty;
+    List.iter (
+      fun {vname; vty; _} -> 
+        Format.fprintf fmt ", %s: %a"
+          vname print_typ vty
+    ) t
+  | [] -> assert false
+
+(** recovering uninterpreted symbols *)
+
+let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * gtyp) list) = 
+  let gtm_update s gto =
+    match gto with 
+    | Some ss -> Some (SS.add s ss)
+    | None -> Some (SS.add s SS.empty)
+  in
+  List.fold_left (
+    fun (ngtm, ogtm) (s, gt) ->
+      match GTM.find_opt gt oldgtm with 
+      | Some v -> 
+        if SS.mem s v 
+        then ngtm, GTM.update gt (gtm_update s) ogtm 
+        else 
+          GTM.update gt (gtm_update s) ngtm,
+          GTM.update gt (gtm_update s) ogtm 
+      | None -> 
+        GTM.update gt (gtm_update s) ngtm,
+        GTM.update gt (gtm_update s) ogtm 
+  ) (GTM.empty, oldgtm) usyms 
+
+let rec get_usyms (ast: ast) =
+  match ast with 
+  | Var {vname; vty; vk = US; _} -> 
+    [vname, A vty]
+  | Unop (_, ast) -> 
+    get_usyms ast
+  | Binop (_, a, b) -> 
+    (get_usyms a) @ (get_usyms b)
+  | ITE {cond; cons; alt; _} -> 
+    (get_usyms cond) @ 
+    (get_usyms cons) @
+    (get_usyms alt)
+  | LetIn (_, a, b) -> 
+    (get_usyms a) @ (get_usyms b) 
+  | FAUpdate {fa; i; v; _} ->
+    (get_usyms fa) @ 
+    (get_usyms i) @ 
+    (get_usyms v)
+  | FunCall {fname; fk = USF; args; rtyp; atyp} -> 
+    List.fold_left (
+      fun acc a -> 
+        (get_usyms a) @ acc
+    ) [fname, F {atyp; rtyp}] args
+  | FunCall {args; _} -> 
+    List.fold_left (
+      fun acc a -> 
+        (get_usyms a) @ acc
+    ) [] args
+  | Forall {trgs; body; _}
+  | Exists {trgs; body; _} ->
+    List.fold_left (
+      fun acc a -> 
+        (get_usyms a) @ acc
+    ) (get_usyms body) trgs
+  | _ -> []
+
+let print_decls fmt (decls: cmd list) =
+  ignore @@
+  List.fold_left (
+    fun ogtm decl ->
+      match decl with 
+      | Axiom {name; body} ->
+        let gtl = get_usyms body in 
+        let ngtm, ogtm = get_ngtm ogtm gtl in  
+        Format.fprintf fmt "\n%a@." print_gtm ngtm;
+        Format.fprintf fmt "axiom %s:\n%a@." name print_ast body; 
+        ogtm
+      | Goal {name; body} ->
+        let gtl = get_usyms body in 
+        let ngtm, ogtm = get_ngtm ogtm gtl in  
+        Format.fprintf fmt "\n%a@." print_gtm ngtm;
+        Format.fprintf fmt "goal %s:\n%a@." name print_ast body; 
+        ogtm
+      | FuncDef {name; body; atyp; rtyp} -> 
+        let gtl = get_usyms body in 
+        let ngtm, ogtm = get_ngtm ogtm gtl in  
+        Format.fprintf fmt "\n%a@." print_gtm ngtm;
+
+        match rtyp with 
+        | Tbool -> 
+          Format.fprintf fmt "predicate %s(%a) =\n%a@."
+            name
+            print_tvar_list atyp
+            print_ast body; ogtm
+        | _ -> 
+          Format.fprintf fmt "function %s(%a):%a =\n%a@." 
+            name
+            print_tvar_list atyp
+            print_typ rtyp
+            print_ast body; ogtm
+  ) GTM.empty decls  

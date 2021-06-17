@@ -10,20 +10,50 @@ module FE = Frontend.Make(SAT)
 
 exception Timeout
 
+type bug_info = { 
+  id: int;
+  exp_str: string; 
+  exp_bt_str: string; 
+  decls: cmd list}
+
+let cnt = ref 0 
+
+let mk_bug_info id exp_str exp_bt_str decls =
+  {id; exp_str; exp_bt_str; decls}
+
+let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
+  let str =
+    Format.sprintf  
+      ( if firstcall 
+        then "printf \"%s\" > %s 2>&1"
+        else "printf \"%s\" >> %s 2>&1"
+      ) content filename
+  in
+  let command = 
+    Lwt_process.shell str
+  in 
+  ignore (
+    Lwt_process.exec 
+      ~stdin:`Dev_null 
+      ~stdout:`Keep 
+      ~stderr:`Keep 
+      command)
+
 let reinit_env () = 
+  incr cnt;
   SAT.reset_refs ();
   Expr.clear_hc ();
   Shostak.Combine.empty_cache ();
   Gc.major ()
 
-let solve cmds =
+let solve decls =
   reinit_env ();
-  Format.printf "\n";
+  sh_printf "\n";
   let _ = 
     List.fold_left ( 
-      fun (env, consistent, ex) cmd ->
+      fun (env, consistent, ex) decl ->
 
-        let command = translate_decl cmd in 
+        let command = translate_decl decl in 
 
         let env, consistent, ex = 
           FE.process_decl 
@@ -33,19 +63,19 @@ let solve cmds =
             (env, consistent, ex) command
         in
 
-        if is_goal cmd 
+        if is_goal decl 
         then 
-          Format.printf "%s@."
+          sh_printf
             ( if consistent 
               then "unknown" 
               else "unsat");
         env, consistent, ex
     )
       (SAT.empty (), true, Explanation.empty) 
-      cmds
+      decls
   in ()
 
-let run_with_timeout timeout solve cmds =
+let run_with_timeout timeout solve decls =
   let old_handler = Sys.signal Sys.sigalrm
       (Sys.Signal_handle (fun _ -> raise Timeout)) in
   let finish () =
@@ -53,48 +83,56 @@ let run_with_timeout timeout solve cmds =
     ignore (Sys.signal Sys.sigalrm old_handler) in
   try
     ignore (Unix.alarm timeout);
-    ignore (solve cmds);
+    ignore (solve decls);
     finish ()
   with
   | Timeout -> finish (); raise Timeout
   | exn -> finish (); raise exn
 
-let proc cmds = 
+let proc decls = 
   try
     (try
-       run_with_timeout 5 solve cmds;
-     with Timeout -> Format.printf "timed out@.");
+       run_with_timeout 5 solve decls;
+     with Timeout -> sh_printf "timed out");
     true
   with
   | exp ->
-    (*let exp_raw_bt = Printexc.get_raw_backtrace () in*)
+    let id = !cnt in 
     let exp_str = Printexc.to_string exp in 
     let exp_bt_str = Printexc.get_backtrace () in 
+    let bi = mk_bug_info id exp_str exp_bt_str decls in 
 
-    let tmp = Stdlib.Marshal.to_string (exp_str, exp_bt_str, cmds) [] in
-    let time = Unix.gettimeofday () in
+    let tmp = Stdlib.Marshal.to_string bi [] in
     let file_name = 
-      "test/fuzzing/crash_output/op_"^string_of_float time^".txt" 
+      Format.sprintf
+        "test/fuzzing/crash_output/op_%d.txt"
+        !cnt
     in
 
     let oc = open_out file_name in
     output_string oc tmp;
     close_out oc;
 
-    Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
-    Format.printf "\nCaused by: \n%a@." 
-      ( fun fmt cmdl ->
-          List.iter ( 
-            fun cmd ->
-              Format.fprintf fmt "\n### %a@." print_cmd cmd;
-              let command = translate_decl cmd in 
-              Format.fprintf fmt ">>> %a@." Commands.print command
-          ) cmdl
-      ) cmds;
-    Format.printf 
-      "Marshalled and written to the file : %s@." 
-      file_name;
-      
+    sh_printf (
+      Format.sprintf "\nException: %s\n%s@." 
+        exp_str exp_bt_str
+    );
+    sh_printf (
+      Format.asprintf "\nCaused by: \n%a@." 
+        ( fun fmt decll ->
+            List.iter ( 
+              fun cmd ->
+                Format.fprintf fmt "\n### %a@." print_cmd cmd;
+                let command = translate_decl cmd in 
+                Format.fprintf fmt ">>> %a@." Commands.print command
+            ) decll
+        ) decls
+    );
+    sh_printf (
+      Format.sprintf 
+        "Marshalled and written to the file : %s@." 
+        file_name
+    );
     false
 
 let () =

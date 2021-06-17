@@ -4,6 +4,12 @@ type typ =
   | TBitV of int 
   | TFArray of {ti: typ; tv: typ}
 
+type ftyp = {atyp: typ list; rtyp: typ}
+
+type gtyp = 
+  | A of typ 
+  | F of ftyp
+
 type vkind = 
   | EQ (* Exisancially quantified *)
   | UQ (* Universally quantified *)
@@ -11,15 +17,61 @@ type vkind =
   | ARG (* Function/predicate argument *)
   | BLI (* Bound to a "let-in" *)
 
+type fkind =
+  | UDF (* user defined function *)
+  | USF (* uninterpreted function*)
+
 type tvar = 
   { vname: string; vty: typ; 
     vk: vkind; id: int}
 
 
+(** type comparisons *)
+
+let rec typ_tagl (a: typ) =
+  match a with
+  | TDummy -> [0]
+  | Tint -> [1] 
+  | Treal -> [2]
+  | Tbool -> [3]
+  | TBitV n -> [4 + n] 
+  | TFArray {ti; tv} -> typ_tagl ti @ typ_tagl tv
+
+let rec tagl_compare l1 l2 =
+  match l1, l2 with
+  | h1::t1, h2::t2 -> 
+    let r = compare h1 h2 in 
+    if r = 0 
+    then tagl_compare t1 t2 
+    else r 
+  | _ :: _, [] -> 1
+  | [], _ :: _ -> -1
+  | [], [] -> 0
+
+let typ_compare t1 t2 =
+  tagl_compare (typ_tagl t1) (typ_tagl t2)
+
+let gtyp_tagl (a: gtyp) =
+  match a with 
+  | A x -> typ_tagl x
+  | F {atyp; rtyp} ->
+    List.fold_right (
+      fun x acc ->
+        typ_tagl x @ acc
+    ) atyp (typ_tagl rtyp)
+
+let gtyp_compare a b =
+  tagl_compare (gtyp_tagl a) (gtyp_tagl b) 
+
+
 module VS = Set.Make(
   struct 
     type t = tvar 
-    let compare x y = Int.compare x.id y.id
+    let compare x y =
+      let r = typ_compare x.vty y.vty in
+      if r <> 0 
+      then r
+      else compare x.vname y.vname   
   end 
   )
 
@@ -30,7 +82,6 @@ let func_max_depth = dpt
 
 let nb_us_vars = 5
 let nb_q_vars = 5
-
 let max_nb_fun_args = 5
 
 let v_id, thmid, axid, gid, qid, fid, bid = 
@@ -68,9 +119,15 @@ and unop =
   | Access of {ty: typ * typ; fa: ast}
 
 and quant =
-  {qvars: VS.t; trgs: ast list; body: ast}
+  { qvars: VS.t; 
+    trgs: ast list; 
+    body: ast}
+
 and fcall =
-  {fname: string; rtyp: typ; args: ast list}
+  { fname: string; fk: fkind; 
+    atyp: typ list; 
+    rtyp: typ; 
+    args: ast list}
 
 (* tuple with the max of arguments a function can have*)
 type aty = typ * typ * typ * typ * typ 
