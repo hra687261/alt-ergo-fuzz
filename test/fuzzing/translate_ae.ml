@@ -357,6 +357,16 @@ let translate_decl cmd =
         fdef.name Loc.dummy binders [] lem (-42) 
         ~toplevel ~decl_kind
     in
+    assert (Sy.Map.is_empty (Expr.free_vars ret Sy.Map.empty));
+    let ff = Expr.purify_form ret in
+    let ret = 
+      if Ty.Svty.is_empty (Expr.free_type_vars ff) 
+      then ff
+      else
+        let id = Expr.id ff in
+        Expr.mk_forall fdef.name Loc.dummy binders [] ff id ~toplevel:true ~decl_kind
+    in
+
     Commands.{
       st_loc = Loc.dummy;
       st_decl = mk_func fdef.name ret}
