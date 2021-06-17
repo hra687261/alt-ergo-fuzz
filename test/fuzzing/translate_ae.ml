@@ -11,8 +11,13 @@ module ES = Expr.Set
     representation as a variable or an uninterpreted symbol *)
 module VM = Map.Make(
   struct
-    type t = int 
-    let compare = Int.compare
+    type t = tvar 
+    let compare v1 v2 =
+      let r = 
+        typ_compare v1.vty v2.vty 
+      in 
+      if r <> 0 then r
+      else compare v1.vname v2.vname
   end)
 
 type t = Commands.sat_tdecl
@@ -156,21 +161,21 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] (typ_to_ty vty)
 
-  | Var {vk = (ARG | EQ | UQ | BLI); id; _ } -> 
-    let sy, ty = VM.find id vars in 
+  | Var ({vk = (ARG | EQ | UQ | BLI); _ } as v) -> 
+    let sy, ty = VM.find v vars in 
     Expr.mk_term sy [] ty
 
   | Exists {qvars = vs; body; _} 
   | Forall {qvars = vs; body; _} ->
     let qvars, vars = 
       VS.fold ( 
-        fun x (vl,vm) -> 
-          let ty = typ_to_ty x.vty in
-          let hsv = Hstring.make x.vname in 
-          let v = Var.of_hstring hsv in
-          let sy = Sy.Var v in 
+        fun v (vl,vm) -> 
+          let ty = typ_to_ty v.vty in
+          let hsv = Hstring.make v.vname in 
+          let var = Var.of_hstring hsv in
+          let sy = Sy.Var var in 
           (sy, ty) :: vl,
-          VM.add x.id (sy,ty) vm
+          VM.add v (sy,ty) vm
       ) vs ([], vars)
     in
     let qve = 
@@ -221,10 +226,10 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
     let binders, vars = 
       List.fold_right (
-        fun ({vname; vty; id; _}, e) (bindings, vars) -> 
-          let sy = Sy.var (Var.of_string vname) in 
-          let ty = typ_to_ty vty in
-          let vars = VM.add id (sy, ty) vars in 
+        fun (v, e) (bindings, vars) -> 
+          let sy = Sy.var (Var.of_string v.vname) in 
+          let ty = typ_to_ty v.vty in
+          let vars = VM.add v (sy, ty) vars in 
           let expr = 
             translate_ast ~vars ~toplevel ~decl_kind e
           in 
@@ -279,7 +284,7 @@ let translate_decl cmd =
                     let ty = typ_to_ty x.vty in
                     let hsv = Hstring.make x.vname in 
                     let sy = Sy.Name (hsv, Sy.Other) in 
-                    VM.add x.id (sy,ty) vm)
+                    VM.add x (sy,ty) vm)
                 qvars vars
             in 
             rm_root_uqs body ~vars
@@ -315,12 +320,12 @@ let translate_decl cmd =
     let fty = typ_to_ty fdef.rtyp in 
     let vars, es, xs_ =
       List.fold_left 
-        ( fun (vs, es, exps) var -> 
-            let v = Var.of_string var.vname in 
-            let vsy = Sy.Var v in
-            let ty = typ_to_ty var.vty in 
+        ( fun (vs, es, exps) v -> 
+            let var = Var.of_string v.vname in 
+            let vsy = Sy.Var var in
+            let ty = typ_to_ty v.vty in 
             let exp = Expr.mk_term vsy [] ty in
-            VM.add var.id (vsy, ty) vs, 
+            VM.add v (vsy, ty) vs, 
             ES.add exp es,
             exp :: exps
         )

@@ -67,8 +67,8 @@ let solve decls =
         then 
           sh_printf
             ( if consistent 
-              then "unknown" 
-              else "unsat");
+              then "unknown\n" 
+              else "unsat\n");
         env, consistent, ex
     )
       (SAT.empty (), true, Explanation.empty) 
@@ -93,7 +93,7 @@ let proc decls =
   try
     (try
        run_with_timeout 5 solve decls;
-     with Timeout -> sh_printf "timed out");
+     with Timeout -> sh_printf "timed out\n");
     true
   with
   | exp ->
@@ -105,8 +105,8 @@ let proc decls =
     let tmp = Stdlib.Marshal.to_string bi [] in
     let file_name = 
       Format.sprintf
-        "test/fuzzing/crash_output/op_%d.txt"
-        !cnt
+        "test/fuzzing/crash_output/op_%d_%f.txt"
+        !cnt (Unix.gettimeofday ())
     in
 
     let oc = open_out file_name in
@@ -138,6 +138,7 @@ let proc decls =
 let () =
   Options.set_disable_weaks true;
   Options.set_is_gui false;
+  sh_printf ~firstcall:true ""; 
   Cr.add_test ~name:"ae" [gen_decls] 
     (fun decls -> Cr.check (proc decls))
 
