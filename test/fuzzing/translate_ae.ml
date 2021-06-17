@@ -245,9 +245,9 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
   | Dummy -> assert false 
 
-(** Translates a cmd to a Commands.sat_tdecl *)
-let translate_decl cmd = 
-  match cmd with 
+(** Translates a decl to a Commands.sat_tdecl *)
+let translate_decl decl = 
+  match decl with 
   | Axiom {name; body} ->
     let decl_kind = Expr.Daxiom in
     let toplevel = true in 
@@ -615,7 +615,7 @@ let rec get_usyms (ast: ast) =
     ) (get_usyms body) trgs
   | _ -> []
 
-let print_decls fmt (decls: cmd list) =
+let print_decls fmt (decls: decl list) =
   ignore @@
   List.fold_left (
     fun ogtm decl ->

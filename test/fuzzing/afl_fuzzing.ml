@@ -4,7 +4,7 @@ open Generator
 open Translate_ae
 module Cr = Crowbar 
 
-(********************************************************************)
+
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
@@ -14,7 +14,7 @@ type bug_info = {
   id: int;
   exp_str: string; 
   exp_bt_str: string; 
-  decls: cmd list}
+  decls: decl list}
 
 let cnt = ref 0 
 
@@ -48,10 +48,8 @@ let reinit_env () =
 
 let solve decls =
   reinit_env ();
-  sh_printf "\n";
-  let _ = 
-    List.fold_left ( 
-      fun (env, consistent, ex) decl ->
+  List.fold_left 
+    ( fun (env, consistent, ex) decl ->
 
         let command = translate_decl decl in 
 
@@ -71,9 +69,8 @@ let solve decls =
               else "unsat\n");
         env, consistent, ex
     )
-      (SAT.empty (), true, Explanation.empty) 
-      decls
-  in ()
+    (SAT.empty (), true, Explanation.empty) 
+    decls
 
 let run_with_timeout timeout solve decls =
   let old_handler = Sys.signal Sys.sigalrm
@@ -91,11 +88,13 @@ let run_with_timeout timeout solve decls =
 
 let proc decls = 
   try
-    (try
-       run_with_timeout 5 solve decls;
-     with Timeout -> sh_printf "timed out\n");
+    sh_printf "\n";
+    run_with_timeout 5 solve decls; 
     true
   with
+  | Timeout -> 
+    sh_printf "timed out\n"; 
+    true
   | exp ->
     let id = !cnt in 
     let exp_str = Printexc.to_string exp in 
@@ -121,10 +120,10 @@ let proc decls =
       Format.asprintf "\nCaused by: \n%a@." 
         ( fun fmt decll ->
             List.iter ( 
-              fun cmd ->
-                Format.fprintf fmt "\n### %a@." print_cmd cmd;
-                let command = translate_decl cmd in 
-                Format.fprintf fmt ">>> %a@." Commands.print command
+              fun decl ->
+                Format.fprintf fmt "\n### %a@." print_decl decl;
+                let tdecl = translate_decl decl in 
+                Format.fprintf fmt ">>> %a@." Commands.print tdecl
             ) decll
         ) decls
     );

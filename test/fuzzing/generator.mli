@@ -10,8 +10,8 @@ type ast_gen_res =
     u_bvars : VS.t; 
     c_funcs : FCS.t}
 
-type cmd_gen_res = 
-  { gcmd : cmd; 
+type decl_gen_res = 
+  { gdecl : decl; 
     c_funcs : FCS.t}
 
 type declkind = (* declaration kind *) 
@@ -25,13 +25,13 @@ val pr_gar : Format.formatter -> ast_gen_res -> unit
 
 val pr_fdi : Format.formatter -> fd_info -> unit
 
-val get_gen : fd_info list -> declkind -> cmd_gen_res Cr.gen
+val get_gen : fd_info list -> declkind -> decl_gen_res Cr.gen
 
 val generate_ast : 
   ?isform:bool -> ?qvars:bool -> ?args:tvar list -> ?fdefs:fd_info list -> 
   int -> typ -> ast_gen_res Cr.gen
 
 val generate_decl : 
-  ?fdefs:fd_info list -> ?name:string -> declkind -> cmd_gen_res Cr.gen
+  ?fdefs:fd_info list -> ?name:string -> declkind -> decl_gen_res Cr.gen
 
-val gen_decls : cmd list Cr.gen
+val gen_decls : decl list Cr.gen

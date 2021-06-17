@@ -17,7 +17,7 @@ type bug_info = {
   id: int;
   exp_str: string; 
   exp_bt_str: string; 
-  decls: cmd list}
+  decls: decl list}
 
 
 let () =

@@ -14,11 +14,13 @@ open Translate_ae
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
+exception Timeout
+
 type bug_info = { 
   id: int;
   exp_str: string; 
   exp_bt_str: string; 
-  decls: cmd list}
+  decls: decl list}
 
 let inputs = ref []
 
@@ -26,7 +28,6 @@ let () =
   Arg.parse []
     (fun s -> inputs := s::!inputs)
     "Usage: ./rerun.exe file"
-
 
 let reinit_env () = 
   SAT.reset_refs ();
@@ -36,25 +37,44 @@ let reinit_env () =
 
 let solve decls =
   reinit_env ();
-  let _, consistent, _ = 
-    List.fold_left 
-      ( fun acc decl ->
-          let command = translate_decl decl in 
-          Format.printf "### %a@." print_cmd decl;
-          Format.printf ">>> %a\n@." Commands.print command;
+  List.fold_left 
+    ( fun (env, consistent, ex) decl ->
+        let tdecl = translate_decl decl in 
+        Format.printf "### %a@." print_decl decl;
+        Format.printf ">>> %a\n@." Commands.print tdecl;
 
+        let env, consistent, ex = 
           FE.process_decl 
             (fun _ _ -> ()) (*FE.print_status*)
             (FE.init_all_used_context ()) 
             (Stack.create ()) 
-            acc command)
-      (SAT.empty (), true, Explanation.empty) 
-      decls
-  in
-  Format.printf "%s@."
-    ( if consistent 
-      then "unknown" 
-      else "unsat")
+            (env, consistent, ex) tdecl
+        in
+
+        if is_goal decl 
+        then 
+          Format.printf "%s@."
+            ( if consistent 
+              then "unknown\n" 
+              else "unsat\n");
+        env, consistent, ex
+    )
+    (SAT.empty (), true, Explanation.empty) 
+    decls
+
+let run_with_timeout timeout solve decls =
+  let old_handler = Sys.signal Sys.sigalrm
+      (Sys.Signal_handle (fun _ -> raise Timeout)) in
+  let finish () =
+    ignore (Unix.alarm 0);
+    ignore (Sys.signal Sys.sigalrm old_handler) in
+  try
+    ignore (Unix.alarm timeout);
+    ignore (solve decls);
+    finish ()
+  with
+  | Timeout -> finish (); raise Timeout
+  | exn -> finish (); raise exn
 
 let () =
   Options.set_disable_weaks true;
@@ -73,12 +93,12 @@ let () =
 
   Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
   Format.printf "\nCaused by: \n%a@." 
-    ( fun fmt cmdl ->
+    ( fun fmt decls ->
         List.iter ( 
-          fun cmd ->
-            Format.fprintf fmt "\n### %a@." print_cmd cmd;
-            let command = translate_decl cmd in 
-            Format.fprintf fmt ">>> %a@." Commands.print command
-        ) cmdl
+          fun decl ->
+            Format.fprintf fmt "\n### %a@." print_decl decl;
+            let tdecl = translate_decl decl in 
+            Format.fprintf fmt ">>> %a@." Commands.print tdecl
+        ) decls
     ) decls;
-  solve decls
+  run_with_timeout 5 solve decls

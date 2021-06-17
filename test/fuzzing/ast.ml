@@ -75,18 +75,6 @@ module VS = Set.Make(
   end 
   )
 
-let dpt = 3 
-let query_max_depth = dpt
-let axiom_max_depth = dpt
-let func_max_depth = dpt
-
-let nb_us_vars = 5
-let nb_q_vars = 5
-let max_nb_fun_args = 5
-
-let v_id, thmid, axid, gid, qid, fid, bid = 
-  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
-
 type cst = 
   | CstI of int 
   | CstR of float 
@@ -132,7 +120,7 @@ and fcall =
 (* tuple with the max of arguments a function can have*)
 type aty = typ * typ * typ * typ * typ 
 
-type cmd =
+type decl =
   | Axiom of {name: string; body: ast} 
   | Goal of {name: string; body: ast}
   | FuncDef of fdef
@@ -142,6 +130,18 @@ and fdef =
 
 type fd_info = 
   {fn: string; params: aty; rtyp: typ}
+
+let dpt = 3 
+let query_max_depth = dpt
+let axiom_max_depth = dpt
+let func_max_depth = dpt
+
+let nb_us_vars = 5
+let nb_q_vars = 5
+let max_nb_fun_args = 5
+
+let v_id, thmid, axid, gid, qid, fid, bid = 
+  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
 
 (* Pretty printing *)
 
@@ -260,8 +260,8 @@ let rec print fmt ast =
     Format.fprintf fmt "} %a" print body
   | Dummy -> assert false 
 
-let print_cmd fmt cmd = 
-  match cmd with 
+let print_decl fmt decl = 
+  match decl with 
   | FuncDef {name; body; atyp; rtyp} -> 
     Format.fprintf fmt 
       "FuncDef %s %a -> %a :\n%a" name 

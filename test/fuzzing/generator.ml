@@ -8,8 +8,8 @@ type ast_gen_res =
     u_bvars : VS.t; 
     c_funcs : FCS.t}
 
-type cmd_gen_res = 
-  { gcmd : cmd; 
+type decl_gen_res = 
+  { gdecl : decl; 
     c_funcs : FCS.t}
 
 type declkind = (* declaration kind *) 
@@ -26,9 +26,9 @@ let mk_empty_agr gast =
 let pr_gar fmt {gast; _} =
   print fmt gast
 
-let pr_gcr fmt {gcmd; c_funcs} =
+let pr_gcr fmt {gdecl; c_funcs} =
   Format.fprintf fmt "{";  
-  Format.fprintf fmt "\n  gcmd = \n    %a;" print_cmd gcmd;
+  Format.fprintf fmt "\n  gdecl = \n    %a;" print_decl gdecl;
   Format.fprintf fmt "\n  cldf = \n    %a;" 
     (fun fmt e -> 
        FCS.iter (Format.fprintf fmt "(%s)") e ) c_funcs;
@@ -555,7 +555,7 @@ let fdef_gen ?(fdefs = []) name func_max_depth =
                   else {vname = ""; vty = TDummy; vk = US; id = 0}
               ) atyp
             in
-            {gcmd = FuncDef {name; body; atyp; rtyp}; c_funcs}
+            {gdecl = FuncDef {name; body; atyp; rtyp}; c_funcs}
         )
       in 
       ge
@@ -568,12 +568,12 @@ let goal_gen ?(fdefs = []) query_max_depth =
   Cr.map 
     [generate_ast ~isform:true ~fdefs query_max_depth Tbool]
     ( fun x ->
-        let gcmd =
+        let gdecl =
           Goal {
             name = "goal_" ^ (incr gid; string_of_int !gid);
             body = quantify x.gast}
         in 
-        {gcmd; c_funcs = x.c_funcs}
+        {gdecl; c_funcs = x.c_funcs}
     )
 
 let axiom_gen ?(fdefs = []) axiom_max_depth =
@@ -581,12 +581,12 @@ let axiom_gen ?(fdefs = []) axiom_max_depth =
   Cr.map 
     [generate_ast ~isform:true ~fdefs axiom_max_depth Tbool]
     ( fun x ->
-        let gcmd =
+        let gdecl =
           Axiom {
             name = "ax_" ^ (incr axid; string_of_int !axid);
             body = quantify x.gast}
         in 
-        {gcmd; c_funcs = x.c_funcs}
+        {gdecl; c_funcs = x.c_funcs}
     )
 
 (********************************************************************)
@@ -619,7 +619,7 @@ let generate_decl ?(fdefs = []) ?(name = "") kind =
     goal_gen ~fdefs query_max_depth 
 
 (********************************************************************)
-let mk_gen : fd_info list -> declkind -> cmd_gen_res Cr.gen =
+let mk_gen : fd_info list -> declkind -> decl_gen_res Cr.gen =
   fun fdefs e ->
   Cr.map [
     generate_decl ~fdefs 
@@ -634,9 +634,9 @@ let mk_fd_info fn (vs: tvar list) rtyp =
       end; fn; rtyp
   }
 
-let get_fdis : fd_info list -> cmd_gen_res -> fd_info list =
-  fun fdefs  {gcmd; _} ->
-  match gcmd with
+let get_fdis : fd_info list -> decl_gen_res -> fd_info list =
+  fun fdefs  {gdecl; _} ->
+  match gdecl with
   | FuncDef {name; atyp; rtyp; _} -> 
     if (List.for_all (fun x -> x.vty == TDummy)) atyp 
     then fdefs
@@ -646,13 +646,13 @@ let get_fdis : fd_info list -> cmd_gen_res -> fd_info list =
   | _ -> fdefs
 
 let rec iter : 
-  fd_info list -> FCS.t -> declkind list -> cmd_gen_res list 
-  -> cmd list Cr.gen =
+  fd_info list -> FCS.t -> declkind list -> decl_gen_res list 
+  -> decl list Cr.gen =
   fun fds cfs el acc ->
   match el with 
   | h :: t ->
-    let a : cmd_gen_res Cr.gen = mk_gen fds h in 
-    let b : cmd_gen_res -> cmd list Cr.gen = 
+    let a : decl_gen_res Cr.gen = mk_gen fds h in 
+    let b : decl_gen_res -> decl list Cr.gen = 
       fun x -> 
         let fds = get_fdis fds x in 
         let cfs = FCS.union cfs x.c_funcs in
@@ -662,7 +662,7 @@ let rec iter :
   | _ -> liter fds cfs acc
 
 and liter : 
-  fd_info list -> FCS.t -> cmd_gen_res list -> cmd list Cr.gen =
+  fd_info list -> FCS.t -> decl_gen_res list -> decl list Cr.gen =
   fun fds cfs acc -> 
   Cr.dynamic_bind 
     (mk_gen fds GD) 
@@ -670,8 +670,8 @@ and liter :
         let cfs = FCS.union cfs fg.c_funcs in 
         let decls = 
           List.fold_right (
-            fun {gcmd; _} acc ->
-              match gcmd with 
+            fun {gdecl; _} acc ->
+              match gdecl with 
               | FuncDef ({name; atyp; _} as f) -> (
                   if FCS.mem name cfs
                   then 
@@ -683,7 +683,7 @@ and liter :
                               not (is_dummy_tvar v)) atyp} :: acc
                   else acc
                 )
-              | _ -> gcmd :: acc
+              | _ -> gdecl :: acc
           ) (List.rev (fg :: acc)) []
         in 
         Cr.const decls
