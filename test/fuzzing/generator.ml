@@ -690,6 +690,9 @@ and liter :
     )
 
 (********************************************************************)
+
+(*
+(* the more decls are generated the slower the fuzzing will be *)
 let gen_decls = 
   Cr.dynamic_bind (
     Cr.map 
@@ -698,4 +701,15 @@ let gen_decls =
   ) @@ (
     fun (e1, e2, e3, e4, e5) -> 
       iter [] FCS.empty [e1; e2; e3; e4; e5; GD] []
+  )
+*)
+
+let gen_decls = 
+  Cr.dynamic_bind (
+    Cr.map 
+      [dk_gen; dk_gen] 
+      (fun e1 e2 -> e1, e2)
+  ) @@ (
+    fun (e1, e2) -> 
+      iter [] FCS.empty [e1; e2; GD] []
   )

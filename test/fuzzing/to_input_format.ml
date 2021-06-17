@@ -1,7 +1,4 @@
-open AltErgoLib 
-open Ast
-open Translate_ae
-
+open FUtils
 
 let inputs = ref []
 
@@ -9,16 +6,6 @@ let () =
   Arg.parse []
     (fun s -> inputs := !inputs @ [s])
     "Usage: ./rerun.exe inputfile outputfile"
-
-module SAT = Fun_sat.Make(Theory.Main_Default)
-module FE = Frontend.Make(SAT)
-
-type bug_info = { 
-  id: int;
-  exp_str: string; 
-  exp_bt_str: string; 
-  decls: decl list}
-
 
 let () =
 
@@ -34,5 +21,5 @@ let () =
   in 
   Format.printf "Writing to the file: %s@." output_file_name;
   let oc = open_out output_file_name in
-  output_string oc (Format.asprintf "%a" print_decls decls);
+  output_string oc (Format.asprintf "%a" Translate_ae.print_decls decls);
   close_out oc
