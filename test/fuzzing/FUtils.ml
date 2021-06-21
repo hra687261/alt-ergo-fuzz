@@ -18,7 +18,7 @@ let mk_bug_info id exp_str exp_bt_str decls =
 
 let cnt = ref 0 
 
-let timeout_limit = ref 1
+let timeout_limit = ref 5
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
   let str =

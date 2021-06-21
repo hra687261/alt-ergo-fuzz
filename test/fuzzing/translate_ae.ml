@@ -588,15 +588,20 @@ let rec get_usyms (ast: ast) =
   | Binop (_, a, b) -> 
     (get_usyms a) @ (get_usyms b)
   | ITE {cond; cons; alt; _} -> 
-    (get_usyms cond) @ 
-    (get_usyms cons) @
-    (get_usyms alt)
+    let tmp = 
+      (get_usyms cons) @
+      (get_usyms alt)
+    in
+    (get_usyms cond) @ tmp
   | LetIn (_, a, b) -> 
     (get_usyms a) @ (get_usyms b) 
   | FAUpdate {fa; i; v; _} ->
-    (get_usyms fa) @ 
-    (get_usyms i) @ 
-    (get_usyms v)
+    let tmp = 
+      (get_usyms i) @ 
+      (get_usyms v)
+    in
+    (get_usyms fa) @ tmp
+
   | FunCall {fname; fk = USF; args; rtyp; atyp} -> 
     List.fold_left (
       fun acc a -> 

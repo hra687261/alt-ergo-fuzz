@@ -446,42 +446,44 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
     if fuel <= 0 
     then
       begin 
+        let gl =
+          qv_gen qvars ty @
+          usymv_gen ty ::
+          get_arg_gens ty args
+        in
         Cr.choose (
-          ( match ty with 
-            | TFArray _ -> []
-            | _ -> [cst_gen ty]
-          ) @ ( 
-            usymv_gen ty ::
-            qv_gen qvars ty @  
-            get_arg_gens ty args
-          )
+          match ty with 
+          | TFArray _ -> gl
+
+          | _ -> cst_gen ty :: gl
         )
       end
     else 
       Cr.choose (
-        ( match ty with 
-          | TFArray _ -> []
-          | _ -> [cst_gen ty]
-        ) @ ( 
+        let gl1 =
           usymv_gen ty :: 
-
           usymf_genl ty ag_aux fuel ::
-
           ite_gen ag_aux fuel ty ::
-
           letin_gen ag_aux bvars fuel ty ::
-
+          (qv_gen qvars ty)  
+        in
+        let gl2 =
+          match ty with 
+          | TFArray _ -> gl1
+          | _ -> cst_gen ty :: gl1
+        in
+        let gl3 =
+          get_arg_gens ty args
+        in
+        let gl4 =
+          func_call_gen ag_aux fuel ty fdefs
+        in
           (*
           ( if isform 
             then []  
             else [get_fa_access ag_aux fuel ty]) @
           *)
-
-          (qv_gen qvars ty) @
-
-          get_arg_gens ty args @
-          func_call_gen ag_aux fuel ty fdefs @
-
+        let gl5 =
           ( match ty with 
             | Tint -> 
               List.map 
@@ -492,16 +494,23 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
                 (fun bop -> binop_gen ty fuel bop ag_aux)
                 [ RAdd; RSub; RMul; RDiv; RPow]
             | Tbool ->
-              List.map 
-                (fun bop -> binop_gen ty fuel bop ag_aux)
-                [ And; Or; Xor; Imp; Iff] @   
-              List.map 
-                (fun bop -> binop_gen Tint fuel bop ag_aux)
-                [ Lt; Le; Gt; Ge; Eq; Neq] @   
-              List.map 
-                (fun bop -> binop_gen Treal fuel bop ag_aux)
-                [ Lt; Le; Gt; Ge; Eq; Neq]
-
+              let l1 = 
+                List.map 
+                  (fun bop -> binop_gen ty fuel bop ag_aux)
+                  [ And; Or; Xor; Imp; Iff]
+              in
+              let l2 =   
+                List.map 
+                  (fun bop -> binop_gen Tint fuel bop ag_aux)
+                  [ Lt; Le; Gt; Ge; Eq; Neq] 
+              in
+              let l3 = 
+                List.map 
+                  (fun bop -> binop_gen Treal fuel bop ag_aux)
+                  [ Lt; Le; Gt; Ge; Eq; Neq]
+              in 
+              let tmp = l2 @ l3 in 
+              l1 @ tmp
             | TBitV len ->
               get_bv_gens ag_aux fuel len
             (*
@@ -512,7 +521,11 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
             *)
             | _ -> assert false
           )
-        )
+        in
+        let tmp = gl4 @ gl5 in
+        let tmp = gl3 @ tmp in
+        let tmp = gl2 @ tmp in
+        gl1 @ tmp
       )
   in 
   ag_aux max_depth ty
