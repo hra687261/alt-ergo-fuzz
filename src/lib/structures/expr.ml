@@ -1304,9 +1304,9 @@ and find_particular_subst =
         if SMap.is_empty sbt then None else Some sbt
       end
 
+let (cache : t Msbty.t Msbt.t TMap.t ref) = ref TMap.empty
 
 let apply_subst =
-  let (cache : t Msbty.t Msbt.t TMap.t ref) = ref TMap.empty in
   fun ((sbt, sbty) as s) f ->
     let ch = !cache in
     try TMap.find f ch |> Msbt.find sbt |> Msbty.find sbty
@@ -2543,4 +2543,6 @@ type th_elt =
 let print_th_elt fmt t =
   Format.fprintf fmt "%s/%s: @[<hov>%a@]" t.th_name t.ax_name print t.ax_form
 
-let clear_hc () = HC.empty ()
+let clear_hc () = 
+  cache := TMap.empty;
+  HC.empty ()

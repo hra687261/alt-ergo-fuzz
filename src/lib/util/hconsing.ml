@@ -64,6 +64,7 @@ struct
   let next_id = ref 0
 
   let empty () =
+    next_id := 0;
     retain_list := [];
     HWeak.clear storage
 
