@@ -62,3 +62,5 @@ spacetime-*
 *.ctf
 
 .vscode
+
+debug.txt
