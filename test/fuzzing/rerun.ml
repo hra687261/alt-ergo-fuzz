@@ -6,7 +6,7 @@ Reads the marshalled expression written in the file given as an argument (which 
 afl_fuzzing.exe) and recalls the solver on it to reproduce the bug that got it written in the
 first place.
 *)
-open FUtils
+open Utils
 
 module AEL = AltErgoLib
 

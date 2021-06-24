@@ -289,7 +289,99 @@ let print_decl fmt decl =
   | Goal {name; body} ->
     Format.fprintf fmt "Goal(%s):\n%a" name print body
 
-(* Auxiliary functions *)
+(* userfull declarations and functions *)
+
+module SS = Set.Make(String)
+
+module VM = Map.Make(
+  struct
+    type t = tvar 
+    let compare v1 v2 =
+      let r = 
+        typ_compare v1.vty v2.vty 
+      in 
+      if r <> 0 then r
+      else compare v1.vname v2.vname
+  end)
+
+module GTM = Map.Make(
+  struct 
+    type t = gtyp 
+    let compare = gtyp_compare
+  end
+  )
+
+let rec get_usyms (ast: ast) =
+  match ast with 
+  | Var {vname; vty; vk = US; _} -> 
+    [vname, A vty]
+  | Unop (_, ast) -> 
+    get_usyms ast
+  | Binop (_, a, b) -> 
+    List.rev_append (get_usyms a) (get_usyms b)
+  | ITE {cond; cons; alt; _} -> 
+    let tmp = 
+      List.rev_append 
+        (get_usyms cons)
+        (get_usyms alt)
+    in
+    List.rev_append (get_usyms cond) tmp
+  | LetIn (_, a, b) -> 
+    List.rev_append  (get_usyms a) (get_usyms b) 
+  | FAUpdate {fa; i; v; _} ->
+    let tmp = 
+      List.rev_append 
+        (get_usyms i) 
+        (get_usyms v)
+    in
+    List.rev_append 
+      (get_usyms fa) 
+      tmp
+
+  | FunCall {fname; fk = USF; args; rtyp; atyp} -> 
+    List.fold_left (
+      fun acc a -> 
+        List.rev_append 
+          (get_usyms a) 
+          acc
+    ) [fname, F {atyp; rtyp}] args
+  | FunCall {args; _} -> 
+    List.fold_left (
+      fun acc a -> 
+        List.rev_append 
+          (get_usyms a) 
+          acc
+    ) [] args
+  | Forall {trgs; body; _}
+  | Exists {trgs; body; _} ->
+    List.fold_left (
+      fun acc a -> 
+        List.rev_append 
+          (get_usyms a) 
+          acc
+    ) (get_usyms body) trgs
+  | _ -> []
+
+let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * gtyp) list) = 
+  let gtm_update s gto =
+    match gto with 
+    | Some ss -> Some (SS.add s ss)
+    | None -> Some (SS.add s SS.empty)
+  in
+  List.fold_left (
+    fun (ngtm, ogtm) (s, gt) ->
+      match GTM.find_opt gt oldgtm with 
+      | Some v -> 
+        if SS.mem s v 
+        then ngtm, GTM.update gt (gtm_update s) ogtm 
+        else 
+          GTM.update gt (gtm_update s) ngtm,
+          GTM.update gt (gtm_update s) ogtm 
+      | None -> 
+        GTM.update gt (gtm_update s) ngtm,
+        GTM.update gt (gtm_update s) ogtm 
+  ) (GTM.empty, oldgtm) usyms 
+
 let rec typ_to_str ty =
   match ty with
   | Tint -> "i"

@@ -1,11 +1,21 @@
 
 module AEL = AltErgoLib
 module Tae = Translate_ae
+module Tsmtlib2 = Tr_smtlib2
 
 module SAT = AEL.Fun_sat.Make(AEL.Theory.Main_Default)
 module FE = AEL.Frontend.Make(SAT)
 
-exception Timeout
+module SM = Map.Make(String)
+module SS = Set.Make(String)
+
+exception Timeout 
+
+type t =
+  | Sat
+  | Unsat
+  | Unknown 
+
 
 type bug_info = { 
   id: int;

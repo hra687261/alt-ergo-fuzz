@@ -6,20 +6,6 @@ open Ast
 module Sy = Symbols 
 module ES = Expr.Set
 
-
-(** VM is used to map tvar ids to the tvar's Expr.t   
-    representation as a variable or an uninterpreted symbol *)
-module VM = Map.Make(
-  struct
-    type t = tvar 
-    let compare v1 v2 =
-      let r = 
-        typ_compare v1.vty v2.vty 
-      in 
-      if r <> 0 then r
-      else compare v1.vname v2.vname
-  end)
-
 type t = Commands.sat_tdecl
 
 let rec typ_to_ty typ = 
@@ -371,19 +357,7 @@ let translate_decl decl =
       st_loc = Loc.dummy;
       st_decl = mk_func fdef.name ret}
 
-
 (** Printing a list of declarations in Alt-Ergo's native format *)
-
-module SS = Set.Make(String)
-
-module GTM = Map.Make(
-  struct 
-    type t = gtyp 
-    let compare = gtyp_compare
-  end
-  )
-
-(** Pretty printing *)
 
 let print_binop fmt binop =
   Format.fprintf fmt (
@@ -557,101 +531,40 @@ let print_tvar_list fmt atyp =
     ) t
   | [] -> assert false
 
-(** recovering uninterpreted symbols *)
+let print_decl fmt (gtm: SS.t GTM.t) (decl: decl) =
+  match decl with 
+  | Axiom {name; body} ->
+    let gtl = get_usyms body in 
+    let ngtm, gtm = get_ngtm gtm gtl in  
+    Format.fprintf fmt "\n%a@." print_gtm ngtm;
+    Format.fprintf fmt "axiom %s:\n%a@." name print_ast body; 
+    gtm
+  | Goal {name; body} ->
+    let gtl = get_usyms body in 
+    let ngtm, gtm = get_ngtm gtm gtl in  
+    Format.fprintf fmt "\n%a@." print_gtm ngtm;
+    Format.fprintf fmt "goal %s:\n%a@." name print_ast body; 
+    gtm
+  | FuncDef {name; body; atyp; rtyp} -> 
+    let gtl = get_usyms body in 
+    let ngtm, gtm = get_ngtm gtm gtl in  
+    Format.fprintf fmt "\n%a@." print_gtm ngtm;
 
-let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * gtyp) list) = 
-  let gtm_update s gto =
-    match gto with 
-    | Some ss -> Some (SS.add s ss)
-    | None -> Some (SS.add s SS.empty)
-  in
-  List.fold_left (
-    fun (ngtm, ogtm) (s, gt) ->
-      match GTM.find_opt gt oldgtm with 
-      | Some v -> 
-        if SS.mem s v 
-        then ngtm, GTM.update gt (gtm_update s) ogtm 
-        else 
-          GTM.update gt (gtm_update s) ngtm,
-          GTM.update gt (gtm_update s) ogtm 
-      | None -> 
-        GTM.update gt (gtm_update s) ngtm,
-        GTM.update gt (gtm_update s) ogtm 
-  ) (GTM.empty, oldgtm) usyms 
-
-let rec get_usyms (ast: ast) =
-  match ast with 
-  | Var {vname; vty; vk = US; _} -> 
-    [vname, A vty]
-  | Unop (_, ast) -> 
-    get_usyms ast
-  | Binop (_, a, b) -> 
-    (get_usyms a) @ (get_usyms b)
-  | ITE {cond; cons; alt; _} -> 
-    let tmp = 
-      (get_usyms cons) @
-      (get_usyms alt)
-    in
-    (get_usyms cond) @ tmp
-  | LetIn (_, a, b) -> 
-    (get_usyms a) @ (get_usyms b) 
-  | FAUpdate {fa; i; v; _} ->
-    let tmp = 
-      (get_usyms i) @ 
-      (get_usyms v)
-    in
-    (get_usyms fa) @ tmp
-
-  | FunCall {fname; fk = USF; args; rtyp; atyp} -> 
-    List.fold_left (
-      fun acc a -> 
-        (get_usyms a) @ acc
-    ) [fname, F {atyp; rtyp}] args
-  | FunCall {args; _} -> 
-    List.fold_left (
-      fun acc a -> 
-        (get_usyms a) @ acc
-    ) [] args
-  | Forall {trgs; body; _}
-  | Exists {trgs; body; _} ->
-    List.fold_left (
-      fun acc a -> 
-        (get_usyms a) @ acc
-    ) (get_usyms body) trgs
-  | _ -> []
+    match rtyp with 
+    | Tbool -> 
+      Format.fprintf fmt "predicate %s(%a) =\n%a@."
+        name
+        print_tvar_list atyp
+        print_ast body; 
+      gtm
+    | _ -> 
+      Format.fprintf fmt "function %s(%a):%a =\n%a@." 
+        name
+        print_tvar_list atyp
+        print_typ rtyp
+        print_ast body; 
+      gtm
 
 let print_decls fmt (decls: decl list) =
   ignore @@
-  List.fold_left (
-    fun ogtm decl ->
-      match decl with 
-      | Axiom {name; body} ->
-        let gtl = get_usyms body in 
-        let ngtm, ogtm = get_ngtm ogtm gtl in  
-        Format.fprintf fmt "\n%a@." print_gtm ngtm;
-        Format.fprintf fmt "axiom %s:\n%a@." name print_ast body; 
-        ogtm
-      | Goal {name; body} ->
-        let gtl = get_usyms body in 
-        let ngtm, ogtm = get_ngtm ogtm gtl in  
-        Format.fprintf fmt "\n%a@." print_gtm ngtm;
-        Format.fprintf fmt "goal %s:\n%a@." name print_ast body; 
-        ogtm
-      | FuncDef {name; body; atyp; rtyp} -> 
-        let gtl = get_usyms body in 
-        let ngtm, ogtm = get_ngtm ogtm gtl in  
-        Format.fprintf fmt "\n%a@." print_gtm ngtm;
-
-        match rtyp with 
-        | Tbool -> 
-          Format.fprintf fmt "predicate %s(%a) =\n%a@."
-            name
-            print_tvar_list atyp
-            print_ast body; ogtm
-        | _ -> 
-          Format.fprintf fmt "function %s(%a):%a =\n%a@." 
-            name
-            print_tvar_list atyp
-            print_typ rtyp
-            print_ast body; ogtm
-  ) GTM.empty decls  
+  List.fold_left (print_decl fmt) GTM.empty decls  

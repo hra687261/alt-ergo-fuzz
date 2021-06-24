@@ -1,4 +1,4 @@
-open FUtils
+open Utils
 
 module AEL = AltErgoLib
 
