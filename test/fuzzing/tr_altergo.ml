@@ -567,4 +567,45 @@ let print_decl fmt (gtm: SS.t GTM.t) (decl: decl) =
 
 let print_decls fmt (decls: decl list) =
   ignore @@
-  List.fold_left (print_decl fmt) GTM.empty decls  
+  List.fold_left (print_decl fmt) GTM.empty decls
+
+module SAT = Fun_sat.Make(Theory.Main_Default)
+module FE = Frontend.Make(SAT)
+
+
+let reinit_env () = 
+  SAT.reset_refs ();
+  Expr.clear_hc ();
+  Shostak.Combine.empty_cache ();
+  Gc.major ()
+
+let process_decls =
+  Options.set_disable_weaks true;
+  Options.set_is_gui false;
+  fun decls -> 
+    reinit_env ();
+    let al, _ = 
+      List.fold_left 
+        ( fun (al, (env, consistent, ex)) decl ->
+
+            let tdecl = translate_decl decl in 
+
+            let env, consistent, ex = 
+              FE.process_decl 
+                (fun _ _ -> ()) (*FE.print_status*)
+                (FE.init_all_used_context ()) 
+                (Stack.create ()) 
+                (env, consistent, ex) tdecl
+            in
+
+            if Ast.is_goal decl 
+            then 
+              if consistent 
+              then Translate.Unknown :: al, (env, consistent, ex)
+              else Translate.Unsat :: al, (env, consistent, ex)
+            else 
+              al, (env, consistent, ex)
+        )
+        ([], (SAT.empty (), true, Explanation.empty)) 
+        decls
+    in al

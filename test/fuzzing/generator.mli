@@ -1,18 +1,15 @@
-open Ast
 
 module Cr = Crowbar 
 
-module FCS : Set.S with type elt = string
-
 type ast_gen_res = 
-  { gast : ast; 
-    u_args : VS.t; 
-    u_bvars : VS.t; 
-    c_funcs : FCS.t}
+  { gast : Ast.ast; 
+    u_args : Ast.VS.t; 
+    u_bvars : Ast.VS.t; 
+    c_funcs : Ast.SS.t}
 
 type decl_gen_res = 
-  { gdecl : decl; 
-    c_funcs : FCS.t}
+  { gdecl : Ast.decl; 
+    c_funcs : Ast.SS.t}
 
 type declkind = (* declaration kind *) 
   | FD (* function declaration *)
@@ -23,15 +20,15 @@ val dk_gen : declkind Cr.gen
 
 val pr_gar : Format.formatter -> ast_gen_res -> unit
 
-val pr_fdi : Format.formatter -> fd_info -> unit
+val pr_fdi : Format.formatter -> Ast.fd_info -> unit
 
-val get_gen : fd_info list -> declkind -> decl_gen_res Cr.gen
+val get_gen : Ast.fd_info list -> declkind -> decl_gen_res Cr.gen
 
 val generate_ast : 
-  ?isform:bool -> ?qvars:bool -> ?args:tvar list -> ?fdefs:fd_info list -> 
-  int -> typ -> ast_gen_res Cr.gen
+  ?isform:bool -> ?qvars:bool -> ?args:Ast.tvar list -> 
+  ?fdefs:Ast.fd_info list -> int -> Ast.typ -> ast_gen_res Cr.gen
 
 val generate_decl : 
-  ?fdefs:fd_info list -> ?name:string -> declkind -> decl_gen_res Cr.gen
+  ?fdefs:Ast.fd_info list -> ?name:string -> declkind -> decl_gen_res Cr.gen
 
-val gen_decls : decl list Cr.gen
+val gen_decls : Ast.decl list Cr.gen

@@ -1,14 +1,8 @@
-(*
-To run: 
-./_build/default/test/fuzzing/rerun.exe ./test/fuzzing/crash_output/op_XXXXXXXXXX.txt
-
-Reads the marshalled expression written in the file given as an argument (which was written by
-afl_fuzzing.exe) and recalls the solver on it to reproduce the bug that got it written in the
-first place.
-*)
 open Utils
 
-module AEL = AltErgoLib
+module Tae = Tr_altergo
+module Z3S = Smtlib2_solver.Make(Solvers.Z3)
+module CVC5S = Smtlib2_solver.Make(Solvers.CVC5)
 
 let inputs = ref []
 
@@ -18,11 +12,10 @@ let () =
     "Usage: ./rerun.exe file"
 
 let () =
-  AEL.Options.set_disable_weaks true;
-  AEL.Options.set_is_gui false;
-
-  Format.printf "\n\nRERUNNING @.";
-  assert (List.length !inputs = 1);
+  if not (List.length !inputs = 1)
+  then 
+    failwith
+      "Expected one argument:\n./rerun.exe path_to_file_containing_marshalled_bug_info@.";
 
   let file_name = List.hd !inputs in 
   Format.printf "Reading from the file: %s@." file_name;
@@ -38,8 +31,25 @@ let () =
         List.iter ( 
           fun decl ->
             Format.fprintf fmt "\n### %a@." Ast.print_decl decl;
-            let tdecl = Translate_ae.translate_decl decl in 
-            Format.fprintf fmt ">>> %a@." AEL.Commands.print tdecl
         ) decls
     ) decls;
-  run_with_timeout !timeout_limit solve decls
+  let aeres = 
+    run_with_timeout !timeout_limit Tae.process_decls decls
+  in
+  let z3res = 
+    run_with_timeout !timeout_limit Z3S.process_decls decls
+  in
+  let cvc5res = 
+    run_with_timeout !timeout_limit CVC5S.process_decls decls
+  in
+  List.iter2 (
+    fun x (y, z) ->
+      let aux = 
+        function 
+        | Translate.Sat -> "sat"
+        | Translate.Unsat -> "unsat"
+        | Translate.Unknown -> "unknown"
+      in
+      Format.printf "%s %s %s@." 
+        (aux x) (aux y) (aux z)
+  ) aeres (List.map2 (fun a b -> a, b) z3res cvc5res);

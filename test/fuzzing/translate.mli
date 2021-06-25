@@ -1,7 +1,11 @@
 
+
+type answer = 
+  | Sat | Unsat | Unknown
+
 module type T = 
-sig 
+sig
   type t
-  val translate_decl: Ast.decl -> t
   val print_decls: Format.formatter -> Ast.decl list -> unit
+  val process_decls: Ast.decl list -> answer list
 end 

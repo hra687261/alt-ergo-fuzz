@@ -1,5 +1,7 @@
 open Utils
 
+module Tae = Tr_altergo
+
 let inputs = ref []
 
 let () =
@@ -21,5 +23,5 @@ let () =
   in 
   Format.printf "Writing to the file: %s@." output_file_name;
   let oc = open_out output_file_name in
-  output_string oc (Format.asprintf "%a" Translate_ae.print_decls decls);
+  output_string oc (Format.asprintf "%a" Tae.print_decls decls);
   close_out oc

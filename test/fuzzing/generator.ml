@@ -1,16 +1,15 @@
 open Ast
 module Cr = Crowbar 
-module FCS = Set.Make(String)
 
 type ast_gen_res = 
   { gast : ast; 
     u_args : VS.t; 
     u_bvars : VS.t; 
-    c_funcs : FCS.t}
+    c_funcs : SS.t}
 
 type decl_gen_res = 
   { gdecl : decl; 
-    c_funcs : FCS.t}
+    c_funcs : SS.t}
 
 type declkind = (* declaration kind *) 
   | FD (* function declaration *)
@@ -21,7 +20,7 @@ let mk_empty_agr gast =
   { gast; 
     u_args = VS.empty;
     u_bvars = VS.empty; 
-    c_funcs = FCS.empty}
+    c_funcs = SS.empty}
 
 let pr_gar fmt {gast; _} =
   print fmt gast
@@ -31,7 +30,7 @@ let pr_gcr fmt {gdecl; c_funcs} =
   Format.fprintf fmt "\n  gdecl = \n    %a;" print_decl gdecl;
   Format.fprintf fmt "\n  cldf = \n    %a;" 
     (fun fmt e -> 
-       FCS.iter (Format.fprintf fmt "(%s)") e ) c_funcs;
+       SS.iter (Format.fprintf fmt "(%s)") e ) c_funcs;
   Format.fprintf fmt "\n}"
 
 let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
@@ -49,7 +48,7 @@ let dummy_gar =
   { gast = Dummy; 
     u_args = VS.empty; 
     u_bvars = VS.empty; 
-    c_funcs = FCS.empty}
+    c_funcs = SS.empty}
 
 let typ_gen = 
   Cr.choose [
@@ -83,7 +82,7 @@ let cst_gen ty =
          { gast; 
            u_args = VS.empty;
            u_bvars = VS.empty; 
-           c_funcs = FCS.empty})
+           c_funcs = SS.empty})
   | Treal -> 
     Cr.map 
       [Cr.float] 
@@ -122,7 +121,7 @@ let binop_gen : 'a -> int -> binop ->
         { gast; 
           u_args = VS.union x.u_args y.u_args; 
           u_bvars = VS.union x.u_bvars y.u_bvars; 
-          c_funcs = FCS.union x.c_funcs y.c_funcs})   
+          c_funcs = SS.union x.c_funcs y.c_funcs})   
 
 let usymv_gen ty = 
   Cr.map 
@@ -160,8 +159,8 @@ let usymf_genl ty gen fuel =
                   b.gast :: l, 
                   VS.union b.u_args vs,
                   VS.union b.u_bvars bv,
-                  FCS.union b.c_funcs fcs
-            ) ([], VS.empty, VS.empty, FCS.empty) 
+                  SS.union b.c_funcs fcs
+            ) ([], VS.empty, VS.empty, SS.empty) 
               [a1; a2; a3; a4; a5]
           in
           { gast = FunCall {
@@ -235,7 +234,7 @@ let get_arg_gens ty args =
             { gast = Var x; 
               u_args = VS.add x VS.empty; 
               u_bvars = VS.empty; 
-              c_funcs = FCS.empty})
+              c_funcs = SS.empty})
       ) l
   else []
 
@@ -267,9 +266,9 @@ let func_call_gen :
                 ( b.gast :: l, 
                   VS.union b.u_args vs, 
                   VS.union b.u_bvars bv,  
-                  FCS.union b.c_funcs fcs)
+                  SS.union b.c_funcs fcs)
           ) 
-            ([], VS.empty, VS.empty, FCS.add fname FCS.empty) 
+            ([], VS.empty, VS.empty, SS.add fname SS.empty) 
             [a1; a2; a3; a4; a5]
         in
         { gast = FunCall {
@@ -313,7 +312,7 @@ let get_fa_access gen fuel tv =
                 u_bvars = 
                   VS.union fa.u_bvars i.u_bvars;
                 c_funcs = 
-                  FCS.union fa.c_funcs i.c_funcs}
+                  SS.union fa.c_funcs i.c_funcs}
           )
     )
 
@@ -341,8 +340,8 @@ let get_fa_update gen fuel ti tv =
             VS.union fa.u_bvars 
               (VS.union i.u_bvars v.u_bvars); 
           c_funcs = 
-            FCS.union fa.c_funcs 
-              (FCS.union i.c_funcs v.c_funcs); }
+            SS.union fa.c_funcs 
+              (SS.union i.c_funcs v.c_funcs); }
     )
 
 let _ = ignore (get_fa_update, get_fa_access)
@@ -386,7 +385,7 @@ let get_bv_gens gen fuel len =
                  u_bvars = 
                    VS.union x.u_bvars y.u_bvars; 
                  c_funcs = 
-                   FCS.union x.c_funcs y.c_funcs}
+                   SS.union x.c_funcs y.c_funcs}
            ))
   ]
 
@@ -410,8 +409,8 @@ let ite_gen gen fuel ty =
             VS.union cond.u_bvars 
               (VS.union cons.u_bvars alt.u_bvars); 
           c_funcs =
-            FCS.union cond.c_funcs 
-              (FCS.union cons.c_funcs alt.c_funcs); 
+            SS.union cond.c_funcs 
+              (SS.union cons.c_funcs alt.c_funcs); 
         }
     )
 
@@ -433,7 +432,7 @@ let letin_gen : (?bvars:VS.t -> int -> typ -> ast_gen_res Cr.gen) ->
           u_bvars = 
             VS.union e.u_bvars b.u_bvars;
           c_funcs =
-            FCS.union e.c_funcs b.c_funcs; 
+            SS.union e.c_funcs b.c_funcs; 
         }
     )
 
@@ -659,7 +658,7 @@ let get_fdis : fd_info list -> decl_gen_res -> fd_info list =
   | _ -> fdefs
 
 let rec iter : 
-  fd_info list -> FCS.t -> declkind list -> decl_gen_res list 
+  fd_info list -> SS.t -> declkind list -> decl_gen_res list 
   -> decl list Cr.gen =
   fun fds cfs el acc ->
   match el with 
@@ -668,25 +667,25 @@ let rec iter :
     let b : decl_gen_res -> decl list Cr.gen = 
       fun x -> 
         let fds = get_fdis fds x in 
-        let cfs = FCS.union cfs x.c_funcs in
+        let cfs = SS.union cfs x.c_funcs in
         iter fds cfs t (x :: acc)
     in
     Cr.dynamic_bind a b
   | _ -> liter fds cfs acc
 
 and liter : 
-  fd_info list -> FCS.t -> decl_gen_res list -> decl list Cr.gen =
+  fd_info list -> SS.t -> decl_gen_res list -> decl list Cr.gen =
   fun fds cfs acc -> 
   Cr.dynamic_bind 
     (mk_gen fds GD) 
     ( fun fg ->
-        let cfs = FCS.union cfs fg.c_funcs in 
+        let cfs = SS.union cfs fg.c_funcs in 
         let decls = 
           List.fold_right (
             fun {gdecl; _} acc ->
               match gdecl with 
               | FuncDef ({name; atyp; _} as f) -> (
-                  if FCS.mem name cfs
+                  if SS.mem name cfs
                   then 
                     FuncDef 
                       {f with 
@@ -713,7 +712,7 @@ let gen_decls =
       (fun e1 e2 e3 e4 e5 -> e1, e2, e3, e4, e5)
   ) @@ (
     fun (e1, e2, e3, e4, e5) -> 
-      iter [] FCS.empty [e1; e2; e3; e4; e5; GD] []
+      iter [] SS.empty [e1; e2; e3; e4; e5; GD] []
   )
 *)
 
@@ -724,5 +723,5 @@ let gen_decls =
       (fun e1 e2 -> e1, e2)
   ) @@ (
     fun (e1, e2) -> 
-      iter [] FCS.empty [e1; e2; GD] []
+      iter [] SS.empty [e1; e2; GD] []
   )
