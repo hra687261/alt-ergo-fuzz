@@ -572,7 +572,6 @@ let print_decls fmt (decls: decl list) =
 module SAT = Fun_sat.Make(Theory.Main_Default)
 module FE = Frontend.Make(SAT)
 
-
 let reinit_env () = 
   SAT.reset_refs ();
   Expr.clear_hc ();
@@ -584,6 +583,10 @@ let process_decls =
   Options.set_is_gui false;
   fun decls -> 
     reinit_env ();
+    let oc = open_out "_.ae" in 
+    Format.fprintf 
+      (Format.formatter_of_out_channel oc)
+      "%a" print_decls decls;
     let al, _ = 
       List.fold_left 
         ( fun (al, (env, consistent, ex)) decl ->

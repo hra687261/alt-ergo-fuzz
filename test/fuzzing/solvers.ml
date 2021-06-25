@@ -16,5 +16,5 @@ end
 
 module CVC5 : S = 
 struct 
-  let get_exec_str () = "cvc5" 
+  let get_exec_str () = "cvc5  --incremental" 
 end 

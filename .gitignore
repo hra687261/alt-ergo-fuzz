@@ -52,6 +52,9 @@ test/fuzzing/output/sync_dir/*
 !test/fuzzing/crash_output/.keep
 !test/fuzzing/output/sync_dir/.keep
 
+debug.txt
+_.*
+
 # Generated coverage and profiling files
 _coverage/*
 _coverage
@@ -62,5 +65,3 @@ spacetime-*
 *.ctf
 
 .vscode
-
-debug.txt

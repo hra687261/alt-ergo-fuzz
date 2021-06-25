@@ -487,11 +487,11 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
             | Tint -> 
               List.map 
                 (fun bop -> binop_gen ty fuel bop ag_aux)
-                [ IAdd; ISub; IMul; IDiv; IMod; IPow]
+                [ IAdd; ISub; IMul; IDiv; IMod(*; IPow*)]
             | Treal ->
               List.map 
                 (fun bop -> binop_gen ty fuel bop ag_aux)
-                [ RAdd; RSub; RMul; RDiv; RPow]
+                [ RAdd; RSub; RMul; RDiv(*; RPow*)]
             | Tbool ->
               let l1 = 
                 List.map 

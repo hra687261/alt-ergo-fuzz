@@ -49,7 +49,7 @@ struct
     | ISub | RSub -> "-"
     | IMul | RMul -> "*"
     | IDiv | RDiv -> "div"
-    | IPow | RPow -> "and" 
+    | IPow | RPow -> "^" 
     | IMod -> "mod"
     | Concat _ -> "concat"
 
@@ -89,9 +89,18 @@ struct
 
   let rec translate_ast (a: ast) = 
     match a with 
-
-    | Cst (CstI i) -> Atom (Int.to_string i)
-    | Cst (CstR i) -> Atom (Float.to_string i)
+    | Cst (CstI i) -> 
+      Atom (
+        if i < 0 
+        then Format.sprintf "(- %i)" (-i)
+        else Format.sprintf "%i" i
+      )
+    | Cst (CstR r) -> 
+      Atom (
+        if r < 0. 
+        then Format.sprintf "(- %f)" (-.r)
+        else Format.sprintf "%f" r
+      )
     | Cst (CstB true) -> Atom "true"
     | Cst (CstB false) -> Atom "false"
     | Cst (CstBv {bits; _}) -> 
@@ -131,9 +140,15 @@ struct
       let vbq = Queue.create () in
       Queue.push (Atom vname) vbq;
       Queue.push (translate_ast x) vbq;
-      let vb = PExpr vbq in 
+      let vb = PExpr vbq in
+
+      let vsb = Queue.create () in
+      Queue.push (vb) vsb;
+      let rvb = PExpr vsb in
+
       let q = Queue.create () in
-      Queue.push vb q;
+      Queue.push (Atom "let") q;
+      Queue.push rvb q;
       Queue.push (translate_ast y) q;
       PExpr q
 
@@ -143,7 +158,7 @@ struct
       List.iter (
         fun a ->
           Queue.push (translate_ast a) q
-      ) args;
+      ) (List.rev args);
       PExpr q
 
     | Forall {qvars; body; _}
@@ -155,13 +170,15 @@ struct
           | Exists _ -> "exists"
           | _ -> assert false
         )) q;
+      let vsb = Queue.create () in
       VS.iter (
         fun {vname; vty; _} ->
           let vq = Queue.create () in  
           Queue.push (Atom vname) vq;
           Queue.push (translate_sort vty) vq;
-          Queue.push (PExpr vq) q
+          Queue.push (PExpr vq) vsb
       ) qvars;
+      Queue.push (PExpr vsb) q;
       Queue.push (translate_ast body) q;
       PExpr q
 
@@ -217,17 +234,27 @@ struct
     | Atom w -> 
       Format.fprintf fmt "%s" w
     | Expr lq -> 
-      Queue.iter (
-        fun se -> 
-          Format.fprintf fmt "%a " print_sexp se 
-      ) lq
+      ignore @@ 
+      Queue.fold (
+        fun acc se -> 
+          Format.fprintf fmt (
+            if acc 
+            then "%a"
+            else " %a"
+          ) print_sexp se; false  
+      ) true lq 
     | PExpr lq -> 
       Format.fprintf fmt "(%a)" (
         fun fmt lq -> 
-          Queue.iter (
-            fun se -> 
-              Format.fprintf fmt "%a " print_sexp se 
-          ) lq
+          ignore @@ 
+          Queue.fold (
+            fun acc se -> 
+              Format.fprintf fmt (
+                if acc 
+                then "%a"
+                else " %a"
+              ) print_sexp se; false  
+          ) true lq 
       ) lq
 
   let print_sort fmt s =
@@ -241,11 +268,11 @@ struct
             match gs with 
             | A s -> 
               Format.fprintf fmt
-                "(declare-const %s %a)" 
+                "(declare-const %s %a)@." 
                 str print_sort s
             | F  {atyp; rtyp} -> 
               Format.fprintf fmt
-                "(declare-fun %s (%a) %a)" 
+                "(declare-fun %s (%a) %a)@." 
                 str
                 ( fun fmt sl ->
                     match sl with 
@@ -263,7 +290,6 @@ struct
                 print_sort rtyp
         ) ss 
     ) gtm 
-
 
   let print_decl fmt (gtm: SS.t Ast.GTM.t) d = 
     let gtl = get_usyms (
