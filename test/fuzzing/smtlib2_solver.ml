@@ -38,17 +38,17 @@ struct
     | Or -> "or"
     | Xor -> "xor"
     | Imp -> "=>"
-    | Iff -> "<=>" 
     | Lt -> "<"
     | Le -> "<="
     | Gt -> ">"
     | Ge -> ">="
-    | Eq -> "="
+    | Iff | Eq -> "="
     | Neq -> "distinct"
     | IAdd | RAdd -> "+"
     | ISub | RSub -> "-"
     | IMul | RMul -> "*"
-    | IDiv | RDiv -> "div"
+    | IDiv -> "div"
+    | RDiv -> "/"
     | IPow | RPow -> "^" 
     | IMod -> "mod"
     | Concat _ -> "concat"
@@ -312,7 +312,8 @@ struct
   let process_decls (decls: Ast.decl list) =
     let rec get_lines (ic: in_channel) =
       try
-        input_line ic :: get_lines ic
+        let l = input_line ic in
+        l :: get_lines ic
       with End_of_file ->
         close_in ic; 
         []
@@ -332,7 +333,7 @@ struct
       | "sat" -> Translate.Sat
       | "unsat" -> Translate.Unsat
       | "unknown" -> Translate.Unknown 
-      | _ -> assert false
+      | _ as x -> Format.printf "\n(((%s)))@." x; assert false
     ) lines
 
 end

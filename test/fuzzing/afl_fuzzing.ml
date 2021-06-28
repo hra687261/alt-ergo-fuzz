@@ -2,7 +2,7 @@ open Utils
 
 module Cr = Crowbar 
 module Tae = Tr_altergo
-module Z3S = Smtlib2_solver.Make(Solvers.Z3)
+(*module Z3S = Smtlib2_solver.Make(Solvers.Z3)*)
 module CVC5S = Smtlib2_solver.Make(Solvers.CVC5)
 
 let cnt = ref 0 
@@ -13,25 +13,22 @@ let proc decls =
     sh_printf "\n";
     incr cnt;
     let aeres = 
-      run_with_timeout !timeout_limit Tae.process_decls decls
-    in
-    let z3res = 
-      run_with_timeout !timeout_limit Z3S.process_decls decls
+      Tae.process_decls decls
     in
     let cvc5res = 
-      run_with_timeout !timeout_limit CVC5S.process_decls decls
+      CVC5S.process_decls decls
     in
     List.iter2 (
-      fun x (y, z) ->
+      fun x y ->
         let aux = 
           function 
           | Translate.Sat -> "sat"
           | Translate.Unsat -> "unsat"
           | Translate.Unknown -> "unknown"
         in
-        Format.printf "%s %s %s@." 
-          (aux x) (aux y) (aux z)
-    ) aeres (List.map2 (fun a b -> a, b) z3res cvc5res);
+        Format.printf "%s %s@." 
+          (aux x) (aux y)
+    ) aeres cvc5res;
     true
   with
   | Timeout -> 
