@@ -103,3 +103,16 @@ let cmp_answers_exn2 l1 l2 =
   List.iter2 (
     fun x y -> if x != y then raise (Failure Unsound)
   ) l1 l2
+
+let cmp_answers_pr2 l1 l2 = 
+  List.iter2 (
+    fun x y -> 
+      let aux = 
+        function 
+        | Translate.Sat -> "sat"
+        | Translate.Unsat -> "unsat"
+        | Translate.Unknown -> "unknown"
+      in
+      Format.printf "%s %s@." 
+        (aux x) (aux y)
+  ) l1 l2

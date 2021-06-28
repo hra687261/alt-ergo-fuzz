@@ -605,7 +605,7 @@ let process_decls =
             then 
               if consistent 
               then Translate.Unknown :: al, (env, consistent, ex)
-              else Translate.Unsat :: al, (env, consistent, ex)
+              else Translate.Sat :: al, (env, consistent, ex)
             else 
               al, (env, consistent, ex)
         )
