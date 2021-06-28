@@ -25,7 +25,6 @@ type tvar =
   { vname: string; vty: typ; 
     vk: vkind; id: int}
 
-
 (** type comparisons *)
 
 let rec typ_tagl (a: typ) =
