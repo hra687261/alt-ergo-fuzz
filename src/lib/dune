@@ -49,5 +49,5 @@
  (js_of_ocaml
   (javascript_files missing_primitives.js)
  )
- (instrumentation (backend bisect_ppx))
+ ;(instrumentation (backend bisect_ppx))
 )

@@ -1,28 +1,23 @@
 open Utils
 
-module Tae = Tr_altergo
-module Z3S = Smtlib2_solver.Make(Solvers.Z3)
-module CVC5S = Smtlib2_solver.Make(Solvers.CVC5)
-
-let inputs = ref []
+module AES = Solver.AE
+module C5S = Solver.CVC5
 
 let () =
-  Arg.parse []
-    (fun s -> inputs := s::!inputs)
-    "Usage: ./rerun.exe file"
-
-let () =
-  if not (List.length !inputs = 1)
+  if not (Array.length Sys.argv = 2)
   then 
     failwith
       "Expected one argument:\n./rerun.exe path_to_file_containing_marshalled_bug_info@.";
 
-  let file_name = List.hd !inputs in 
+  let file_name = Sys.argv.(1) in 
   Format.printf "Reading from the file: %s@." file_name;
-  let line = Core.In_channel.read_all file_name in 
 
-  let {decls; exp_str; exp_bt_str; _} : bug_info = 
-    Marshal.from_string line 0 
+  let ic = open_in file_name in 
+  let str = really_input_string ic (in_channel_length ic) in
+  close_in ic;
+
+  let {decls; exp_str; exp_bt_str; _}: bug_info = 
+    Marshal.from_string str 0 
   in 
 
   Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
@@ -33,20 +28,7 @@ let () =
             Format.fprintf fmt "\n### %a@." Ast.print_decl decl;
         ) decls
     ) decls;
-  let aeres = 
-    Tae.process_decls decls
-  in
-  let cvc5res = 
-    CVC5S.process_decls decls
-  in
-  List.iter2 (
-    fun x y ->
-      let aux = 
-        function 
-        | Translate.Sat -> "sat"
-        | Translate.Unsat -> "unsat"
-        | Translate.Unknown -> "unknown"
-      in
-      Format.printf "%s %s@." 
-        (aux x) (aux y)
-  ) aeres cvc5res;
+
+  let aeres = AES.process_decls decls in
+  let c5res = C5S.process_decls decls in
+  cmp_answers_pr2 aeres c5res

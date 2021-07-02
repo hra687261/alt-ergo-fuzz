@@ -1,3 +1,2 @@
 
-
-include Translate.T with type t = AltErgoLib.Commands.sat_tdecl
+include Translater.T with type t = AltErgoLib.Commands.sat_tdecl

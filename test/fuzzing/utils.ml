@@ -1,4 +1,7 @@
 
+type answer = 
+  | Sat | Unsat | Unknown
+
 type bug_type =
   | Unsound 
   (* When the response of Alt-Ergo is different from the other solvers*)
@@ -50,17 +53,21 @@ let mknmarshall_bi
     | Failure InternalCrash -> "internalcrash", "ic"
     | Failure Timeout -> "timeout", "to"
     | _ -> "other", "o"
-  in
+  in 
   let bi = mk_bug_info id bty exp_str exp_bt_str decls in 
-  let m = Stdlib.Marshal.to_string bi [] in
+  let data = Stdlib.Marshal.to_string bi [] in
+
   let file_name = 
     Format.sprintf
       "%s/crash_%s_%d_%f.txt"
       crash_output_folder_path sym !cnt (Unix.gettimeofday ())
   in
-  let oc = open_out file_name in
-  output_string oc m;
+
+  let oc = open_out file_name in 
+  let fmt = Format.formatter_of_out_channel oc in
+  Format.fprintf fmt "%s" data;
   close_out oc;
+
   if verbose 
   then (
     sh_printf ~filename (
@@ -109,9 +116,9 @@ let cmp_answers_pr2 l1 l2 =
     fun x y -> 
       let aux = 
         function 
-        | Translate.Sat -> "sat"
-        | Translate.Unsat -> "unsat"
-        | Translate.Unknown -> "unknown"
+        | Sat -> "sat"
+        | Unsat -> "unsat"
+        | Unknown -> "unknown"
       in
       Format.printf "%s %s@." 
         (aux x) (aux y)
