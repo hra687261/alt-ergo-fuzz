@@ -53,14 +53,14 @@ let post_issue {title; body; authtoken; destrepo} =
   http_post_req ~headers ~body destrepo
 
 let () =
-  if not (Array.length Sys.argv = 5)
+  if not (Array.length Sys.argv = 6)
   then 
     failwith
-      "Expected 4 arguments: ./issuecreation.exe authtoken-filepath ae-filepath smt2-filepath link_to_destrepo@.";
+      "Expected 4 arguments: ./issuecreation.exe authtoken-filepath ae-filepath smt2-filepath username reponame@.";
 
   let authtoken_fp = Sys.argv.(1) in 
   let ic = open_in authtoken_fp in 
-  let authtoken = really_input_string ic (in_channel_length ic) in
+  let authtoken = really_input_string ic ((in_channel_length ic) - 1) in
   close_in ic;
 
   let ae_fp = Sys.argv.(2) in 
@@ -70,24 +70,41 @@ let () =
 
   let smt2_fp = Sys.argv.(3) in 
   let ic = open_in smt2_fp in 
-  let smt2fp = really_input_string ic (in_channel_length ic) in
+  let smt2fd = really_input_string ic (in_channel_length ic) in
   close_in ic;
 
-  let destrepo = Sys.argv.(4) in 
+  let username = Sys.argv.(4) in 
+  let reponame = Sys.argv.(5) in 
+
+  let destrepo = 
+    Format.sprintf 
+      "https://api.github.com/repos/%s/%s/issues"
+      username reponame
+  in
 
   let title = 
     Format.sprintf 
-      "Automatically generated issue issue %f "
+      "Automatically generated issue %f "
       (Unix.gettimeofday ())
   in 
+  ignore (aefd, smt2fd);
 
+  let rep = fun _ -> "\\n" in
+  let regexp = Str.regexp "\n" in
+  let aefd, smt2fd = 
+    Str.global_substitute regexp rep aefd,
+    Str.global_substitute regexp rep smt2fd
+  in
   let body = 
     Format.sprintf 
-      "This is an issue!\nAlt-Ergo code:\n```\n%s\n```\nsmt-lib 2 (Version 2.6) code:\n```\n%s\n```\nThe two codes are supposed to be equivalent but when I run Alt-Ergo and CVC5 respectevly on the two codes, I get conflicting answers, it might be caused by and unsoundness bug."
-      aefd smt2fp
+      "This is an issue!\\nAlt-Ergo code:\\n```%s```\\nsmt-lib 2 (Version 2.6) code:\\n```%s```\\nThe two codes are supposed to be equivalent but when I run Alt-Ergo and CVC5 on the two codes (respectevly), I get conflicting answers, it might be caused by an unsoundness bug."
+      aefd smt2fd
   in
+  Format.printf
+    "\n%s\n%s\n%s\n" title authtoken destrepo;
+
+  ignore body; 
   let s, body = 
     post_issue {title; body; authtoken; destrepo}
   in 
-  Format.printf "%d\n%s\n" s body
-
+  Format.printf "\n%d\n%s\n" s body
