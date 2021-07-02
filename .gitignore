@@ -46,10 +46,12 @@ www/
 # Generated fuzzing output files 
 test/fuzzing/output/*
 test/fuzzing/crash_output/*
+test/fuzzing/trfiles/*
 test/fuzzing/output/sync_dir/*
 
 !test/fuzzing/output/.keep
 !test/fuzzing/crash_output/.keep
+test/fuzzing/trfiles/.keep
 !test/fuzzing/output/sync_dir/.keep
 
 debug.txt
