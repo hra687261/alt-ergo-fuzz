@@ -26,7 +26,9 @@ val get_gen : Ast.fd_info list -> declkind -> decl_gen_res Cr.gen
 
 val generate_ast : 
   ?isform:bool -> ?qvars:bool -> ?args:Ast.tvar list -> 
-  ?fdefs:Ast.fd_info list -> int -> Ast.typ -> ast_gen_res Cr.gen
+  ?fdefs:Ast.fd_info list -> 
+  ?adts:Ast.adt list -> 
+  int -> Ast.typ -> ast_gen_res Cr.gen
 
 val generate_decl : 
   ?fdefs:Ast.fd_info list -> ?name:string -> declkind -> decl_gen_res Cr.gen

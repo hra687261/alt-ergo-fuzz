@@ -50,6 +50,50 @@ let dummy_gar =
     u_bvars = VS.empty; 
     c_funcs = SS.empty}
 
+let dest_gen (typ_gen: typ Cr.gen) id num =
+  let dname = 
+    Format.sprintf "E%d_%d" id num
+  in
+  Cr.map 
+    [typ_gen; typ_gen; typ_gen; typ_gen; typ_gen]
+    ( fun t1 t2 t3 t4 t5 ->
+        let aux x y z = 
+          Format.sprintf 
+            "v%d_%d_%d"
+            x y z  
+        in
+        let l1 = 
+          [t1; t2; t3; t4; t5]
+        in
+        let rl2, _ = 
+          List.fold_left (
+            fun (acc, accn) v ->
+              if v = TDummy 
+              then (acc, accn)
+              else (
+                (aux id num accn, v) :: acc, 
+                accn + 1)
+          ) ([],1) l1
+        in
+        let l2 = 
+          List.rev rl2 
+        in 
+        dname, l2
+    )
+
+let adt_gen typ_gen =
+  let id = incr adt_id; !adt_id in
+  Cr.map 
+    [ dest_gen typ_gen id 1;
+      dest_gen typ_gen id 2;
+      dest_gen typ_gen id 3;
+      dest_gen typ_gen id 4;
+      dest_gen typ_gen id 5]
+    ( fun d1 d2 d3 d4 d5 ->
+        Format.sprintf "adt_%d" id, 
+        [d1; d2; d3; d4; d5]
+    )
+
 let typ_gen = 
   Cr.choose [
     Cr.const Tint;
@@ -202,6 +246,7 @@ let qv_gen qvars ty =
                     in 
                     aux pref pos
                   | TDummy -> assert false
+                  | Tadt (n, _) -> aux ("uqadt_"^n) pos 
                 ) ty UQ
               | false -> 
                 ( match ty with
@@ -218,6 +263,7 @@ let qv_gen qvars ty =
                     in 
                     aux pref pos
                   | TDummy -> assert false
+                  | Tadt (n, _) -> aux ("eqadt_"^n) pos 
                 ) ty EQ
             in  
             mk_empty_agr gast
@@ -344,8 +390,6 @@ let get_fa_update gen fuel ti tv =
               (SS.union i.c_funcs v.c_funcs); }
     )
 
-let _ = ignore (get_fa_update, get_fa_access)
-
 let get_bv_gens gen fuel len =
   [ (* Extract *)
     Cr.dynamic_bind 
@@ -436,11 +480,47 @@ let letin_gen : (?bvars:VS.t -> int -> typ -> ast_gen_res Cr.gen) ->
         }
     )
 
+let pm_gen ast_gen adt valty =
+  let agen = 
+    ast_gen valty
+  in
+  let _, pts = adt in 
+  Cr.map [ agen; agen; agen; agen; agen; agen ] (
+    fun {gast = mtchdv; u_args; u_bvars; c_funcs} 
+      pt1 pt2 pt3 pt4 pt5 ->
+      let pbs = 
+        [pt1; pt2; pt3; pt4; pt5]
+      in
+      let asts, u_args, u_bvars, c_funcs =
+        List.fold_left (
+          fun (asts, ua, ub, cf) 
+            {gast; u_args; u_bvars; c_funcs} ->
+            gast :: asts, 
+            VS.union ua u_args,
+            VS.union ub u_bvars,
+            SS.union cf c_funcs
+        ) ([], u_args, u_bvars, c_funcs) pbs
+      in
+      let patts =
+        List.map2 (
+          fun (destrn, pattparams) mbody ->
+            {destrn; pattparams; mbody}
+        ) pts asts
+      in
+      let gast = PMatching
+          { mtchdv; 
+            patts; 
+            valty}
+      in
+      {gast; u_args; u_bvars; c_funcs}
+  )
+
 
 (********************************************************************)
 let generate_ast ?(isform = false) ?(qvars = true) ?(args = []) 
-    ?(fdefs: fd_info list = []) max_depth ty =
+    ?(fdefs: fd_info list = []) ?(adts : adt list = []) max_depth ty =
   ignore isform;
+  ignore adts;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
     if fuel <= 0 
     then
@@ -702,6 +782,8 @@ and liter :
     )
 
 (********************************************************************)
+
+let _ = ignore (get_fa_update, get_fa_access, adt_gen, pm_gen)
 
 (*
 (* the more decls are generated the slower the fuzzing will be *)

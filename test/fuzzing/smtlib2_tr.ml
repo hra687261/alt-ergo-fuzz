@@ -166,6 +166,43 @@ let rec translate_ast (a: ast) =
     Queue.push (translate_ast i) q;
     Queue.push (translate_ast v) q;
     PExpr q
+
+  | PMatching {mtchdv; patts; _} -> 
+    let mk_match_case {destrn; pattparams; mbody} =
+      let pattern = 
+        begin
+          let q = Queue.create () in
+          Queue.add (Atom destrn) q;
+          if pattparams = []
+          then 
+            Expr q
+          else (
+            List.iter (
+              fun (s, _) ->
+                Queue.add (Atom s) q
+            ) pattparams;
+            PExpr q
+          )
+        end
+      in 
+      let term = translate_ast mbody in 
+      let q = Queue.create () in
+      Queue.add pattern q;
+      Queue.add term q;
+      PExpr q
+    in 
+    let qmc = Queue.create () in
+    List.iter (
+      fun p -> 
+        Queue.add (mk_match_case p) qmc
+    ) patts;
+
+    let q = Queue.create () in
+    Queue.push (Atom "match") q;
+    Queue.push (translate_ast mtchdv) q;
+    Queue.push (PExpr qmc) q;
+    PExpr q
+
   | Dummy -> assert false 
 
 let translate_decl (d: decl) =

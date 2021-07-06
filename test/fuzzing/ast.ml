@@ -3,6 +3,9 @@ type typ =
   | Tint | Treal | Tbool | TDummy
   | TBitV of int 
   | TFArray of {ti: typ; tv: typ}
+  | Tadt of adt
+and adt =
+  string * ((string * ((string * typ) list)) list)
 
 type ftyp = {atyp: typ list; rtyp: typ}
 
@@ -25,43 +28,52 @@ type tvar =
   { vname: string; vty: typ; 
     vk: vkind; id: int}
 
-(** type comparisons *)
+let rec print_typ fmt typ = 
+  match typ with 
+  | Tint -> Format.fprintf fmt "int"
+  | Treal -> Format.fprintf fmt "real"
+  | Tbool -> Format.fprintf fmt "bool"
+  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
+  | TFArray {ti = Tint; tv} ->
+    Format.fprintf fmt 
+      "%a farray"
+      print_typ tv
+  | TFArray {ti; tv} ->
+    Format.fprintf fmt 
+      "(%a, %a) farray"
+      print_typ ti
+      print_typ tv
+  | TDummy -> Format.fprintf fmt "dummy"
+  | Tadt (n, _) -> Format.fprintf fmt "%s" n
 
-let rec typ_tagl (a: typ) =
-  match a with
-  | TDummy -> [0]
-  | Tint -> [1] 
-  | Treal -> [2]
-  | Tbool -> [3]
-  | TBitV n -> [4 + n] 
-  | TFArray {ti; tv} -> typ_tagl ti @ typ_tagl tv
+let print_ftyp fmt {atyp; rtyp} =
+  match atyp with 
+  | h :: t ->
+    Format.fprintf fmt "%a" print_typ h;
+    List.iter (
+      fun x ->
+        Format.fprintf fmt ", %a" print_typ x
+    ) t;
+    Format.fprintf fmt " -> %a" print_typ rtyp
+  | [] -> assert false 
 
-let rec tagl_compare l1 l2 =
-  match l1, l2 with
-  | h1::t1, h2::t2 -> 
-    let r = compare h1 h2 in 
-    if r = 0 
-    then tagl_compare t1 t2 
-    else r 
-  | _ :: _, [] -> 1
-  | [], _ :: _ -> -1
-  | [], [] -> 0
+let print_gtyp fmt gtyp =
+  match gtyp with 
+  | A t -> 
+    Format.fprintf fmt "%a" print_typ t
+  | F ft ->
+    print_ftyp fmt ft
+
 
 let typ_compare t1 t2 =
-  tagl_compare (typ_tagl t1) (typ_tagl t2)
-
-let gtyp_tagl (a: gtyp) =
-  match a with 
-  | A x -> typ_tagl x
-  | F {atyp; rtyp} ->
-    List.fold_right (
-      fun x acc ->
-        typ_tagl x @ acc
-    ) atyp (typ_tagl rtyp)
+  compare
+    (Format.asprintf "%a" print_typ t1) 
+    (Format.asprintf "%a" print_typ t2)
 
 let gtyp_compare a b =
-  tagl_compare (gtyp_tagl a) (gtyp_tagl b) 
-
+  compare
+    (Format.asprintf "%a" print_gtyp a) 
+    (Format.asprintf "%a" print_gtyp b)
 
 module VS = Set.Make(
   struct 
@@ -92,7 +104,12 @@ type ast =
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
+  | PMatching of pm
   | Dummy
+and pm = 
+  {mtchdv: ast; patts: patt list; valty: typ}
+and patt = 
+  {destrn: string; pattparams: (string * typ) list; mbody: ast}
 
 and binop = 
   | And | Or | Xor | Imp | Iff
@@ -142,6 +159,8 @@ let max_nb_fun_args = 5
 let v_id, thmid, axid, gid, qid, fid, bid = 
   ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
 
+let adt_id = ref 0
+
 (* Pretty printing *)
 
 let print_bitv fmt bitv = 
@@ -149,23 +168,6 @@ let print_bitv fmt bitv =
     Format.fprintf fmt "[|%s|]" bitv.bits 
   else 
     Format.fprintf fmt "[|size=%d|]" bitv.length
-
-let rec print_typ fmt typ = 
-  match typ with 
-  | Tint -> Format.fprintf fmt "int"
-  | Treal -> Format.fprintf fmt "real"
-  | Tbool -> Format.fprintf fmt "bool"
-  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
-  | TFArray {ti = Tint; tv} ->
-    Format.fprintf fmt 
-      "<%a> farray"
-      print_typ tv
-  | TFArray {ti; tv} ->
-    Format.fprintf fmt 
-      "(<%a>, <%a>) farray"
-      print_typ ti
-      print_typ tv
-  | TDummy -> Format.fprintf fmt "tdummy"
 
 let print_binop fmt binop =
   Format.fprintf fmt (
@@ -257,6 +259,28 @@ let rec print fmt ast =
     Format.fprintf fmt ".{";
     List.iter (Format.fprintf fmt " %a;" print) trgs; 
     Format.fprintf fmt "} %a" print body
+
+  | PMatching {mtchdv; patts; _} ->
+    Format.fprintf fmt "match %a with" print mtchdv;
+    List.iter (
+      fun {destrn; pattparams; mbody} ->
+        Format.fprintf fmt 
+          "\n| %s%a -> %a"
+          destrn
+          ( fun fmt l ->
+              match l with 
+              | [] -> Format.fprintf fmt ""
+              | (h, _)::t -> 
+                Format.fprintf fmt "(%s" h;
+                List.iter (
+                  fun (x, _) ->
+                    Format.fprintf fmt ", %s" x
+                ) t;
+                Format.fprintf fmt ")"
+          ) pattparams
+          print mbody
+    ) patts
+
   | Dummy -> assert false 
 
 let print_decl fmt decl = 
@@ -678,12 +702,12 @@ let quantify ast =
         | Binop (op, x, y) -> 
           q_aux_bis vs ( 
             match pstl with 
-            | [_] ->
-              let x' = quantify_aux x (List.hd pstl) in 
+            | [p] ->
+              let x' = quantify_aux x p in 
               Binop (op, x', y)
-            | [_; _] ->
-              let x' = quantify_aux x (List.nth pstl 0) in
-              let y' = quantify_aux y (List.nth pstl 1) in
+            | [p1; p2] ->
+              let x' = quantify_aux x p1 in
+              let y' = quantify_aux y p2 in
               Binop (op, x', y')
             | _ -> assert false
           )
@@ -691,17 +715,17 @@ let quantify ast =
         | ITE {ty; cond; cons; alt} ->  
           q_aux_bis vs ( 
             match pstl with 
-            | [_] ->
-              let cond = quantify_aux cond (List.hd pstl) in 
+            | [p] ->
+              let cond = quantify_aux cond p in 
               ITE {ty; cond; cons; alt}
-            | [_; _] ->
-              let cond = quantify_aux cond (List.hd pstl) in 
-              let cons = quantify_aux cons (List.nth pstl 1) in
+            | [p1; p2] ->
+              let cond = quantify_aux cond p1 in 
+              let cons = quantify_aux cons p2 in
               ITE {ty; cond; cons; alt}
-            | [_; _; _] ->
-              let cond = quantify_aux cond (List.hd pstl) in 
-              let cons = quantify_aux cons (List.nth pstl 1) in
-              let alt = quantify_aux alt (List.nth pstl 2) in
+            | [p1; p2; p3] ->
+              let cond = quantify_aux cond p1 in 
+              let cons = quantify_aux cons p2 in
+              let alt = quantify_aux alt p3 in
               ITE {ty; cond; cons; alt}
             | _ -> assert false
           )
@@ -709,12 +733,12 @@ let quantify ast =
         | LetIn (v, e, b) ->  
           q_aux_bis vs ( 
             match pstl with 
-            | [_] ->
-              let e' = quantify_aux e (List.hd pstl) in
+            | [p] ->
+              let e' = quantify_aux e p in
               LetIn (v, e', b)
-            | [_; _] ->
-              let e' = quantify_aux e (List.hd pstl) in
-              let b' = quantify_aux b (List.nth pstl 1) in
+            | [p1; p2] ->
+              let e' = quantify_aux e p1 in
+              let b' = quantify_aux b p2 in
               LetIn (v, e', b')
             | _ -> assert false
           )
@@ -742,7 +766,40 @@ let quantify ast =
         | Exists q -> 
           Exists {q with body = quantify_aux q.body pt}
 
-        | Dummy | Cst _ | Var _ | FAUpdate _ -> assert false 
+        | PMatching {mtchdv; patts; valty} ->
+          begin 
+            match pstl with 
+            | [] -> ast
+            | [p] -> 
+              PMatching {
+                mtchdv = quantify_aux mtchdv p; 
+                patts; 
+                valty}
+            | p :: pl ->
+              let rec qpatts (bdl: patt list) (ptl: ptree list) = 
+                match ptl with 
+                | pth :: ptt -> 
+                  begin 
+                    match bdl with 
+                    | {destrn; pattparams; mbody} :: bt -> 
+                      { destrn; 
+                        pattparams; 
+                        mbody =
+                          quantify_aux mbody pth 
+                      } :: qpatts bt ptt
+                    | [] -> assert false 
+                  end
+                | [] -> 
+                  bdl
+              in
+              PMatching {
+                mtchdv = quantify_aux mtchdv p; 
+                patts = qpatts patts pl; 
+                valty}
+          end 
+
+        | Dummy | Cst _ | Var _ 
+        | FAUpdate _ -> assert false 
       end 
     | Empty -> ast
   in 
@@ -795,7 +852,17 @@ let quantify ast =
       | LetIn (_, e, b) ->  
         get_vars e @ get_vars b
 
-      | Dummy | Cst _ | Forall _ | Exists _ | Var _ -> []
+      | PMatching {mtchdv; patts; _} ->
+        let l = get_vars mtchdv in 
+        let ll = 
+          List.fold_left (
+            fun acc {mbody; _} -> get_vars mbody @ acc
+          ) [] patts 
+        in 
+        l @ ll
+
+      | Dummy | Cst _ | Var _ 
+      | Forall _ | Exists _ -> []
     in 
 
     match ast with 
@@ -904,7 +971,28 @@ let quantify ast =
       in 
       [(rpath, var)]
 
-    | Dummy | Cst _ |Forall _ |Exists _ | Var _ -> []
+    | PMatching {mtchdv; patts; _} -> 
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in
+      let vs = 
+        List.map 
+          (fun x -> (rpath, x))
+          (get_vars mtchdv) 
+      in 
+      let vars = 
+        List.fold_left 
+          ( fun acc {mbody; _} -> 
+              List.map 
+                (fun x -> (rpath, x))
+                (get_vars mbody) @ acc) 
+          vs patts 
+      in 
+      vars
+
+    | Dummy | Cst _ | Var _  
+    | Forall _ | Exists _ -> []
   in 
 
   (* sorted list of (path, var) couples by var.id *)

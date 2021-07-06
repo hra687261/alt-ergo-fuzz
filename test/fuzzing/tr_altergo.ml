@@ -17,6 +17,19 @@ let rec typ_to_ty typ =
   | TFArray {ti; tv} ->
     Ty.Tfarray (typ_to_ty ti, typ_to_ty tv)
   | TDummy -> assert false
+  (* we suppose that the algebraic data type is defined *)
+  | Tadt (name, origb) -> 
+    let body = Some (
+        List.map (
+          fun (x, l) ->
+            x,
+            List.map (
+              fun (y, fldt) -> 
+                y, typ_to_ty fldt
+            ) l
+        ) origb)
+    in 
+    Ty.t_adt ~body name []
 
 (** Translates an ast to an Expr.t *)
 let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast = 
@@ -229,6 +242,35 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (translate_ast ~vars ~toplevel ~decl_kind rb) 
       binders
 
+  | PMatching {mtchdv; patts; _} ->
+    let e = translate_ast ~vars ~toplevel ~decl_kind mtchdv in
+    let pats = 
+      List.rev_map (fun {destrn; pattparams; mbody} ->
+          let args, vars = 
+            List.fold_left ( 
+              fun (acc1, acc2) (s, typ) ->
+                let hs = Hstring.make s in 
+                let var = Var.of_hstring hs in
+                let sy = Sy.Var var in 
+                let ty = typ_to_ty typ in
+                (var, hs, ty) :: acc1, 
+                VM.add {vname = ""; vty = typ; vk = BLI; id = 0} (sy, ty) acc2
+            ) ([], vars) pattparams
+          in
+          let x = 
+            Typed.Constr { 
+              name = Hstring.make destrn; 
+              args
+            }
+          in
+          let te =
+            translate_ast ~vars ~toplevel ~decl_kind mbody
+          in
+          x, te
+        ) (List.rev patts)
+    in 
+    Expr.mk_match e pats
+
   | Dummy -> assert false 
 
 (** Translates a decl to a Commands.sat_tdecl *)
@@ -376,39 +418,6 @@ let print_binop fmt binop =
 
     | Concat _ -> "%@")
 
-let rec print_typ fmt typ = 
-  match typ with 
-  | Tint -> Format.fprintf fmt "int"
-  | Treal -> Format.fprintf fmt "real"
-  | Tbool -> Format.fprintf fmt "bool"
-  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
-  | TFArray {ti = Tint; tv} ->
-    Format.fprintf fmt 
-      "%a farray"
-      print_typ tv
-  | TFArray {ti; tv} ->
-    Format.fprintf fmt 
-      "(%a, %a) farray"
-      print_typ ti
-      print_typ tv
-  | TDummy -> assert false 
-
-let print_gtyp fmt gtyp =
-  match gtyp with 
-  | A t -> 
-    Format.fprintf fmt "%a" print_typ t
-  | F {atyp; rtyp} ->
-    match atyp with 
-    | h :: t ->
-      Format.fprintf fmt "%a" print_typ h;
-      List.iter (
-        fun x ->
-          Format.fprintf fmt ", %a" print_typ x
-      ) t;
-      Format.fprintf fmt " -> %a" print_typ rtyp
-
-    | [] -> assert false 
-
 let rec print_ast fmt ast = 
   match ast with 
   | Cst (CstI x) ->
@@ -499,6 +508,26 @@ let rec print_ast fmt ast =
       ) qvars false 
     in
     Format.fprintf fmt ". %a " print_ast body
+
+  | PMatching {mtchdv; patts; _} -> 
+    Format.fprintf fmt "match %a with" print mtchdv;
+    List.iter (
+      fun {destrn; pattparams; mbody} ->
+        Format.fprintf fmt "\n\t| %s%a -> %a" 
+          destrn
+          ( fun fmt l ->
+              match l with 
+              | [] -> ()
+              | (s, _)::t -> 
+                Format.fprintf fmt " (%s" s;
+                List.iter (
+                  fun (x, _) ->
+                    Format.fprintf fmt ", %s" x
+                ) t;
+                Format.fprintf fmt ")"
+          ) pattparams
+          print mbody
+    ) patts
 
   | Dummy -> assert false
 
