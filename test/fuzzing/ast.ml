@@ -109,7 +109,7 @@ type ast =
 and pm = 
   {mtchdv: ast; patts: patt list; valty: typ}
 and patt = 
-  {destrn: string; pattparams: (string * typ) list; mbody: ast}
+  {destrn: string; pattparams: tvar list; mbody: ast}
 
 and binop = 
   | And | Or | Xor | Imp | Iff
@@ -270,11 +270,11 @@ let rec print fmt ast =
           ( fun fmt l ->
               match l with 
               | [] -> Format.fprintf fmt ""
-              | (h, _)::t -> 
-                Format.fprintf fmt "(%s" h;
+              | {vname; _}::t -> 
+                Format.fprintf fmt "(%s" vname;
                 List.iter (
-                  fun (x, _) ->
-                    Format.fprintf fmt ", %s" x
+                  fun {vname; _} ->
+                    Format.fprintf fmt ", %s" vname
                 ) t;
                 Format.fprintf fmt ")"
           ) pattparams

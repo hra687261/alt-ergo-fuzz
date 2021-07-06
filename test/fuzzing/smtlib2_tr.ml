@@ -178,8 +178,8 @@ let rec translate_ast (a: ast) =
             Expr q
           else (
             List.iter (
-              fun (s, _) ->
-                Queue.add (Atom s) q
+              fun {vname; _} ->
+                Queue.add (Atom vname) q
             ) pattparams;
             PExpr q
           )

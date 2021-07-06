@@ -248,13 +248,13 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       List.rev_map (fun {destrn; pattparams; mbody} ->
           let args, vars = 
             List.fold_left ( 
-              fun (acc1, acc2) (s, typ) ->
-                let hs = Hstring.make s in 
+              fun (acc1, acc2) {vname; vty; vk; id} ->
+                let hs = Hstring.make vname in 
                 let var = Var.of_hstring hs in
                 let sy = Sy.Var var in 
-                let ty = typ_to_ty typ in
+                let ty = typ_to_ty vty in
                 (var, hs, ty) :: acc1, 
-                VM.add {vname = ""; vty = typ; vk = BLI; id = 0} (sy, ty) acc2
+                VM.add {vname; vty; vk; id} (sy, ty) acc2
             ) ([], vars) pattparams
           in
           let x = 
@@ -518,11 +518,11 @@ let rec print_ast fmt ast =
           ( fun fmt l ->
               match l with 
               | [] -> ()
-              | (s, _)::t -> 
-                Format.fprintf fmt " (%s" s;
+              | {vname; _}::t -> 
+                Format.fprintf fmt " (%s" vname;
                 List.iter (
-                  fun (x, _) ->
-                    Format.fprintf fmt ", %s" x
+                  fun {vname; _} ->
+                    Format.fprintf fmt ", %s" vname
                 ) t;
                 Format.fprintf fmt ")"
           ) pattparams

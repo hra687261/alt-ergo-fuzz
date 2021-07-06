@@ -31,6 +31,7 @@ val generate_ast :
   int -> Ast.typ -> ast_gen_res Cr.gen
 
 val generate_decl : 
-  ?fdefs:Ast.fd_info list -> ?name:string -> declkind -> decl_gen_res Cr.gen
+  ?fdefs:Ast.fd_info list -> ?adts:Ast.adt list -> 
+  ?name:string -> declkind -> decl_gen_res Cr.gen
 
 val gen_decls : Ast.decl list Cr.gen
