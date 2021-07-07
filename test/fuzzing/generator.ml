@@ -535,13 +535,13 @@ let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
       fun g p1 p2 p3 p4 p5 ->
         let {u_args; u_bvars; u_dt; c_funcs; _}, rpl =
           List.fold_left (
-            fun ({g_res; u_args; u_bvars; u_dt; c_funcs}, pl) p1 -> 
+            fun ({g_res; u_args; u_bvars; u_dt; c_funcs}, pl) p -> 
               { g_res;
-                u_args = VS.union u_args p1.u_args; 
-                u_bvars = VS.union u_bvars p1.u_bvars; 
-                u_dt = SS.union u_dt p1.u_dt; 
-                c_funcs = SS.union c_funcs p1.c_funcs
-              }, g_res :: pl
+                u_args = VS.union u_args p.u_args; 
+                u_bvars = VS.union u_bvars p.u_bvars; 
+                u_dt = SS.union u_dt p.u_dt; 
+                c_funcs = SS.union c_funcs p.c_funcs
+              }, p.g_res :: pl
           ) (p1, [p1.g_res]) [p2; p3; p4; p5]
         in 
         let patts = List.rev rpl in 
