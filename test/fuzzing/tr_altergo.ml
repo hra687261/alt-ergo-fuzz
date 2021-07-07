@@ -248,13 +248,17 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       List.rev_map (fun {destrn; pattparams; mbody} ->
           let args, vars = 
             List.fold_left ( 
-              fun (acc1, acc2) {vname; vty; vk; id} ->
-                let hs = Hstring.make vname in 
-                let var = Var.of_hstring hs in
-                let sy = Sy.Var var in 
-                let ty = typ_to_ty vty in
-                (var, hs, ty) :: acc1, 
-                VM.add {vname; vty; vk; id} (sy, ty) acc2
+              fun (acc1, acc2) v ->
+                match v with 
+                | Some {vname; vty; vk; id} ->
+                  let hs = Hstring.make vname in 
+                  let var = Var.of_hstring hs in
+                  let sy = Sy.Var var in 
+                  let ty = typ_to_ty vty in
+                  (var, hs, ty) :: acc1, 
+                  VM.add {vname; vty; vk; id} (sy, ty) acc2
+                | None ->
+                  (acc1, acc2)
             ) ([], vars) pattparams
           in
           let x = 
@@ -270,6 +274,18 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
         ) (List.rev patts)
     in 
     Expr.mk_match e pats
+
+  | Cstr {cname; cty; params} ->
+    let sy = 
+      Sy.destruct ~guarded:false cname
+    in
+    let exprs =
+      List.rev_map (
+        fun (_, a) ->
+          translate_ast ~vars ~toplevel ~decl_kind a
+      ) (List.rev params)
+    in
+    Expr.mk_term sy exprs (typ_to_ty cty)
 
   | Dummy -> assert false 
 
@@ -510,24 +526,56 @@ let rec print_ast fmt ast =
     Format.fprintf fmt ". %a " print_ast body
 
   | PMatching {mtchdv; patts; _} -> 
-    Format.fprintf fmt "match %a with" print mtchdv;
-    List.iter (
-      fun {destrn; pattparams; mbody} ->
-        Format.fprintf fmt "\n\t| %s%a -> %a" 
-          destrn
-          ( fun fmt l ->
-              match l with 
-              | [] -> ()
-              | {vname; _}::t -> 
-                Format.fprintf fmt " (%s" vname;
-                List.iter (
-                  fun {vname; _} ->
-                    Format.fprintf fmt ", %s" vname
-                ) t;
-                Format.fprintf fmt ")"
-          ) pattparams
-          print mbody
-    ) patts
+    Format.fprintf fmt "(match %a with%a)" print mtchdv
+      ( fun fmt patts ->
+          List.iter (
+            fun {destrn; pattparams; mbody} ->
+              Format.fprintf fmt "\n\t| %s%a -> %a" 
+                destrn
+                ( fun fmt l ->
+                    match l with 
+                    | [] -> ()
+                    | Some {vname; _}::t -> 
+                      Format.fprintf fmt " (%s" vname;
+                      List.iter (
+                        fun v ->
+                          match v with 
+                          | Some {vname; _} ->
+                            Format.fprintf fmt ", %s" vname
+                          | None -> 
+                            Format.fprintf fmt ", _"
+                      ) t;
+                      Format.fprintf fmt ")"
+                    | None::t -> 
+                      Format.fprintf fmt " (_";
+                      List.iter (
+                        fun v ->
+                          match v with 
+                          | Some {vname; _} ->
+                            Format.fprintf fmt ", %s" vname
+                          | None -> 
+                            Format.fprintf fmt ", _"
+                      ) t;
+                      Format.fprintf fmt ")"
+                ) pattparams
+                print mbody
+          ) patts
+      ) patts
+
+  | Cstr {cname; params; _} ->
+    Format.fprintf fmt "(%s%a)"
+      cname
+      ( fun fmt l ->
+          match l with 
+          | [] -> ()
+          | (_, a)::t -> 
+            Format.fprintf fmt " (%a" print a;
+            List.iter (
+              fun (_, a) ->
+                Format.fprintf fmt ", %a" print a
+            ) t;
+            Format.fprintf fmt ")"
+      ) params
 
   | Dummy -> assert false
 
@@ -594,7 +642,7 @@ let print_decl fmt (gtm: SS.t GTM.t) (decl: decl) =
         print_ast body; 
       gtm
 
-let print_decls fmt (decls: decl list) =
+let print_decls fmt (_, decls: typedecl list * decl list) =
   ignore @@
   List.fold_left (print_decl fmt) GTM.empty decls
 

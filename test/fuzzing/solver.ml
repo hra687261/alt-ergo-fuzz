@@ -4,13 +4,14 @@ module type T = Translater.T
 module type ST =
 sig 
   include T
-  val process_decls : Ast.decl list -> Utils.answer list
+  val process_decls : Ast.typedecl list -> Ast.decl list -> Utils.answer list
 end 
 
 module CVC5: ST = 
 struct 
   include Smtlib2_tr
-  let process_decls decls = 
+  let process_decls tydecls decls = 
+    ignore tydecls;
     let rec get_lines (ic: in_channel) =
       try
         let l = input_line ic in
@@ -23,7 +24,7 @@ struct
 
     let oc = open_out filename in 
     let fmt = Format.formatter_of_out_channel oc in
-    Format.fprintf fmt "%a" print_decls decls;
+    Format.fprintf fmt "%a" print_decls (tydecls, decls);
     close_out oc;
 
     let ic = 
@@ -59,13 +60,13 @@ struct
     in
     AEL.Options.set_disable_weaks true;
     AEL.Options.set_is_gui false;
-    fun decls -> 
+    fun tydecls decls -> 
       reinit_env ();
       let filename = "_.ae" in 
 
       let oc = open_out filename in 
       let fmt = Format.formatter_of_out_channel oc in
-      Format.fprintf fmt "%a" print_decls decls;
+      Format.fprintf fmt "%a" print_decls (tydecls, decls);
       close_out oc;
       
       let al, _ = 

@@ -5,7 +5,10 @@ type typ =
   | TFArray of {ti: typ; tv: typ}
   | Tadt of adt
 and adt =
-  string * ((string * ((string * typ) list)) list)
+  string * patt_ty list
+and patt_ty = string * (string * typ) list
+
+type typedecl = adt
 
 type ftyp = {atyp: typ list; rtyp: typ}
 
@@ -46,6 +49,28 @@ let rec print_typ fmt typ =
   | TDummy -> Format.fprintf fmt "dummy"
   | Tadt (n, _) -> Format.fprintf fmt "%s" n
 
+let print_patt_ty fmt (dn, prms: patt_ty) =
+  Format.fprintf fmt "| %s%a" dn
+    ( fun fmt l ->
+        match l with 
+        | [] -> ()
+        | (pn, ty) :: t ->
+          Format.fprintf fmt "(%s: %a" pn print_typ ty;
+          List.iter (
+            fun (pn, ty) -> 
+              Format.fprintf fmt ", %s: %a" pn print_typ ty;
+          ) t; 
+          Format.fprintf fmt ")"
+    ) prms
+
+let print_adt fmt (adt: adt) =
+  let name, dstrs = adt in 
+  Format.fprintf fmt " type %s =\n" name;
+  List.iter (
+    fun (dn, prms) ->
+      Format.fprintf fmt "%a\n" print_patt_ty (dn, prms)
+  ) (dstrs: patt_ty list)
+
 let print_ftyp fmt {atyp; rtyp} =
   match atyp with 
   | h :: t ->
@@ -63,7 +88,6 @@ let print_gtyp fmt gtyp =
     Format.fprintf fmt "%a" print_typ t
   | F ft ->
     print_ftyp fmt ft
-
 
 let typ_compare t1 t2 =
   compare
@@ -105,11 +129,14 @@ type ast =
   | Forall of quant
   | Exists of quant
   | PMatching of pm
+  | Cstr of constr
   | Dummy
 and pm = 
   {mtchdv: ast; patts: patt list; valty: typ}
 and patt = 
-  {destrn: string; pattparams: tvar list; mbody: ast}
+  {destrn: string; pattparams: tvar option list; mbody: ast}
+and constr = 
+  {cname: string; cty: typ; params: (string * ast) list}
 
 and binop = 
   | And | Or | Xor | Imp | Iff
@@ -260,6 +287,24 @@ let rec print fmt ast =
     List.iter (Format.fprintf fmt " %a;" print) trgs; 
     Format.fprintf fmt "} %a" print body
 
+  | Cstr {cname; params; _} ->
+    Format.fprintf fmt "%s %a"
+      cname
+      ( fun fmt l ->
+          match l with 
+          | [] -> Format.fprintf fmt ""
+          | (name, a)::t -> 
+            Format.fprintf fmt "(%s: %a" 
+              name print a;
+            List.iter (
+              fun (name, a) ->
+                Format.fprintf fmt ", %s: %a" 
+                  name print a
+            ) t;
+            Format.fprintf fmt ")"
+      ) params
+
+
   | PMatching {mtchdv; patts; _} ->
     Format.fprintf fmt "match %a with" print mtchdv;
     List.iter (
@@ -270,11 +315,26 @@ let rec print fmt ast =
           ( fun fmt l ->
               match l with 
               | [] -> Format.fprintf fmt ""
-              | {vname; _}::t -> 
+              | Some {vname; _}::t -> 
                 Format.fprintf fmt "(%s" vname;
                 List.iter (
-                  fun {vname; _} ->
-                    Format.fprintf fmt ", %s" vname
+                  fun x ->
+                    match x with 
+                    | Some {vname; _} ->
+                      Format.fprintf fmt ", %s" vname
+                    | None ->
+                      Format.fprintf fmt ", _"
+                ) t;
+                Format.fprintf fmt ")"
+              | None ::t -> 
+                Format.fprintf fmt "(_";
+                List.iter (
+                  fun x ->
+                    match x with 
+                    | Some {vname; _} ->
+                      Format.fprintf fmt ", %s" vname
+                    | None ->
+                      Format.fprintf fmt ", _"
                 ) t;
                 Format.fprintf fmt ")"
           ) pattparams
@@ -383,7 +443,27 @@ let rec get_usyms (ast: ast) =
           (get_usyms a) 
           acc
     ) (get_usyms body) trgs
-  | _ -> []
+
+  | PMatching {mtchdv; patts; _} -> 
+    List.fold_left (
+      fun acc {mbody; _} -> 
+        List.rev_append 
+          (get_usyms mbody) 
+          acc
+    ) (get_usyms mtchdv) patts
+
+  | Cstr {params; _} -> 
+    List.fold_left (
+      fun acc (_, a) -> 
+        List.rev_append 
+          (get_usyms a) 
+          acc
+    ) [] params
+
+  | Var {vk=(EQ|UQ|ARG|BLI); _ }
+  | Dummy
+  | Cst _ -> []
+
 
 let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * gtyp) list) = 
   let gtm_update s gto =
@@ -414,7 +494,8 @@ let rec typ_to_str ty =
   | TFArray {ti; tv} -> 
     Format.sprintf "s%s_%se" 
       (typ_to_str ti) (typ_to_str tv)
-  | _ -> assert false
+  | Tadt (n, _) -> n
+  | TDummy -> assert false 
 
 let is_dummy_tvar {vty; _} =
   match vty with 
@@ -504,7 +585,8 @@ let get_uvar_ast num ty =
     | TFArray {ti; tv} -> 
       (Format.sprintf "ufa_%s_%s_"
          (typ_to_str ti) (typ_to_str tv))^ string_of_int num
-    | _ -> assert false
+    | Tadt (adtn, _) -> "u_"^adtn^"_"^string_of_int num 
+    | TDummy -> assert false 
   in    
   Var (mk_tvar_b vname ty US 0)
 
@@ -534,7 +616,8 @@ let get_ufunc_ast num rtyp =
     | TFArray {ti; tv} -> 
       (Format.sprintf "uffa_%s_%s_"
          (typ_to_str ti) (typ_to_str tv))^ string_of_int num
-    | _ -> assert false
+    | Tadt (adtn, _) -> "uf_"^adtn^"_"^string_of_int num 
+    | TDummy -> assert false
   in
   let params =
     mk_aty (get_args num)
@@ -798,6 +881,24 @@ let quantify ast =
                 valty}
           end 
 
+        | Cstr {cname; cty; params} -> (
+            match pstl with 
+            | [] -> Cstr {cname; cty; params}
+            | pl ->
+              let rec qprms pl ptl = 
+                match ptl with 
+                | pth :: ptt -> 
+                  begin 
+                    match pl with 
+                    | (n, a) :: bt -> 
+                      (n, quantify_aux a pth) :: qprms bt ptt
+                    | [] -> assert false 
+                  end
+                | [] -> pl
+              in
+              Cstr {cname; cty; params = qprms params pl}
+          )
+
         | Dummy | Cst _ | Var _ 
         | FAUpdate _ -> assert false 
       end 
@@ -853,13 +954,15 @@ let quantify ast =
         get_vars e @ get_vars b
 
       | PMatching {mtchdv; patts; _} ->
-        let l = get_vars mtchdv in 
-        let ll = 
-          List.fold_left (
-            fun acc {mbody; _} -> get_vars mbody @ acc
-          ) [] patts 
-        in 
-        l @ ll
+        List.fold_left (
+          fun acc {mbody; _} -> get_vars mbody @ acc
+        ) (get_vars mtchdv) patts 
+
+      | Cstr {params; _} -> 
+        List.fold_left (
+          fun acc (_, a) -> 
+            get_vars a @ acc
+        ) [] params
 
       | Dummy | Cst _ | Var _ 
       | Forall _ | Exists _ -> []
@@ -990,6 +1093,21 @@ let quantify ast =
           vs patts 
       in 
       vars
+
+    | Cstr {params; _} -> 
+      let rpath = 
+        if path = [] then [] else
+          List.rev (List.tl path) 
+      in
+      List.fold_left ( 
+        fun acc (_, a) -> 
+          let l = 
+            List.map 
+              (fun x -> (rpath, x))
+              (get_vars a) 
+          in 
+          l @ acc
+      ) [] params 
 
     | Dummy | Cst _ | Var _  
     | Forall _ | Exists _ -> []

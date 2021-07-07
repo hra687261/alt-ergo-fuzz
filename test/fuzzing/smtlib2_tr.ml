@@ -47,12 +47,14 @@ let rec translate_sort (s: sort) =
   | Tint -> Atom "Int"
   | Treal -> Atom "Real"
   | Tbool -> Atom "Bool"
+
   | TBitV n ->
     let q = Queue.create () in
     Queue.push (Atom "_") q;
     Queue.push (Atom "BitVec") q;
     Queue.push (Atom (string_of_int n)) q;
     PExpr q
+
   | TFArray {ti; tv} -> 
     let is = translate_sort ti in 
     let vs = translate_sort tv in 
@@ -62,7 +64,35 @@ let rec translate_sort (s: sort) =
     Queue.push vs q;
     PExpr q
 
-  | _ -> assert false 
+  | Tadt (adtn, _) -> 
+    Atom adtn
+
+  | TDummy -> assert false
+
+let translate_typedecl (adtn, patterns) =
+  let tr_pattern 
+      (ptrn, prms: string * (string * sort) list) =
+    let q = Queue.create () in
+    Queue.push (Atom ptrn) q;
+    List.iter (
+      fun (n, so) -> 
+        let tmpq = Queue.create () in
+        Queue.push (Atom n) tmpq;
+        Queue.push (translate_sort so) tmpq;
+        Queue.push (PExpr tmpq) q
+    ) prms;
+    PExpr q
+  in 
+  let q = Queue.create () in
+  Queue.push (Atom "declare-datatype") q;
+  Queue.push (Atom adtn) q;
+
+  let pq = Queue.create () in
+  List.iter (
+    fun patt -> Queue.push (tr_pattern patt) pq
+  ) patterns;
+  Queue.push (PExpr pq) q;
+  PExpr q
 
 let rec translate_ast (a: ast) = 
   match a with 
@@ -178,8 +208,12 @@ let rec translate_ast (a: ast) =
             Expr q
           else (
             List.iter (
-              fun {vname; _} ->
-                Queue.add (Atom vname) q
+              fun v ->
+                match v with 
+                | Some {vname; _ } ->
+                  Queue.add (Atom vname) q
+                | None -> 
+                  Queue.add (Atom "_") q
             ) pattparams;
             PExpr q
           )
@@ -201,6 +235,16 @@ let rec translate_ast (a: ast) =
     Queue.push (Atom "match") q;
     Queue.push (translate_ast mtchdv) q;
     Queue.push (PExpr qmc) q;
+    PExpr q
+
+  | Cstr {cname; params; _} ->
+    ignore (cname, params);
+    let q = Queue.create () in
+    Queue.push (Atom cname) q;
+    List.iter (
+      fun (_, a) -> 
+        Queue.push (translate_ast a) q;
+    ) params;
     PExpr q
 
   | Dummy -> assert false 
@@ -318,7 +362,15 @@ let print_decl fmt (gtm: SS.t Ast.GTM.t) d =
   Format.fprintf fmt "\n%a@." print_sexp se; 
   gtm
 
-let print_decls fmt (decls: decl list) =
+let print_typedecl fmt tydecls = 
+  List.iter (
+    fun td ->
+      Format.fprintf fmt "%a\n" 
+        print_sexp (translate_typedecl td)
+  ) tydecls
+
+let print_decls fmt (tydecls, decls: typedecl list * decl list) =
   Format.fprintf fmt "\n(set-logic ALL)@.";
+  print_typedecl fmt tydecls;
   ignore @@
   List.fold_left (print_decl fmt) Ast.GTM.empty decls  

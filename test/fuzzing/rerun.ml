@@ -16,7 +16,7 @@ let () =
   let str = really_input_string ic (in_channel_length ic) in
   close_in ic;
 
-  let {decls; exp_str; exp_bt_str; _}: bug_info = 
+  let {tydecls; decls; exp_str; exp_bt_str; _}: bug_info = 
     Marshal.from_string str 0 
   in 
 
@@ -29,6 +29,6 @@ let () =
         ) decls
     ) decls;
 
-  let aeres = AES.process_decls decls in
-  let c5res = C5S.process_decls decls in
+  let aeres = AES.process_decls tydecls decls in
+  let c5res = C5S.process_decls tydecls decls in
   cmp_answers_pr2 aeres c5res
