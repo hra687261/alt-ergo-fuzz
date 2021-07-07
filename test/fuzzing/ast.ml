@@ -190,6 +190,17 @@ let adt_id = ref 0
 
 (* Pretty printing *)
 
+let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
+  Format.fprintf fmt "{";
+  Format.fprintf fmt "\n  fn = %s;" fn;
+  Format.fprintf fmt "\n  params (";
+  List.iter (
+    Format.fprintf fmt " %a," print_typ;
+  ) [p1; p2; p3; p4; p5];
+  Format.fprintf fmt ")";
+  Format.fprintf fmt "\n  rtyp = %a" print_typ rtyp;
+  Format.fprintf fmt "\n}"
+
 let print_bitv fmt bitv = 
   if bitv.length <= 8 then
     Format.fprintf fmt "[|%s|]" bitv.bits 
