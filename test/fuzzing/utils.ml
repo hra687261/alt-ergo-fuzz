@@ -109,7 +109,11 @@ let run_with_timeout timeout proc decls =
 
 let cmp_answers_exn2 l1 l2 = 
   List.iter2 (
-    fun x y -> if x != y then raise (Failure Unsound)
+    fun x y -> 
+      match x, y with 
+      | Sat, Unsat 
+      | Unsat, Sat -> raise (Failure Unsound)
+      | _ ->  ()
   ) l1 l2
 
 let cmp_answers_pr2 l1 l2 = 
