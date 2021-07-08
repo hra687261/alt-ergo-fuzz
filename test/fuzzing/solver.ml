@@ -87,7 +87,7 @@ struct
               then 
                 if consistent 
                 then Utils.Unknown :: al, (env, consistent, ex)
-                else Utils.Sat :: al, (env, consistent, ex)
+                else Utils.Unsat :: al, (env, consistent, ex)
               else 
                 al, (env, consistent, ex)
           )

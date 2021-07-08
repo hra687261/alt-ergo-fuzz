@@ -277,7 +277,7 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
   | Cstr {cname; cty; params} ->
     let sy = 
-      Sy.destruct ~guarded:true cname
+      Sy.Op (Sy.Constr (Hstring.make cname))
     in
     let exprs =
       List.rev_map (

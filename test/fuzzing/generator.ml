@@ -27,7 +27,6 @@ let dummy_gen_res =
     u_dt = SS.empty;
     c_funcs = SS.empty}
 
-
 let pr_gr pr fmt {g_res; u_args; u_bvars; u_dt; c_funcs} =
   let pr_vs fmt e =
     Format.fprintf fmt "  {";
@@ -56,66 +55,11 @@ let pr_gr pr fmt {g_res; u_args; u_bvars; u_dt; c_funcs} =
     pr_ss c_funcs;
   Format.fprintf fmt "}@."
 
-let dest_gen (typ_gen: typ Cr.gen) id num =
-  let dname = 
-    Format.sprintf "E%d_%d" id num
-  in
-  Cr.map 
-    [typ_gen; typ_gen; typ_gen; typ_gen; typ_gen]
-    ( fun t1 t2 t3 t4 t5 ->
-        let aux x y z = 
-          Format.sprintf 
-            "v%d_%d_%d"
-            x y z  
-        in
-        let l1 = 
-          [t1; t2; t3; t4; t5]
-        in
-        let rl2, _ = 
-          List.fold_left (
-            fun (acc, accn) v ->
-              if v = TDummy 
-              then (acc, accn)
-              else (
-                (aux id num accn, v) :: acc, 
-                accn + 1)
-          ) ([],1) l1
-        in
-        let l2 = 
-          List.rev rl2 
-        in 
-        dname, l2
-    )
-
-let adt_gen typ_gen =
-  let id = incr adt_id; !adt_id in
-  Cr.map 
-    [ dest_gen typ_gen id 1;
-      dest_gen typ_gen id 2;
-      dest_gen typ_gen id 3;
-      dest_gen typ_gen id 4;
-      dest_gen typ_gen id 5]
-    ( fun d1 d2 d3 d4 d5 ->
-        Format.sprintf "adt_%d" id, 
-        [d1; d2; d3; d4; d5]
-    )
-
-let typ_gen = 
+let typ_gen () = 
   Cr.choose [
     Cr.const Tint;
     Cr.const Treal;
     Cr.const Tbool;
-    (* to be completed *)
-          (*
-          Cr.dynamic_bind 
-            (Cr.range ~min:1 64)
-            (fun n -> Cr.const (TBitV n));*) 
-    (*Cr.dynamic_bind 
-      ( Cr.map 
-          [typ_gen; typ_gen] 
-          (fun x y -> x, y))
-      ( fun (ti, tv) -> 
-          Cr.const (TFArray {ti; tv}))*)
   ]
 
 let cst_gen ty = 
@@ -353,7 +297,7 @@ let func_call_gen :
 
 let get_fa_access gen fuel tv = 
   Cr.dynamic_bind 
-    typ_gen
+    ( typ_gen ()) 
     ( fun ti -> 
         Cr.map 
           [ gen (fuel - 1) (TFArray {ti;tv});
@@ -500,6 +444,51 @@ let letin_gen : (?bvars:VS.t -> int -> typ -> ast gen_res Cr.gen) ->
           c_funcs =
             SS.union e.c_funcs b.c_funcs; 
         }
+    )
+
+let dest_gen id num =
+  let dname = 
+    Format.sprintf "E%d_%d" id num
+  in
+  Cr.map 
+    [ typ_gen (); typ_gen (); typ_gen (); 
+      typ_gen (); typ_gen ()]
+    ( fun t1 t2 t3 t4 t5 ->
+        let aux x y z = 
+          Format.sprintf 
+            "v%d_%d_%d"
+            x y z  
+        in
+        let l1 = 
+          [t1; t2; t3; t4; t5]
+        in
+        let rl2, _ = 
+          List.fold_left (
+            fun (acc, accn) v ->
+              if v = TDummy 
+              then (acc, accn)
+              else (
+                (aux id num accn, v) :: acc, 
+                accn + 1)
+          ) ([],1) l1
+        in
+        let l2 = 
+          List.rev rl2 
+        in 
+        dname, l2
+    )
+
+let adt_gen () =
+  let id = incr adt_id; !adt_id in
+  Cr.map 
+    [ dest_gen id 1;
+      dest_gen id 2;
+      dest_gen id 3;
+      dest_gen id 4;
+      dest_gen id 5]
+    ( fun d1 d2 d3 d4 d5 ->
+        Format.sprintf "adt_%d" id, 
+        [d1; d2; d3; d4; d5]
     )
 
 let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
@@ -724,8 +713,8 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
     name func_max_depth = 
   let ag = 
     Cr.map [
-      typ_gen; typ_gen; typ_gen;
-      typ_gen; typ_gen; typ_gen;
+      typ_gen (); typ_gen (); typ_gen ();
+      typ_gen (); typ_gen (); typ_gen ();
     ] (
       fun t1 t2 t3 t4 t5 rtyp ->
         (t1, t2, t3, t4, t5), rtyp
@@ -926,8 +915,8 @@ let gen_decls =
 let gen_decls = 
   Cr.dynamic_bind (
     Cr.map 
-      [ adt_gen typ_gen;
-        adt_gen typ_gen;
+      [ adt_gen ();
+        adt_gen ();
         dk_gen; 
         dk_gen] 
       (fun adt1 adt2 e1 e2 -> (adt1, adt2), (e1, e2))
