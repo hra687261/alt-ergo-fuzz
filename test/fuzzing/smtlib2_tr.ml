@@ -349,15 +349,15 @@ let print_gtm fmt (gtm: SS.t Ast.GTM.t) =
       ) ss 
   ) gtm 
 
-let print_decl fmt (gtm: SS.t Ast.GTM.t) d = 
-  let gtl = get_usyms (
-      match d with 
-      | Axiom {body; _} -> body
-      | Goal {body; _} -> body
-      | FuncDef {body; _} -> body)
+let print_decl fmt (gtm: SS.t Ast.GTM.t) decl = 
+  let gtl, decl = 
+    match decl with 
+    | Axiom {body; _} -> get_usyms body, decl
+    | Goal ({body; _} as d) -> get_usyms body, Goal {d with body = Ast.Unop (Not, body)} 
+    | FuncDef {body; _} -> get_usyms body, decl
   in
   let (ngtm, gtm) : (SS.t Ast.GTM.t * SS.t Ast.GTM.t) = get_ngtm gtm gtl in 
-  let se = translate_decl d in 
+  let se = translate_decl decl in 
   Format.fprintf fmt "\n%a@." print_gtm ngtm;
   Format.fprintf fmt "\n%a@." print_sexp se; 
   gtm
