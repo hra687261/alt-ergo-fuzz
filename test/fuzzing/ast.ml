@@ -409,6 +409,10 @@ let rec get_usyms (ast: ast) =
   match ast with 
   | Var {vname; vty; vk = US; _} -> 
     [vname, A vty]
+  | Unop (Access {fa; _}, ast) -> 
+    List.rev_append
+      (get_usyms fa)
+      (get_usyms ast)
   | Unop (_, ast) -> 
     get_usyms ast
   | Binop (_, a, b) -> 
@@ -732,7 +736,11 @@ let add_triggers vs ast =
     | FunCall _ -> aux ast 
     | Forall {body; _} -> aux body
     | Exists {body; _} -> aux body
-    | _ -> []
+
+    | Dummy | Cst _ | Var _
+    | ITE _ | LetIn (_, _, _)
+    | FAUpdate _ | PMatching _ 
+    | Cstr _ -> assert false
   in
   add_triggers_aux (List.map (fun x -> (x, false)) vs) ast
 
@@ -910,8 +918,8 @@ let quantify ast =
               Cstr {cname; cty; params = qprms params pl}
           )
 
-        | Dummy | Cst _ | Var _ 
-        | FAUpdate _ -> assert false 
+        | FAUpdate _
+        | Dummy | Cst _ | Var _ -> assert false 
       end 
     | Empty -> ast
   in 

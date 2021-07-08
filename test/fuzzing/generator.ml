@@ -562,7 +562,6 @@ let app_ast_gen ast_gen fuel typ =
 let adt_dstr_gen (ast_gen: int -> typ -> ast gen_res Cr.gen) 
     (adt: adt) (fuel: int) =
   let aux tadt_typ ((dstrn, pls): patt_ty) =
-    (*Format.printf "\npatt_ty = %a\n" print_patt_ty (dstrn, pls);*)
     match pls with 
     | [(n1, t1); (n2, t2); (n3, t3); (n4, t4); (n5, t5)] -> 
       Cr.map [ 
@@ -603,19 +602,15 @@ let adt_dstr_gen (ast_gen: int -> typ -> ast gen_res Cr.gen)
     | _ -> assert false 
   in 
   let _, pls = adt in 
-  (* not ideal, maybe use dynamic linking? *)
-  (*Format.printf "\nadt_dstr_gen aux call\n";*)
   Cr.dynamic_bind 
     (Cr.choose (List.map Cr.const pls))
     (aux (Tadt adt))
-(*List.map (aux (Tadt adt)) pls*)
 
 (********************************************************************)
 let generate_ast ?(isform = false) ?(qvars = true) ?(args = []) 
     ?(fdefs: fd_info list = []) ?(adts : adt list = []) max_depth ty =
   ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
-    (*Format.printf "\nag_aux %d %a\n" fuel print_typ ty;*)
     if fuel <= 0 
     then
       begin 
@@ -650,12 +645,12 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
         let gl4 =
           func_call_gen ag_aux fuel ty fdefs
         in
-          (*
-          ( if isform 
-            then []  
-            else [get_fa_access ag_aux fuel ty]) @
-          *)
-        let gl5 =
+        let gl5 =  
+          if isform 
+          then []  
+          else [get_fa_access ag_aux fuel ty]
+        in
+        let gl6 =
           ( match ty with 
             | Tint -> 
               List.map 
@@ -685,18 +680,12 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
               l1 @ tmp
             | TBitV len ->
               get_bv_gens ag_aux fuel len
-            (*
+
             | TFArray {ti; tv} -> 
               [ 
                 get_fa_update ag_aux fuel ti tv
               ]
-            *)
             | Tadt adt -> 
-            (*
-              ignore (adt, adt_dstr_gen);
-              assert false
-            *)
-              (*Format.printf "\n%d %a\n" fuel print_adt adt;*)
               let adt_gen = 
                 adt_dstr_gen (ag_aux ~bvars) adt fuel
               in
@@ -715,12 +704,13 @@ let generate_ast ?(isform = false) ?(qvars = true) ?(args = [])
               (Cr.choose (List.map Cr.const adts))
               (fun adt -> pm_gen (ag_aux ~bvars) adt fuel ty)]
         in
-        let gl6 =
+        let gl7 =
           if pm_gens = []
           then []
           else [Cr.choose pm_gens]
         in
-        let tmp = gl6 @ gl5 in
+        let tmp = gl7 @ gl6 in
+        let tmp = gl5 @ tmp in
         let tmp = gl4 @ tmp in
         let tmp = gl3 @ tmp in
         let tmp = gl2 @ tmp in
