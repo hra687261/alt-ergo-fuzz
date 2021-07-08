@@ -548,7 +548,7 @@ let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
         { g_res = PMatching {mtchdv = g.g_res; patts; valty};
           u_args = VS.union u_args g.u_args;
           u_bvars = VS.union u_bvars g.u_bvars;
-          u_dt = SS.union u_dt g.u_dt;
+          u_dt = SS.add adtn (SS.union u_dt g.u_dt);
           c_funcs = SS.union c_funcs g.c_funcs;
         }
     )
@@ -560,7 +560,7 @@ let app_ast_gen ast_gen fuel typ =
   | _ -> ast_gen fuel typ
 
 let adt_dstr_gen (ast_gen: int -> typ -> ast gen_res Cr.gen) 
-    (adt: adt) (fuel: int) =
+    ((adtn, _) as adt: adt) (fuel: int) =
   let aux tadt_typ ((dstrn, pls): patt_ty) =
     match pls with 
     | [(n1, t1); (n2, t2); (n3, t3); (n4, t4); (n5, t5)] -> 
@@ -595,7 +595,7 @@ let adt_dstr_gen (ast_gen: int -> typ -> ast gen_res Cr.gen)
           { g_res = Cstr {cname; cty; params};
             u_args;
             u_bvars;
-            u_dt;
+            u_dt = SS.add adtn u_dt;
             c_funcs;
           }
       ) 
@@ -854,9 +854,9 @@ let get_fdis : fd_info list -> decl gen_res -> fd_info list =
   | _ -> fdefs
 
 let rec iter : 
-  fd_info list -> adt list -> SS.t -> declkind list -> 
+  fd_info list -> adt list -> SS.t -> SS.t -> declkind list -> 
   decl gen_res list -> (typedecl list * decl list) Cr.gen =
-  fun fds adts cfs el acc ->
+  fun fds adts udts cfs el acc ->
   match el with 
   | h :: t ->
     let a : decl gen_res Cr.gen = mk_gen fds [] h in 
@@ -864,20 +864,30 @@ let rec iter :
       fun x -> 
         let fds = get_fdis fds x in 
         let cfs = SS.union cfs x.c_funcs in
-        iter fds adts cfs t (x :: acc)
+        let udts = SS.union udts x.u_dt in
+        iter fds adts udts cfs t (x :: acc)
     in
     Cr.dynamic_bind a b
-  | _ -> liter fds adts cfs acc
+  | _ -> liter fds adts udts cfs acc
 
 and liter : 
-  fd_info list -> adt list -> SS.t -> decl gen_res list -> (typedecl list * decl list) Cr.gen =
-  fun fds adts cfs acc -> 
+  fd_info list -> adt list -> SS.t -> SS.t -> decl gen_res list -> (typedecl list * decl list) Cr.gen =
+  fun fds adts udts cfs acc -> 
   Cr.dynamic_bind (mk_gen fds adts GD) 
     ( fun fg ->
         let cfs = SS.union cfs fg.c_funcs in 
+        let udts = SS.union udts fg.u_dt in
+        let adts = 
+          List.fold_left (
+            fun acc ((an, _) as adt) ->
+              if SS.mem an udts
+              then adt :: acc
+              else acc
+          ) [] (List.rev adts)
+        in
         let decls = 
-          List.fold_right (
-            fun {g_res; _} acc ->
+          List.fold_left (
+            fun acc {g_res; _} ->
               match g_res with 
               | FuncDef ({name; atyp; _} as f) -> (
                   if SS.mem name cfs
@@ -891,7 +901,7 @@ and liter :
                   else acc
                 )
               | _ -> g_res :: acc
-          ) (List.rev (fg :: acc)) []
+          ) [] (fg :: acc)
         in 
         Cr.const (adts, decls)
     )
@@ -923,5 +933,5 @@ let gen_decls =
       (fun adt1 adt2 e1 e2 -> (adt1, adt2), (e1, e2))
   ) @@ (
     fun ((adt1, adt2), (e1, e2)) -> 
-      iter [] [adt1; adt2] SS.empty [e1; e2] []
+      iter [] [adt1; adt2] SS.empty SS.empty [e1; e2] []
   )
