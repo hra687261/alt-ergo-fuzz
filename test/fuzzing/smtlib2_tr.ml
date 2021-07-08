@@ -362,7 +362,7 @@ let print_decl fmt (gtm: SS.t Ast.GTM.t) d =
   Format.fprintf fmt "\n%a@." print_sexp se; 
   gtm
 
-let print_typedecl fmt tydecls = 
+let print_typedecls fmt tydecls = 
   List.iter (
     fun td ->
       Format.fprintf fmt "%a\n" 
@@ -371,6 +371,6 @@ let print_typedecl fmt tydecls =
 
 let print_decls fmt (tydecls, decls: typedecl list * decl list) =
   Format.fprintf fmt "\n(set-logic ALL)@.";
-  print_typedecl fmt tydecls;
+  print_typedecls fmt tydecls;
   ignore @@
   List.fold_left (print_decl fmt) Ast.GTM.empty decls  

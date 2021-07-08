@@ -277,7 +277,7 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
   | Cstr {cname; cty; params} ->
     let sy = 
-      Sy.destruct ~guarded:false cname
+      Sy.destruct ~guarded:true cname
     in
     let exprs =
       List.rev_map (
@@ -526,7 +526,7 @@ let rec print_ast fmt ast =
     Format.fprintf fmt ". %a " print_ast body
 
   | PMatching {mtchdv; patts; _} -> 
-    Format.fprintf fmt "(match %a with%a)" print mtchdv
+    Format.fprintf fmt "(match %a with%a\nend)" print_ast mtchdv
       ( fun fmt patts ->
           List.iter (
             fun {destrn; pattparams; mbody} ->
@@ -558,7 +558,7 @@ let rec print_ast fmt ast =
                       ) t;
                       Format.fprintf fmt ")"
                 ) pattparams
-                print mbody
+                print_ast mbody
           ) patts
       ) patts
 
@@ -569,10 +569,10 @@ let rec print_ast fmt ast =
           match l with 
           | [] -> ()
           | (_, a)::t -> 
-            Format.fprintf fmt " (%a" print a;
+            Format.fprintf fmt " (%a" print_ast a;
             List.iter (
               fun (_, a) ->
-                Format.fprintf fmt ", %a" print a
+                Format.fprintf fmt ", %a" print_ast a
             ) t;
             Format.fprintf fmt ")"
       ) params
@@ -642,7 +642,46 @@ let print_decl fmt (gtm: SS.t GTM.t) (decl: decl) =
         print_ast body; 
       gtm
 
-let print_decls fmt (_, decls: typedecl list * decl list) =
+let print_typedecl fmt (tyd: typedecl) = 
+  let pr_aux = 
+    fun fmt prl ->
+      match prl with 
+      | [] -> ()
+      | (n, typ) :: t -> 
+        Format.fprintf fmt 
+          "of {%s: %a"
+          n print_typ typ;
+        List.iter (
+          fun (n, typ) -> 
+            Format.fprintf fmt 
+              "; %s: %a"
+              n print_typ typ;
+        ) t;
+        Format.fprintf fmt "}"
+  in
+  let tyn, ptrns = tyd in 
+  Format.fprintf fmt "type %s = %a@." tyn
+    ( fun fmt ptrns ->
+        match ptrns with 
+        | (pn, prl) :: t ->
+          Format.fprintf fmt "\n  %s %a" 
+            pn pr_aux prl;
+          List.iter (
+            fun (pn, prl) -> 
+              Format.fprintf fmt "\n  | %s %a" 
+                pn pr_aux prl
+          ) t
+        | _ -> assert false
+    ) ptrns
+
+let print_typedecls fmt (tydecls: typedecl list) = 
+  List.iter (
+    fun td -> 
+      print_typedecl fmt td
+  ) tydecls
+
+let print_decls fmt (tydecls, decls: typedecl list * decl list) =
+  print_typedecls fmt tydecls;
   ignore @@
   List.fold_left (print_decl fmt) GTM.empty decls
 

@@ -68,7 +68,7 @@ struct
       let fmt = Format.formatter_of_out_channel oc in
       Format.fprintf fmt "%a" print_decls (tydecls, decls);
       close_out oc;
-      
+
       let al, _ = 
         List.fold_left 
           ( fun (al, (env, consistent, ex)) decl ->
