@@ -329,11 +329,11 @@ let print_gtm fmt (gtm: SS.t Ast.GTM.t) =
       SS.iter (
         fun str -> 
           match gs with 
-          | A s -> 
+          | A {ty; _} -> 
             Format.fprintf fmt
               "(declare-const %s %a)@." 
-              str print_sort s
-          | F  {atyp; rtyp} -> 
+              str print_sort ty
+          | F  {atyp; rtyp; _} -> 
             Format.fprintf fmt
               "(declare-fun %s (%a) %a)@." 
               str

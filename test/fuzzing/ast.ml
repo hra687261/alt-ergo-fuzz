@@ -12,9 +12,9 @@ type typedecl = adt
 
 type ftyp = {atyp: typ list; rtyp: typ}
 
-type gtyp = 
-  | A of typ 
-  | F of ftyp
+type typc = 
+  | A of {tag: string; ty: typ}
+  | F of {tag: string; atyp: typ list; rtyp: typ}
 
 type vkind = 
   | EQ (* Exisancially quantified *)
@@ -82,22 +82,42 @@ let print_ftyp fmt {atyp; rtyp} =
     Format.fprintf fmt " -> %a" print_typ rtyp
   | [] -> assert false 
 
-let print_gtyp fmt gtyp =
-  match gtyp with 
-  | A t -> 
-    Format.fprintf fmt "%a" print_typ t
-  | F ft ->
-    print_ftyp fmt ft
+let print_typc fmt typc =
+  match typc with 
+  | A {ty; _} -> 
+    Format.fprintf fmt "%a" print_typ ty
+  | F {atyp; rtyp; _} ->
+    print_ftyp fmt {atyp; rtyp}
+
+let rec typ_tag typ = 
+  match typ with 
+  | Tint -> "i"
+  | Treal -> "r"
+  | Tbool -> "b"
+  | TBitV n -> Format.asprintf "bv[%d]" n 
+  | TFArray {ti; tv} ->
+    Format.asprintf "(%s,%s)fa"
+      (typ_tag ti) (typ_tag tv)
+  | TDummy -> "d"
+  | Tadt (n, _) -> Format.asprintf "{%s}" n
+
+let typc_tag {atyp; rtyp} = 
+  let tmp = List.rev atyp in
+  let tmp = rtyp :: tmp in 
+  let tmp = List.map typ_tag tmp in 
+  let tmp = List.rev tmp in
+  let tmp = String.concat ";" tmp in 
+  Format.sprintf "[%s]" tmp 
 
 let typ_compare t1 t2 =
-  compare
-    (Format.asprintf "%a" print_typ t1) 
-    (Format.asprintf "%a" print_typ t2)
+  compare (typ_tag t1) (typ_tag t2)
 
-let gtyp_compare a b =
-  compare
-    (Format.asprintf "%a" print_gtyp a) 
-    (Format.asprintf "%a" print_gtyp b)
+let typc_compare a b =
+  match a, b with 
+  | A {tag = ta; _}, A {tag = tb; _} 
+  | A {tag = ta; _}, F {tag = tb; _}
+  | F {tag = ta; _}, A {tag = tb; _} 
+  | F {tag = ta; _}, F {tag = tb; _} -> compare ta tb 
 
 module VS = Set.Make(
   struct 
@@ -400,15 +420,15 @@ module VM = Map.Make(
 
 module GTM = Map.Make(
   struct 
-    type t = gtyp 
-    let compare = gtyp_compare
+    type t = typc 
+    let compare = typc_compare
   end
   )
 
 let rec get_usyms (expr: expr) =
   match expr with 
   | Var {vname; vty; vk = US; _} -> 
-    [vname, A vty]
+    [vname, A {tag = typ_tag vty; ty = vty}]
   | Unop (Access {fa; _}, expr) -> 
     List.rev_append
       (get_usyms fa)
@@ -442,7 +462,7 @@ let rec get_usyms (expr: expr) =
         List.rev_append 
           (get_usyms a) 
           acc
-    ) [fname, F {atyp; rtyp}] args
+    ) [fname, F {tag = typc_tag {atyp; rtyp}; atyp; rtyp}] args
   | FunCall {args; _} -> 
     List.fold_left (
       fun acc a -> 
@@ -480,7 +500,7 @@ let rec get_usyms (expr: expr) =
   | Cst _ -> []
 
 
-let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * gtyp) list) = 
+let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * typc) list) = 
   let gtm_update s gto =
     match gto with 
     | Some ss -> Some (SS.add s ss)

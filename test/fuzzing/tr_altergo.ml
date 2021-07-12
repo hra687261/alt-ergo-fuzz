@@ -594,7 +594,7 @@ let print_gtm fmt (gtm: SS.t GTM.t) =
     fun gt ss -> 
       Format.fprintf fmt "logic %a: %a@."
         print_ss ss
-        print_gtyp gt
+        print_typc gt
   ) gtm 
 
 let print_tvar_list fmt atyp =
