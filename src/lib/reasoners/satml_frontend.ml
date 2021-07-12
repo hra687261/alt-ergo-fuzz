@@ -25,6 +25,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
   let reset_refs () = Steps.reset_steps ()
 
+  let clear_cache () = 
+    reset_refs ();
+    Expr.clear_hc ();
+    Shostak.Combine.empty_cache ()
+
   type guards = {
     current_guard: E.t;
     stack_guard: E.t Stack.t;

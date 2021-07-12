@@ -189,6 +189,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     terminated_normally := false;
     Steps.reset_steps ()
 
+  let clear_cache () = 
+    reset_refs ();
+    Expr.clear_hc ();
+    Shostak.Combine.empty_cache ()
+
   let save_guard_and_refs env new_guard =
     let refs = {unit_facts = !(env.unit_facts_cache)} in
     Stack.push (new_guard,refs) env.guards.stack_elt;

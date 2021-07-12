@@ -70,6 +70,8 @@ module type S = sig
   val print_model : header:bool -> Format.formatter -> t -> unit
 
   val reset_refs : unit -> unit
+
+  val clear_cache : unit -> unit
 end
 
 

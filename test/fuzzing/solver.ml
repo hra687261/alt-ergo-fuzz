@@ -58,16 +58,10 @@ struct
     in
     let module SAT = SC.Make(AEL.Theory.Main_Default) in
     let module FE = AEL.Frontend.Make(SAT) in
-    let reinit_env () = 
-      SAT.reset_refs ();
-      AEL.Expr.clear_hc ();
-      AEL.Shostak.Combine.empty_cache ();
-      Gc.major ()
-    in
     AEL.Options.set_disable_weaks true;
     AEL.Options.set_is_gui false;
     fun tydecls decls -> 
-      reinit_env ();
+      SAT.clear_cache ();
       let filename = "_.ae" in 
 
       let oc = open_out filename in 
