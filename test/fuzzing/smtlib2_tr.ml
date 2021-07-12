@@ -323,8 +323,8 @@ let rec print_sexp fmt s =
 let print_sort fmt s =
   Format.fprintf fmt "%a" print_sexp (translate_sort s)
 
-let print_gtm fmt (gtm: SS.t Ast.GTM.t) = 
-  Ast.GTM.iter (
+let print_gtm fmt (gtm: SS.t Ast.TCM.t) = 
+  Ast.TCM.iter (
     fun gs ss -> 
       SS.iter (
         fun str -> 
@@ -354,7 +354,7 @@ let print_gtm fmt (gtm: SS.t Ast.GTM.t) =
       ) ss 
   ) gtm 
 
-let print_stmt fmt (gtm: SS.t Ast.GTM.t) stmt = 
+let print_stmt fmt (gtm: SS.t Ast.TCM.t) stmt = 
   let gtl, stmt = 
     match stmt with 
     | Axiom {body; _} -> get_usyms body, stmt
@@ -362,7 +362,7 @@ let print_stmt fmt (gtm: SS.t Ast.GTM.t) stmt =
       get_usyms body, Goal {d with body = Ast.Unop (Not, body)} 
     | FuncDef {body; _} -> get_usyms body, stmt
   in
-  let (ngtm, gtm) : (SS.t Ast.GTM.t * SS.t Ast.GTM.t) = get_ngtm gtm gtl in 
+  let (ngtm, gtm) : (SS.t Ast.TCM.t * SS.t Ast.TCM.t) = get_ngtm gtm gtl in 
   let se = translate_stmt stmt in 
   Format.fprintf fmt "\n%a@." print_gtm ngtm;
   Format.fprintf fmt "\n%a@." print_sexp se; 
@@ -379,4 +379,4 @@ let print_stmts fmt (tydecls, stmts: typedecl list * stmt list) =
   Format.fprintf fmt "\n(set-logic ALL)@.";
   print_typedecls fmt tydecls;
   ignore @@
-  List.fold_left (print_stmt fmt) Ast.GTM.empty stmts  
+  List.fold_left (print_stmt fmt) Ast.TCM.empty stmts  

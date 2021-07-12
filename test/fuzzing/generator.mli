@@ -6,6 +6,7 @@ type 'a gen_res = {
   u_args : Ast.VS.t; 
   u_bvars : Ast.VS.t; 
   u_dt : Ast.SS.t;
+  u_us : Ast.SS.t Ast.TCM.t;
   c_funcs : Ast.SS.t}
 
 val dk_gen : Ast.stmtkind Cr.gen

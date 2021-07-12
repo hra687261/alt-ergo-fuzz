@@ -424,12 +424,22 @@ module VM = Map.Make(
       else compare v1.vname v2.vname
   end)
 
-module GTM = Map.Make(
+module TCM = Map.Make(
   struct 
     type t = typc 
     let compare = typc_compare
   end
   )
+
+let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
+  let f _ vo1 vo2 = 
+    match vo1, vo2 with 
+    | None, None -> None
+    | Some v, None -> Some v
+    | None, Some v -> Some v
+    | Some v1, Some v2 -> Some (SS.union v1 v2)
+  in 
+  TCM.merge f t1 t2  
 
 let rec get_usyms (expr: expr) =
   match expr with 
@@ -506,7 +516,7 @@ let rec get_usyms (expr: expr) =
   | Cst _ -> []
 
 
-let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * typc) list) = 
+let get_ngtm (oldgtm: SS.t TCM.t) (usyms: (string * typc) list) = 
   let gtm_update s gto =
     match gto with 
     | Some ss -> Some (SS.add s ss)
@@ -514,17 +524,17 @@ let get_ngtm (oldgtm: SS.t GTM.t) (usyms: (string * typc) list) =
   in
   List.fold_left (
     fun (ngtm, ogtm) (s, gt) ->
-      match GTM.find_opt gt oldgtm with 
+      match TCM.find_opt gt oldgtm with 
       | Some v -> 
         if SS.mem s v 
-        then ngtm, GTM.update gt (gtm_update s) ogtm 
+        then ngtm, TCM.update gt (gtm_update s) ogtm 
         else 
-          GTM.update gt (gtm_update s) ngtm,
-          GTM.update gt (gtm_update s) ogtm 
+          TCM.update gt (gtm_update s) ngtm,
+          TCM.update gt (gtm_update s) ogtm 
       | None -> 
-        GTM.update gt (gtm_update s) ngtm,
-        GTM.update gt (gtm_update s) ogtm 
-  ) (GTM.empty, oldgtm) usyms 
+        TCM.update gt (gtm_update s) ngtm,
+        TCM.update gt (gtm_update s) ogtm 
+  ) (TCM.empty, oldgtm) usyms 
 
 let rec typ_to_str ty =
   match ty with

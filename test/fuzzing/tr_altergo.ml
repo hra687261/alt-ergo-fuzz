@@ -589,8 +589,8 @@ let print_ss fmt ss =
     ) ss false
   )
 
-let print_gtm fmt (gtm: SS.t GTM.t) = 
-  GTM.iter (
+let print_gtm fmt (gtm: SS.t TCM.t) = 
+  TCM.iter (
     fun gt ss -> 
       Format.fprintf fmt "logic %a: %a@."
         print_ss ss
@@ -608,7 +608,7 @@ let print_tvar_list fmt atyp =
     ) t
   | [] -> assert false
 
-let print_stmt fmt (gtm: SS.t GTM.t) (stmt: stmt) =
+let print_stmt fmt (gtm: SS.t TCM.t) (stmt: stmt) =
   match stmt with 
   | Axiom {name; body} ->
     let gtl = get_usyms body in 
@@ -683,5 +683,5 @@ let print_typedecls fmt (tydecls: typedecl list) =
 let print_stmts fmt (tydecls, stmts: typedecl list * stmt list) =
   print_typedecls fmt tydecls;
   ignore @@
-  List.fold_left (print_stmt fmt) GTM.empty stmts
+  List.fold_left (print_stmt fmt) TCM.empty stmts
 
