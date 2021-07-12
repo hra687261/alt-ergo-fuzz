@@ -103,10 +103,15 @@ let rec translate_ast (a: ast) =
       else Format.sprintf "%i" i
     )
   | Cst (CstR r) -> 
+    let float_to_str f = 
+      Str.replace_first 
+        (Str.regexp "0+$") "" 
+        (Printf.sprintf "%.715f " f) 
+    in
     Atom (
       if r < 0. 
-      then Format.sprintf "(- %f)" (-.r)
-      else Format.sprintf "%f" r
+      then Format.sprintf "(- %s)" (float_to_str (-.r))
+      else Format.sprintf "%s" (float_to_str r)
     )
   | Cst (CstB true) -> Atom "true"
   | Cst (CstB false) -> Atom "false"
@@ -353,7 +358,8 @@ let print_decl fmt (gtm: SS.t Ast.GTM.t) decl =
   let gtl, decl = 
     match decl with 
     | Axiom {body; _} -> get_usyms body, decl
-    | Goal ({body; _} as d) -> get_usyms body, Goal {d with body = Ast.Unop (Not, body)} 
+    | Goal ({body; _} as d) -> 
+      get_usyms body, Goal {d with body = Ast.Unop (Not, body)} 
     | FuncDef {body; _} -> get_usyms body, decl
   in
   let (ngtm, gtm) : (SS.t Ast.GTM.t * SS.t Ast.GTM.t) = get_ngtm gtm gtl in 

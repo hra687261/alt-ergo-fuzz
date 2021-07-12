@@ -50,7 +50,13 @@ struct
 
   let process_decls =
     let module AEL = AltErgoLib in
-    let module SAT = AEL.Fun_sat.Make(AEL.Theory.Main_Default) in
+    let module SC = (val (
+        if true 
+        then (module AEL.Fun_sat)
+        else (module AEL.Satml_frontend)
+      ): AEL.Sat_solver_sig.SatContainer)
+    in
+    let module SAT = SC.Make(AEL.Theory.Main_Default) in
     let module FE = AEL.Frontend.Make(SAT) in
     let reinit_env () = 
       SAT.reset_refs ();

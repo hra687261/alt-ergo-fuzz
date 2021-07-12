@@ -7,7 +7,7 @@ make
 ## Running:
 In afl mode:
 ```
-afl-fuzz -t 20000 -m 75 -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
+afl-fuzz -t 2000 -m 100 -i ./test/fuzzing/input/ -o ./test/fuzzing/output/ ./_build/default/test/fuzzing/afl_fuzzing.exe  @@
 ```
 When a crash happens : ```(aka: total crashes > 0)```
 
