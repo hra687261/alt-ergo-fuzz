@@ -8,10 +8,10 @@ type 'a gen_res = {
   u_dt : SS.t;
   c_funcs : SS.t}
 
-type declkind = (* declaration kind *) 
-  | FD (* function declaration *)
-  | AxD (* axiom declaration *)
-  | GD (* goal declaration *)
+type stmtkind = (* statement kind *) 
+  | FD (* function statement *)
+  | AxD (* axiom statement *)
+  | GD (* goal statement *)
 
 let mk_empty_gen_res g_res =
   { g_res; 
@@ -102,7 +102,7 @@ let cst_gen ty =
   | _ -> assert false
 
 let binop_gen : 'a -> int -> binop -> 
-  (int -> typ -> ast gen_res Cr.gen) -> ast gen_res Cr.gen =
+  (int -> typ -> expr gen_res Cr.gen) -> expr gen_res Cr.gen =
   fun ty fuel bop gen ->
   Cr.map 
     [ gen (fuel - 1) ty;
@@ -121,7 +121,7 @@ let usymv_gen ty =
     [Cr.range nb_us_vars] 
     ( fun pos -> 
         let g_res =
-          get_uvar_ast pos ty 
+          get_uvar_expr pos ty 
         in 
         mk_empty_gen_res g_res)
 
@@ -129,7 +129,7 @@ let usymf_genl ty gen fuel =
   let g1 =
     Cr.map 
       [Cr.range ~min:1 5]
-      (fun n -> get_ufunc_ast n ty)
+      (fun n -> get_ufunc_expr n ty)
   in
   let g2 =
     fun {fn; params = (p1, p2, p3, p4, p5); rtyp} ->
@@ -237,8 +237,8 @@ let get_arg_gens ty args =
   else []
 
 let func_call_gen : 
-  (int -> typ -> ast gen_res Cr.gen) ->
-  int -> typ -> fd_info list -> ast gen_res Cr.gen list =
+  (int -> typ -> expr gen_res Cr.gen) ->
+  int -> typ -> fd_info list -> expr gen_res Cr.gen list =
   fun gen fuel ty fdis ->
   let togen f = 
     let fname, rtyp, (p1, p2, p3, p4, p5) =
@@ -422,8 +422,8 @@ let ite_gen gen fuel ty =
         }
     )
 
-let letin_gen : (?bvars:VS.t -> int -> typ -> ast gen_res Cr.gen) ->
-  VS.t -> int -> typ -> ast gen_res Cr.gen =
+let letin_gen : (?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) ->
+  VS.t -> int -> typ -> expr gen_res Cr.gen =
   fun gen bvars fuel ty -> 
   let nv = mk_bound_var ty in
   Cr.map 
@@ -491,7 +491,7 @@ let adt_gen () =
         [d1; d2; d3; d4; d5]
     )
 
-let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
+let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
   let pattern_gen (fuel: int) (pty : patt_ty) : patt gen_res Cr.gen =
     let destrn, ppmsty = pty in 
     match ppmsty with 
@@ -502,7 +502,7 @@ let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
         ) ipts
       in  
       Cr.map [
-        ast_gen fuel valty 
+        expr_gen fuel valty 
       ] (
         fun {g_res; u_args; u_bvars; u_dt; c_funcs} ->
           { g_res = 
@@ -514,7 +514,7 @@ let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
   match pattrns with 
   | [p1; p2; p3; p4; p5] -> 
     Cr.map [
-      ast_gen (fuel - 1) (Tadt (adtn, pattrns)); 
+      expr_gen (fuel - 1) (Tadt (adtn, pattrns)); 
       pattern_gen (fuel - 1) p1;
       pattern_gen (fuel - 1) p2;
       pattern_gen (fuel - 1) p3;
@@ -543,22 +543,22 @@ let pm_gen ast_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
     )
   | _ -> assert false 
 
-let app_ast_gen ast_gen fuel typ =
+let app_expr_gen expr_gen fuel typ =
   match typ with 
   | TDummy -> Cr.const dummy_gen_res
-  | _ -> ast_gen fuel typ
+  | _ -> expr_gen fuel typ
 
-let adt_dstr_gen (ast_gen: int -> typ -> ast gen_res Cr.gen) 
+let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen) 
     ((adtn, _) as adt: adt) (fuel: int) =
   let aux tadt_typ ((dstrn, pls): patt_ty) =
     match pls with 
     | [(n1, t1); (n2, t2); (n3, t3); (n4, t4); (n5, t5)] -> 
       Cr.map [ 
-        app_ast_gen ast_gen (fuel - 1) t1;
-        app_ast_gen ast_gen (fuel - 1) t2;
-        app_ast_gen ast_gen (fuel - 1) t3; 
-        app_ast_gen ast_gen (fuel - 1) t4;
-        app_ast_gen ast_gen (fuel - 1) t5
+        app_expr_gen expr_gen (fuel - 1) t1;
+        app_expr_gen expr_gen (fuel - 1) t2;
+        app_expr_gen expr_gen (fuel - 1) t3; 
+        app_expr_gen expr_gen (fuel - 1) t4;
+        app_expr_gen expr_gen (fuel - 1) t5
       ] (
         fun 
           {g_res; u_args; u_bvars; u_dt; c_funcs} a2 a3 a4 a5 -> 
@@ -596,7 +596,7 @@ let adt_dstr_gen (ast_gen: int -> typ -> ast gen_res Cr.gen)
     (aux (Tadt adt))
 
 (********************************************************************)
-let generate_ast ?(isform = false) ?(qvars = true) ?(args = []) 
+let generate_expr ?(isform = false) ?(qvars = true) ?(args = []) 
     ?(fdefs: fd_info list = []) ?(adts : adt list = []) max_depth ty =
   ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
@@ -733,7 +733,7 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
         [a1; a2; a3; a4; a5]
       in
       let gen =
-        generate_ast ~qvars:false ~args:atyp ~fdefs ~adts 
+        generate_expr ~qvars:false ~args:atyp ~fdefs ~adts 
           func_max_depth rtyp
       in
 
@@ -754,14 +754,14 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
       in 
       ge
   in
-  Cr.with_printer (pr_gr print_decl) @@
+  Cr.with_printer (pr_gr print_stmt) @@
   Cr.dynamic_bind ag fg
 
 let goal_gen ?(fdefs = []) ?(adts : adt list = []) 
     query_max_depth =
-  Cr.with_printer (pr_gr print_decl) @@
+  Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
-    [generate_ast ~isform:true ~fdefs ~adts query_max_depth Tbool]
+    [generate_expr ~isform:true ~fdefs ~adts query_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; c_funcs} ->
         let g_res =
           Goal {
@@ -773,9 +773,9 @@ let goal_gen ?(fdefs = []) ?(adts : adt list = [])
 
 let axiom_gen ?(fdefs = []) ?(adts : adt list = []) 
     axiom_max_depth =
-  Cr.with_printer (pr_gr print_decl) @@
+  Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
-    [generate_ast ~isform:true ~fdefs ~adts axiom_max_depth Tbool]
+    [generate_expr ~isform:true ~fdefs ~adts axiom_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; c_funcs} ->
         let g_res =
           Axiom {
@@ -805,7 +805,7 @@ let get_gen fdefs dk =
   | GD ->
     goal_gen ~fdefs query_max_depth 
 
-let generate_decl 
+let generate_stmt 
     ?(fdefs = []) ?(adts : adt list = []) ?(name = "") kind =
   match kind with 
   | FD ->
@@ -816,10 +816,10 @@ let generate_decl
     goal_gen ~fdefs ~adts query_max_depth 
 
 (********************************************************************)
-let mk_gen : fd_info list -> adt list -> declkind -> decl gen_res Cr.gen =
+let mk_gen : fd_info list -> adt list -> stmtkind -> stmt gen_res Cr.gen =
   fun fdefs adts e ->
   Cr.map [
-    generate_decl ~fdefs ~adts 
+    generate_stmt ~fdefs ~adts 
       ~name:("udf_"^string_of_int(incr fid; !fid)) e
   ] (fun gres -> gres) 
 
@@ -831,7 +831,7 @@ let mk_fd_info fn (vs: tvar list) rtyp =
       end; fn; rtyp
   }
 
-let get_fdis : fd_info list -> decl gen_res -> fd_info list =
+let get_fdis : fd_info list -> stmt gen_res -> fd_info list =
   fun fdefs  {g_res; _} ->
   match g_res with
   | FuncDef {name; atyp; rtyp; _} -> 
@@ -843,13 +843,13 @@ let get_fdis : fd_info list -> decl gen_res -> fd_info list =
   | _ -> fdefs
 
 let rec iter : 
-  fd_info list -> adt list -> SS.t -> SS.t -> declkind list -> 
-  decl gen_res list -> (typedecl list * decl list) Cr.gen =
+  fd_info list -> adt list -> SS.t -> SS.t -> stmtkind list -> 
+  stmt gen_res list -> (typedecl list * stmt list) Cr.gen =
   fun fds adts udts cfs el acc ->
   match el with 
   | h :: t ->
-    let a : decl gen_res Cr.gen = mk_gen fds [] h in 
-    let b : decl gen_res -> (typedecl list * decl list) Cr.gen = 
+    let a : stmt gen_res Cr.gen = mk_gen fds [] h in 
+    let b : stmt gen_res -> (typedecl list * stmt list) Cr.gen = 
       fun x -> 
         let fds = get_fdis fds x in 
         let cfs = SS.union cfs x.c_funcs in
@@ -860,7 +860,7 @@ let rec iter :
   | _ -> liter fds adts udts cfs acc
 
 and liter : 
-  fd_info list -> adt list -> SS.t -> SS.t -> decl gen_res list -> (typedecl list * decl list) Cr.gen =
+  fd_info list -> adt list -> SS.t -> SS.t -> stmt gen_res list -> (typedecl list * stmt list) Cr.gen =
   fun fds adts udts cfs acc -> 
   Cr.dynamic_bind (mk_gen fds adts GD) 
     ( fun fg ->
@@ -874,7 +874,7 @@ and liter :
               else acc
           ) [] (List.rev adts)
         in
-        let decls = 
+        let stmts = 
           List.fold_left (
             fun acc {g_res; _} ->
               match g_res with 
@@ -892,7 +892,7 @@ and liter :
               | _ -> g_res :: acc
           ) [] (fg :: acc)
         in 
-        Cr.const (adts, decls)
+        Cr.const (adts, stmts)
     )
 
 (********************************************************************)
@@ -900,8 +900,8 @@ and liter :
 let _ = ignore (get_fa_update, get_fa_access)
 
 (*
-(* the more decls are generated the slower the fuzzing will be *)
-let gen_decls = 
+(* the more stmts are generated the slower the fuzzing will be *)
+let gen_stmts = 
   Cr.dynamic_bind (
     Cr.map 
       [dk_gen; dk_gen; dk_gen; dk_gen; dk_gen] 
@@ -912,7 +912,7 @@ let gen_decls =
   )
 *)
 
-let gen_decls = 
+let gen_stmts = 
   Cr.dynamic_bind (
     Cr.map 
       [ adt_gen ();

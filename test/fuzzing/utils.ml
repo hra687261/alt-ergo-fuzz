@@ -18,10 +18,10 @@ type bug_info = {
   exp_str: string; 
   exp_bt_str: string; 
   tydecls: Ast.typedecl list;
-  decls: Ast.decl list}
+  stmts: Ast.stmt list}
 
-let mk_bug_info id bty exp_str exp_bt_str tydecls decls =
-  {id; bty; exp_str; exp_bt_str; tydecls; decls}
+let mk_bug_info id bty exp_str exp_bt_str tydecls stmts =
+  {id; bty; exp_str; exp_bt_str; tydecls; stmts}
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
   let str =
@@ -44,7 +44,7 @@ let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
 let mknmarshall_bi 
     ?(verbose = false) ?(filename = "debug.txt")
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
-    (exp: exn) (tydecls: Ast.typedecl list) (decls: Ast.decl list) = 
+    (exp: exn) (tydecls: Ast.typedecl list) (stmts: Ast.stmt list) = 
   let id = !cnt in 
   let exp_str = Printexc.to_string exp in 
   let exp_bt_str = Printexc.get_backtrace () in 
@@ -55,7 +55,7 @@ let mknmarshall_bi
     | Failure Timeout -> "timeout", "to"
     | _ -> "other", "o"
   in 
-  let bi = mk_bug_info id bty exp_str exp_bt_str tydecls decls in 
+  let bi = mk_bug_info id bty exp_str exp_bt_str tydecls stmts in 
   let data = Stdlib.Marshal.to_string bi [] in
 
   let file_name = 
@@ -77,12 +77,12 @@ let mknmarshall_bi
     );
     sh_printf ~filename (
       Format.asprintf "\nCaused by: \n%a@." 
-        ( fun fmt decll ->
+        ( fun fmt stmtl ->
             List.iter ( 
-              fun decl ->
-                Format.fprintf fmt "\n### %a@." Ast.print_decl decl;
-            ) decll
-        ) decls
+              fun stmt ->
+                Format.fprintf fmt "\n### %a@." Ast.print_stmt stmt;
+            ) stmtl
+        ) stmts
     );
     sh_printf ~filename (
       Format.sprintf 
@@ -93,7 +93,7 @@ let mknmarshall_bi
 
 let timeout_limit = ref 5
 
-let run_with_timeout timeout proc decls =
+let run_with_timeout timeout proc stmts =
   let old_handler = Sys.signal Sys.sigalrm
       (Sys.Signal_handle (fun _ -> raise (Failure Timeout))) in
   let finish () =
@@ -101,7 +101,7 @@ let run_with_timeout timeout proc decls =
     ignore (Sys.signal Sys.sigalrm old_handler) in
   try
     ignore (Unix.alarm timeout);
-    let res = proc decls in
+    let res = proc stmts in
     finish (); res
   with
   | Failure Timeout -> finish (); raise (Failure Timeout)

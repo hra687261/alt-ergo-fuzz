@@ -94,7 +94,7 @@ let translate_typedecl (adtn, patterns) =
   Queue.push (PExpr pq) q;
   PExpr q
 
-let rec translate_ast (a: ast) = 
+let rec translate_expr (a: expr) = 
   match a with 
   | Cst (CstI i) -> 
     Atom (
@@ -123,35 +123,35 @@ let rec translate_ast (a: ast) =
   | Unop (Access {fa; _}, x) -> 
     let q = Queue.create () in
     Queue.push (Atom "select") q;
-    Queue.push (translate_ast fa) q;
-    Queue.push (translate_ast x) q;
+    Queue.push (translate_expr fa) q;
+    Queue.push (translate_expr x) q;
     PExpr q
 
   | Unop (uop, x) -> 
     let q = Queue.create () in
     Queue.push (unop_to_str uop) q;
-    Queue.push (translate_ast x) q;
+    Queue.push (translate_expr x) q;
     PExpr q
 
   | Binop (bop, x, y) -> 
     let q = Queue.create () in
     Queue.push (Atom (binop_to_str bop)) q;
-    Queue.push (translate_ast x) q;
-    Queue.push (translate_ast y) q;
+    Queue.push (translate_expr x) q;
+    Queue.push (translate_expr y) q;
     PExpr q
 
   | ITE  {cond; cons; alt; _} ->
     let q = Queue.create () in
     Queue.push (Atom "ite") q;
-    Queue.push (translate_ast cond) q;
-    Queue.push (translate_ast cons) q;
-    Queue.push (translate_ast alt) q;
+    Queue.push (translate_expr cond) q;
+    Queue.push (translate_expr cons) q;
+    Queue.push (translate_expr alt) q;
     PExpr q
 
   | LetIn ({vname; _}, x, y) ->
     let vbq = Queue.create () in
     Queue.push (Atom vname) vbq;
-    Queue.push (translate_ast x) vbq;
+    Queue.push (translate_expr x) vbq;
     let vb = PExpr vbq in
 
     let vsb = Queue.create () in
@@ -161,7 +161,7 @@ let rec translate_ast (a: ast) =
     let q = Queue.create () in
     Queue.push (Atom "let") q;
     Queue.push rvb q;
-    Queue.push (translate_ast y) q;
+    Queue.push (translate_expr y) q;
     PExpr q
 
   | FunCall {fname; args; _} -> 
@@ -169,7 +169,7 @@ let rec translate_ast (a: ast) =
     Queue.push (Atom fname) q;
     List.iter (
       fun a ->
-        Queue.push (translate_ast a) q
+        Queue.push (translate_expr a) q
     ) (List.rev args);
     PExpr q
 
@@ -191,15 +191,15 @@ let rec translate_ast (a: ast) =
         Queue.push (PExpr vq) vsb
     ) qvars;
     Queue.push (PExpr vsb) q;
-    Queue.push (translate_ast body) q;
+    Queue.push (translate_expr body) q;
     PExpr q
 
   | FAUpdate {fa; i; v; _} -> 
     let q = Queue.create () in
     Queue.push (Atom "store") q;
-    Queue.push (translate_ast fa) q;
-    Queue.push (translate_ast i) q;
-    Queue.push (translate_ast v) q;
+    Queue.push (translate_expr fa) q;
+    Queue.push (translate_expr i) q;
+    Queue.push (translate_expr v) q;
     PExpr q
 
   | PMatching {mtchdv; patts; _} -> 
@@ -224,7 +224,7 @@ let rec translate_ast (a: ast) =
           )
         end
       in 
-      let term = translate_ast mbody in 
+      let term = translate_expr mbody in 
       let q = Queue.create () in
       Queue.add pattern q;
       Queue.add term q;
@@ -238,7 +238,7 @@ let rec translate_ast (a: ast) =
 
     let q = Queue.create () in
     Queue.push (Atom "match") q;
-    Queue.push (translate_ast mtchdv) q;
+    Queue.push (translate_expr mtchdv) q;
     Queue.push (PExpr qmc) q;
     PExpr q
 
@@ -248,26 +248,26 @@ let rec translate_ast (a: ast) =
     Queue.push (Atom cname) q;
     List.iter (
       fun (_, a) -> 
-        Queue.push (translate_ast a) q;
+        Queue.push (translate_expr a) q;
     ) params;
     PExpr q
 
   | Dummy -> assert false 
 
-let translate_decl (d: decl) =
+let translate_stmt (d: stmt) =
   match d with 
   | Axiom {name; body} ->
     ignore name;
     let q = Queue.create () in 
     Queue.push (Atom "assert") q;
-    Queue.push (translate_ast body) q;
+    Queue.push (translate_expr body) q;
     PExpr q
 
   | Goal {name; body} -> 
     ignore name;
     let qg = Queue.create () in 
     Queue.push (Atom "assert") qg;
-    Queue.push (translate_ast body) qg;
+    Queue.push (translate_expr body) qg;
     let q = Queue.create () in
     Queue.push (PExpr qg) q;
     let cs = Queue.create () in 
@@ -289,7 +289,7 @@ let translate_decl (d: decl) =
     ) atyp;
     Queue.push (PExpr vsq) q;
     Queue.push (translate_sort rtyp) q;
-    Queue.push (translate_ast body) q;
+    Queue.push (translate_expr body) q;
     PExpr q
 
 let rec print_sexp fmt s =
@@ -354,16 +354,16 @@ let print_gtm fmt (gtm: SS.t Ast.GTM.t) =
       ) ss 
   ) gtm 
 
-let print_decl fmt (gtm: SS.t Ast.GTM.t) decl = 
-  let gtl, decl = 
-    match decl with 
-    | Axiom {body; _} -> get_usyms body, decl
+let print_stmt fmt (gtm: SS.t Ast.GTM.t) stmt = 
+  let gtl, stmt = 
+    match stmt with 
+    | Axiom {body; _} -> get_usyms body, stmt
     | Goal ({body; _} as d) -> 
       get_usyms body, Goal {d with body = Ast.Unop (Not, body)} 
-    | FuncDef {body; _} -> get_usyms body, decl
+    | FuncDef {body; _} -> get_usyms body, stmt
   in
   let (ngtm, gtm) : (SS.t Ast.GTM.t * SS.t Ast.GTM.t) = get_ngtm gtm gtl in 
-  let se = translate_decl decl in 
+  let se = translate_stmt stmt in 
   Format.fprintf fmt "\n%a@." print_gtm ngtm;
   Format.fprintf fmt "\n%a@." print_sexp se; 
   gtm
@@ -375,8 +375,8 @@ let print_typedecls fmt tydecls =
         print_sexp (translate_typedecl td)
   ) tydecls
 
-let print_decls fmt (tydecls, decls: typedecl list * decl list) =
+let print_stmts fmt (tydecls, stmts: typedecl list * stmt list) =
   Format.fprintf fmt "\n(set-logic ALL)@.";
   print_typedecls fmt tydecls;
   ignore @@
-  List.fold_left (print_decl fmt) Ast.GTM.empty decls  
+  List.fold_left (print_stmt fmt) Ast.GTM.empty stmts  

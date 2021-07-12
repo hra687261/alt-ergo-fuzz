@@ -16,19 +16,19 @@ let () =
   let str = really_input_string ic (in_channel_length ic) in
   close_in ic;
 
-  let {tydecls; decls; exp_str; exp_bt_str; _}: bug_info = 
+  let {tydecls; stmts; exp_str; exp_bt_str; _}: bug_info = 
     Marshal.from_string str 0 
   in 
 
   Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
   Format.printf "\nCaused by: \n%a@." 
-    ( fun fmt decls ->
+    ( fun fmt stmts ->
         List.iter ( 
-          fun decl ->
-            Format.fprintf fmt "\n### %a@." Ast.print_decl decl;
-        ) decls
-    ) decls;
+          fun stmt ->
+            Format.fprintf fmt "\n### %a@." Ast.print_stmt stmt;
+        ) stmts
+    ) stmts;
 
-  let aeres = AES.process_decls tydecls decls in
-  let c5res = C5S.process_decls tydecls decls in
+  let aeres = AES.process_stmts tydecls stmts in
+  let c5res = C5S.process_stmts tydecls stmts in
   cmp_answers_pr2 aeres c5res

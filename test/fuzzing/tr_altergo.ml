@@ -31,9 +31,9 @@ let rec typ_to_ty typ =
     in 
     Ty.t_adt ~body name []
 
-(** Translates an ast to an Expr.t *)
-let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast = 
-  match ast with 
+(** Translates an expr to an Expr.t *)
+let rec translate_expr ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr = 
+  match expr with 
   | Cst (CstI x) -> 
     Expr.int (Int.to_string x)
   | Cst (CstR x) -> 
@@ -46,41 +46,41 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
   | Cst (CstBv b) ->
     Expr.bitv b.bits (Ty.Tbitv b.length)
 
-  | Unop (Neg, x) -> translate_ast ~vars ~decl_kind x
+  | Unop (Neg, x) -> translate_expr ~vars ~stmtkind x
   | Unop (Not, x) -> 
-    Expr.neg (translate_ast ~vars ~decl_kind x)
+    Expr.neg (translate_expr ~vars ~stmtkind x)
 
   | Unop (Access { ty = _, tv; fa}, i) -> 
-    let fa' = translate_ast fa ~vars ~toplevel ~decl_kind in
-    let i' = translate_ast i ~vars ~toplevel ~decl_kind in
+    let fa' = translate_expr fa ~vars ~toplevel ~stmtkind in
+    let i' = translate_expr i ~vars ~toplevel ~stmtkind in
     Expr.mk_term 
       (Sy.Op Sy.Get) 
       [fa'; i'] 
       (typ_to_ty tv)
 
   | FAUpdate { ty = (ti, tv); fa; i; v}-> 
-    let fa' = translate_ast fa ~vars ~toplevel ~decl_kind in
-    let i' = translate_ast i ~vars ~toplevel ~decl_kind in
-    let v' = translate_ast v ~vars ~toplevel ~decl_kind in
+    let fa' = translate_expr fa ~vars ~toplevel ~stmtkind in
+    let i' = translate_expr i ~vars ~toplevel ~stmtkind in
+    let v' = translate_expr v ~vars ~toplevel ~stmtkind in
     Expr.mk_term 
       (Sy.Op Sy.Set) 
       [fa'; i'; v'] 
       (typ_to_ty (TFArray {ti; tv}))
 
   | Binop (Concat n, x, y) ->
-    let x' = translate_ast ~vars ~decl_kind x in 
-    let y' = translate_ast ~vars ~decl_kind y in 
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
     Expr.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
 
   | Unop (Extract {l; r}, b) -> 
     let l' = Expr.int (Int.to_string l) in 
     let r' = Expr.int (Int.to_string r) in 
-    let b' = translate_ast ~vars ~decl_kind b in 
+    let b' = translate_expr ~vars ~stmtkind b in 
     Expr.mk_term (Sy.Op Sy.Extract) [b'; l'; r'] (Ty.Tbitv (r-l))
 
   | Binop (((And | Or | Xor) as op), x, y) ->
-    let x' = translate_ast ~vars ~decl_kind x in 
-    let y' = translate_ast ~vars ~decl_kind y in 
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
     begin 
       match op with 
       | And -> Expr.mk_and x' y' false 0 
@@ -91,14 +91,14 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
   | Binop (Imp, x, y) ->
     Expr.mk_imp 
-      (translate_ast ~vars ~decl_kind x) (translate_ast ~vars ~decl_kind y) 0
+      (translate_expr ~vars ~stmtkind x) (translate_expr ~vars ~stmtkind y) 0
   | Binop (Iff, x, y) ->
     Expr.mk_eq ~iff:true 
-      (translate_ast ~vars ~decl_kind x) (translate_ast ~vars ~decl_kind y)
+      (translate_expr ~vars ~stmtkind x) (translate_expr ~vars ~stmtkind y)
 
   | Binop ((Lt | Le | Gt | Ge) as op , x, y) ->
-    let x' = translate_ast ~vars ~decl_kind x in 
-    let y' = translate_ast ~vars ~decl_kind y in 
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
     let is_pos, sy = 
       begin
         match op with 
@@ -113,14 +113,14 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
 
   | Binop (Eq, x, y) ->
     Expr.mk_eq ~iff:true
-      (translate_ast ~vars ~decl_kind x) (translate_ast ~vars ~decl_kind y)
+      (translate_expr ~vars ~stmtkind x) (translate_expr ~vars ~stmtkind y)
   | Binop (Neq, x, y) ->
     Expr.mk_distinct ~iff:true 
-      [translate_ast ~vars ~decl_kind x; translate_ast ~vars ~decl_kind y]
+      [translate_expr ~vars ~stmtkind x; translate_expr ~vars ~stmtkind y]
 
   | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
-    let x' = translate_ast ~vars ~decl_kind x in 
-    let y' = translate_ast ~vars ~decl_kind y in 
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
     Expr.mk_term
       begin
         match op with 
@@ -135,8 +135,8 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       [x'; y'] Ty.Tint
 
   | Binop (((RAdd | RSub | RMul | RDiv | RPow) as op), x, y) ->
-    let x' = translate_ast ~vars ~decl_kind x in 
-    let y' = translate_ast ~vars ~decl_kind y in 
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
     Expr.mk_term
       begin
         match op with 
@@ -152,7 +152,7 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
   | FunCall {fname; rtyp; args; _} ->
     Expr.mk_term 
       (Sy.Name (Hstring.make fname, Sy.Other)) 
-      (List.map (translate_ast ~vars ~decl_kind) args)
+      (List.map (translate_expr ~vars ~stmtkind) args)
       (typ_to_ty rtyp)
 
   | Var {vname; vty; vk = US; _} -> 
@@ -188,10 +188,10 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
     let binders = Expr.mk_binders qve in 
     let triggers = [] (* ??? *) in
     let qbody = 
-      translate_ast ~vars ~toplevel ~decl_kind body
+      translate_expr ~vars ~toplevel ~stmtkind body
     in
     begin 
-      match ast with 
+      match expr with 
       | Forall _ -> Expr.mk_forall
       | Exists _ -> Expr.mk_exists
       | _ -> assert false 
@@ -203,23 +203,23 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       qbody 
       (-42) 
       ~toplevel
-      ~decl_kind
+      ~decl_kind:stmtkind
 
   | ITE {cond; cons; alt; _} ->
     let cond' = 
-      translate_ast ~vars 
+      translate_expr ~vars 
         ~toplevel:false 
-        ~decl_kind:Expr.Daxiom cond 
+        ~stmtkind:Expr.Daxiom cond 
     in 
-    let cons' = translate_ast ~vars ~toplevel ~decl_kind cons in 
-    let alt' = translate_ast ~vars ~toplevel ~decl_kind alt in 
+    let cons' = translate_expr ~vars ~toplevel ~stmtkind cons in 
+    let alt' = translate_expr ~vars ~toplevel ~stmtkind alt in 
     Expr.mk_ite cond' cons' alt' 0
 
   | LetIn (v, e, b) ->
-    let rec get_bindings acc ast = 
-      match ast with
+    let rec get_bindings acc expr = 
+      match expr with
       | LetIn (v, e, b) -> get_bindings ((v, e) :: acc) b
-      | _ -> acc, ast 
+      | _ -> acc, expr 
     in
     let bds, rb = get_bindings [v, e] b in 
 
@@ -230,7 +230,7 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
           let ty = typ_to_ty v.vty in
           let vars = VM.add v (sy, ty) vars in 
           let expr = 
-            translate_ast ~vars ~toplevel ~decl_kind e
+            translate_expr ~vars ~toplevel ~stmtkind e
           in 
           (sy, expr) :: bindings, vars
       ) bds ([], vars)
@@ -239,11 +239,11 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
       (fun acc (sy, e) ->
          Expr.mk_let sy e acc 0
       )
-      (translate_ast ~vars ~toplevel ~decl_kind rb) 
+      (translate_expr ~vars ~toplevel ~stmtkind rb) 
       binders
 
   | PMatching {mtchdv; patts; _} ->
-    let e = translate_ast ~vars ~toplevel ~decl_kind mtchdv in
+    let e = translate_expr ~vars ~toplevel ~stmtkind mtchdv in
     let pats = 
       List.rev_map (fun {destrn; pattparams; mbody} ->
           let args, vars = 
@@ -268,7 +268,7 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
             }
           in
           let te =
-            translate_ast ~vars ~toplevel ~decl_kind mbody
+            translate_expr ~vars ~toplevel ~stmtkind mbody
           in
           x, te
         ) (List.rev patts)
@@ -282,21 +282,21 @@ let rec translate_ast ?(vars = VM.empty) ?(toplevel = false) ~decl_kind ast =
     let exprs =
       List.rev_map (
         fun (_, a) ->
-          translate_ast ~vars ~toplevel ~decl_kind a
+          translate_expr ~vars ~toplevel ~stmtkind a
       ) (List.rev params)
     in
     Expr.mk_term sy exprs (typ_to_ty cty)
 
   | Dummy -> assert false 
 
-(** Translates a decl to a Commands.sat_tdecl *)
-let translate_decl decl = 
-  match decl with 
+(** Translates a stmt to a Commands.sat_tdecl *)
+let translate_stmt stmt = 
+  match stmt with 
   | Axiom {name; body} ->
-    let decl_kind = Expr.Daxiom in
+    let stmtkind = Expr.Daxiom in
     let toplevel = true in 
     let ff = 
-      translate_ast ~toplevel ~decl_kind body
+      translate_expr ~toplevel ~stmtkind body
     in 
     assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
     let ff = Expr.purify_form ff in
@@ -308,14 +308,14 @@ let translate_decl decl =
         let id = Expr.id ff in
         Expr.mk_forall 
           name Loc.dummy Symbols.Map.empty [] ff 
-          id ~toplevel ~decl_kind
+          id ~toplevel ~decl_kind:stmtkind
     in 
     Commands.{ 
       st_loc = Loc.dummy;
       st_decl = Assume (name, ff, true)}
 
   | Goal {name; body} ->
-    let decl_kind = Expr.Dgoal in
+    let stmtkind = Expr.Dgoal in
     let toplevel = true in 
     let ff = 
       begin 
@@ -335,7 +335,7 @@ let translate_decl decl =
           | _ -> body, vars
         in
         let body, vars = rm_root_uqs body in 
-        translate_ast ~vars ~toplevel ~decl_kind (Unop (Not, body))
+        translate_expr ~vars ~toplevel ~stmtkind (Unop (Not, body))
       end
     in 
     assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
@@ -345,7 +345,7 @@ let translate_decl decl =
       then ff
       else
         let id = Expr.id ff in
-        Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel ~decl_kind
+        Expr.mk_forall name Loc.dummy Symbols.Map.empty [] ff id ~toplevel ~decl_kind:stmtkind
     in
     Commands.{ 
       st_loc = Loc.dummy;
@@ -381,7 +381,7 @@ let translate_decl decl =
     let fsign = Expr.mk_term fsy xs fty in 
 
     let toplevel = true in 
-    let decl_kind, mk_func = 
+    let stmtkind, mk_func = 
       begin 
         match fdef.rtyp with 
         | Tbool -> Expr.Dpredicate fsign, mk_preddef
@@ -390,7 +390,7 @@ let translate_decl decl =
     in 
 
     let fbody =
-      translate_ast ~vars ~toplevel ~decl_kind fdef.body
+      translate_expr ~vars ~toplevel ~stmtkind fdef.body
     in 
 
     let lem = Expr.mk_eq ~iff:true fsign fbody in
@@ -399,7 +399,7 @@ let translate_decl decl =
     let ret = 
       Expr.mk_forall 
         fdef.name Loc.dummy binders [] lem (-42) 
-        ~toplevel ~decl_kind
+        ~toplevel ~decl_kind:stmtkind
     in
     assert (Sy.Map.is_empty (Expr.free_vars ret Sy.Map.empty));
     let ff = Expr.purify_form ret in
@@ -408,7 +408,7 @@ let translate_decl decl =
       then ff
       else
         let id = Expr.id ff in
-        Expr.mk_forall fdef.name Loc.dummy binders [] ff id ~toplevel:true ~decl_kind
+        Expr.mk_forall fdef.name Loc.dummy binders [] ff id ~toplevel:true ~decl_kind:stmtkind
     in
 
     Commands.{
@@ -434,8 +434,8 @@ let print_binop fmt binop =
 
     | Concat _ -> "%@")
 
-let rec print_ast fmt ast = 
-  match ast with 
+let rec print_expr fmt expr = 
+  match expr with 
   | Cst (CstI x) ->
     Format.fprintf fmt "%s" 
       (Int.to_string x)
@@ -449,41 +449,41 @@ let rec print_ast fmt ast =
 
   | Var {vname; _} ->
     Format.fprintf fmt "%s" vname
-  | Unop (Neg, ast) ->
-    Format.fprintf fmt "(- %a)" print_ast ast 
-  | Unop (Not, ast) ->
-    Format.fprintf fmt "(not %a)" print_ast ast 
-  | Unop (Extract {l;r}, ast) ->
+  | Unop (Neg, expr) ->
+    Format.fprintf fmt "(- %a)" print_expr expr 
+  | Unop (Not, expr) ->
+    Format.fprintf fmt "(not %a)" print_expr expr 
+  | Unop (Extract {l;r}, expr) ->
     Format.fprintf fmt "%a^{%d,%d}" 
-      print_ast ast l r 
+      print_expr expr l r 
   | Unop (Access {ty = _; fa} , i) -> 
-    Format.fprintf fmt "%a[%a]" print_ast fa print_ast i
+    Format.fprintf fmt "%a[%a]" print_expr fa print_expr i
 
   | Binop (binop, x, y) ->
-    Format.fprintf fmt "(%a %a %a)" print_ast x print_binop binop print_ast y 
+    Format.fprintf fmt "(%a %a %a)" print_expr x print_binop binop print_expr y 
 
   | ITE {cond; cons; alt; _} -> 
     Format.fprintf fmt 
       "(if %a then %a else %a)" 
-      print_ast cond print_ast cons print_ast alt 
+      print_expr cond print_expr cons print_expr alt 
 
   | LetIn ({vname;_}, e, b) -> 
     Format.fprintf fmt 
       "(let %s = %a in %a)" 
-      vname print_ast e print_ast b 
+      vname print_expr e print_expr b 
 
   | FAUpdate {ty = _; fa; i; v} -> 
     Format.fprintf fmt "%a[%a <- %a]" 
-      print_ast fa print_ast i print_ast v;
+      print_expr fa print_expr i print_expr v;
 
   | FunCall {fname; args; _} -> 
     Format.fprintf fmt "%s(" fname;
     begin match List.rev args with 
       | h :: t ->
-        Format.fprintf fmt "%a" print_ast h;
+        Format.fprintf fmt "%a" print_expr h;
         List.iter (
           fun x ->
-            Format.fprintf fmt ", %a" print_ast x
+            Format.fprintf fmt ", %a" print_expr x
         ) t
       | [] -> ()
     end;
@@ -505,7 +505,7 @@ let rec print_ast fmt ast =
           )
       ) qvars false 
     in
-    Format.fprintf fmt ". %a " print_ast body
+    Format.fprintf fmt ". %a " print_expr body
 
   | Exists {qvars; body; _} -> 
     Format.fprintf fmt "exists ";
@@ -523,10 +523,10 @@ let rec print_ast fmt ast =
           )
       ) qvars false 
     in
-    Format.fprintf fmt ". %a " print_ast body
+    Format.fprintf fmt ". %a " print_expr body
 
   | PMatching {mtchdv; patts; _} -> 
-    Format.fprintf fmt "(match %a with%a\nend)" print_ast mtchdv
+    Format.fprintf fmt "(match %a with%a\nend)" print_expr mtchdv
       ( fun fmt patts ->
           List.iter (
             fun {destrn; pattparams; mbody} ->
@@ -558,7 +558,7 @@ let rec print_ast fmt ast =
                       ) t;
                       Format.fprintf fmt ")"
                 ) pattparams
-                print_ast mbody
+                print_expr mbody
           ) patts
       ) patts
 
@@ -569,10 +569,10 @@ let rec print_ast fmt ast =
           match l with 
           | [] -> ()
           | (_, a)::t -> 
-            Format.fprintf fmt " (%a" print_ast a;
+            Format.fprintf fmt " (%a" print_expr a;
             List.iter (
               fun (_, a) ->
-                Format.fprintf fmt ", %a" print_ast a
+                Format.fprintf fmt ", %a" print_expr a
             ) t;
             Format.fprintf fmt ")"
       ) params
@@ -608,19 +608,19 @@ let print_tvar_list fmt atyp =
     ) t
   | [] -> assert false
 
-let print_decl fmt (gtm: SS.t GTM.t) (decl: decl) =
-  match decl with 
+let print_stmt fmt (gtm: SS.t GTM.t) (stmt: stmt) =
+  match stmt with 
   | Axiom {name; body} ->
     let gtl = get_usyms body in 
     let ngtm, gtm = get_ngtm gtm gtl in  
     Format.fprintf fmt "\n%a@." print_gtm ngtm;
-    Format.fprintf fmt "axiom %s:\n%a@." name print_ast body; 
+    Format.fprintf fmt "axiom %s:\n%a@." name print_expr body; 
     gtm
   | Goal {name; body} ->
     let gtl = get_usyms body in 
     let ngtm, gtm = get_ngtm gtm gtl in  
     Format.fprintf fmt "\n%a@." print_gtm ngtm;
-    Format.fprintf fmt "goal %s:\n%a@." name print_ast body; 
+    Format.fprintf fmt "goal %s:\n%a@." name print_expr body; 
     gtm
   | FuncDef {name; body; atyp; rtyp} -> 
     let gtl = get_usyms body in 
@@ -632,14 +632,14 @@ let print_decl fmt (gtm: SS.t GTM.t) (decl: decl) =
       Format.fprintf fmt "predicate %s(%a) =\n%a@."
         name
         print_tvar_list atyp
-        print_ast body; 
+        print_expr body; 
       gtm
     | _ -> 
       Format.fprintf fmt "function %s(%a):%a =\n%a@." 
         name
         print_tvar_list atyp
         print_typ rtyp
-        print_ast body; 
+        print_expr body; 
       gtm
 
 let print_typedecl fmt (tyd: typedecl) = 
@@ -680,8 +680,8 @@ let print_typedecls fmt (tydecls: typedecl list) =
       print_typedecl fmt td
   ) tydecls
 
-let print_decls fmt (tydecls, decls: typedecl list * decl list) =
+let print_stmts fmt (tydecls, stmts: typedecl list * stmt list) =
   print_typedecls fmt tydecls;
   ignore @@
-  List.fold_left (print_decl fmt) GTM.empty decls
+  List.fold_left (print_stmt fmt) GTM.empty stmts
 

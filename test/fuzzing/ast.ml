@@ -117,14 +117,14 @@ type cst =
   | CstBv of bitv 
 and bitv = {length : int; bits : string}
 
-type ast = 
+type expr = 
   | Cst of cst
   | Var of tvar
-  | Unop of unop * ast 
-  | Binop of binop * ast * ast
-  | ITE of {ty: typ; cond: ast; cons: ast; alt: ast}
-  | LetIn of tvar * ast * ast
-  | FAUpdate of {ty: typ * typ; fa: ast; i: ast; v: ast}
+  | Unop of unop * expr 
+  | Binop of binop * expr * expr
+  | ITE of {ty: typ; cond: expr; cons: expr; alt: expr}
+  | LetIn of tvar * expr * expr
+  | FAUpdate of {ty: typ * typ; fa: expr; i: expr; v: expr}
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
@@ -132,11 +132,11 @@ type ast =
   | Cstr of constr
   | Dummy
 and pm = 
-  {mtchdv: ast; patts: patt list; valty: typ}
+  {mtchdv: expr; patts: patt list; valty: typ}
 and patt = 
-  {destrn: string; pattparams: tvar option list; mbody: ast}
+  {destrn: string; pattparams: tvar option list; mbody: expr}
 and constr = 
-  {cname: string; cty: typ; params: (string * ast) list}
+  {cname: string; cty: typ; params: (string * expr) list}
 
 and binop = 
   | And | Or | Xor | Imp | Iff
@@ -147,28 +147,28 @@ and binop =
 and unop = 
   | Neg | Not 
   | Extract of {l: int; r: int}
-  | Access of {ty: typ * typ; fa: ast}
+  | Access of {ty: typ * typ; fa: expr}
 
 and quant =
   { qvars: VS.t; 
-    trgs: ast list; 
-    body: ast}
+    trgs: expr list; 
+    body: expr}
 
 and fcall =
   { fname: string; fk: fkind; 
     atyp: typ list; 
     rtyp: typ; 
-    args: ast list}
+    args: expr list}
 
 (* tuple with the max of arguments a function can have*)
 type aty = typ * typ * typ * typ * typ 
 
-type decl =
-  | Axiom of {name: string; body: ast} 
-  | Goal of {name: string; body: ast}
+type stmt =
+  | Axiom of {name: string; body: expr} 
+  | Goal of {name: string; body: expr}
   | FuncDef of fdef
 and fdef = 
-  { name: string; body: ast; 
+  { name: string; body: expr; 
     atyp: tvar list; rtyp : typ}
 
 type fd_info = 
@@ -223,8 +223,8 @@ let print_binop fmt binop =
     | IDiv -> "/"    | IMod -> "%%"   | IPow -> "**" 
     | Concat _ -> "%@")
 
-let rec print fmt ast = 
-  match ast with 
+let rec print fmt expr = 
+  match expr with 
   | Cst (CstI x) ->
     Format.fprintf fmt "%s" 
       (Int.to_string x)
@@ -239,13 +239,13 @@ let rec print fmt ast =
   | Var {vname; _} ->
     Format.fprintf fmt "%s" vname
 
-  | Unop (Neg, ast) ->
-    Format.fprintf fmt "- (%a)" print ast 
-  | Unop (Not, ast) ->
-    Format.fprintf fmt "not (%a)" print ast 
-  | Unop (Extract {l;r}, ast) ->
+  | Unop (Neg, expr) ->
+    Format.fprintf fmt "- (%a)" print expr 
+  | Unop (Not, expr) ->
+    Format.fprintf fmt "not (%a)" print expr 
+  | Unop (Extract {l;r}, expr) ->
     Format.fprintf fmt "(%a)^{%d,%d}" 
-      print ast l r 
+      print expr l r 
   | Unop (Access {ty = _; fa} , i) -> 
     Format.fprintf fmt "%a[%a]" print fa print i
 
@@ -354,8 +354,8 @@ let rec print fmt ast =
 
   | Dummy -> assert false 
 
-let print_decl fmt decl = 
-  match decl with 
+let print_stmt fmt stmt = 
+  match stmt with 
   | FuncDef {name; body; atyp; rtyp} -> 
     Format.fprintf fmt 
       "FuncDef %s %a -> %a :\n%a" name 
@@ -405,16 +405,16 @@ module GTM = Map.Make(
   end
   )
 
-let rec get_usyms (ast: ast) =
-  match ast with 
+let rec get_usyms (expr: expr) =
+  match expr with 
   | Var {vname; vty; vk = US; _} -> 
     [vname, A vty]
-  | Unop (Access {fa; _}, ast) -> 
+  | Unop (Access {fa; _}, expr) -> 
     List.rev_append
       (get_usyms fa)
-      (get_usyms ast)
-  | Unop (_, ast) -> 
-    get_usyms ast
+      (get_usyms expr)
+  | Unop (_, expr) -> 
+    get_usyms expr
   | Binop (_, a, b) -> 
     List.rev_append (get_usyms a) (get_usyms b)
   | ITE {cond; cons; alt; _} -> 
@@ -590,7 +590,7 @@ let is_goal d =
 
 (* Uninterpreted variables *)
 
-let get_uvar_ast num ty = 
+let get_uvar_expr num ty = 
   let vname =
     match ty with 
     | Tint -> "ui_"^ string_of_int num 
@@ -621,7 +621,7 @@ let mk_aty l =
   | [a; b; c; d; e] -> a, b, c, d, e
   | _ -> assert false
 
-let get_ufunc_ast num rtyp = 
+let get_ufunc_expr num rtyp = 
   let fn =
     match rtyp with 
     | Tint -> "ufi_"^ string_of_int num 
@@ -677,8 +677,8 @@ let rec insert_in_ptree path var ptree =
       Node ([], iin_aux h t [])
     | [] -> Node ([var], [])
 
-let add_triggers vs ast =
-  let rec add_triggers_aux foundv ast =
+let add_triggers vs expr =
+  let rec add_triggers_aux foundv expr =
     let rec setvn nb nv vlist = 
       match vlist with 
       | (v, _) :: t when nv.id = v.id -> (v, nb) :: t   
@@ -704,8 +704,8 @@ let add_triggers vs ast =
     (* Check that it contains all of the variables quantified  
       * by the quantifier, and at least one non constant uninterpreted
       * function symbol *)
-    let rec check_trigger (vbl, f) sast = 
-      match sast with
+    let rec check_trigger (vbl, f) sexpr = 
+      match sexpr with
       | Var nv -> (setvn true nv vbl, f) 
       (* what if it was quantified by an other (external) quantifier? *)
       | Unop (_,  x) -> check_trigger (vbl, f) x 
@@ -724,16 +724,16 @@ let add_triggers vs ast =
         check_trigger (vbl, f) body (* ??? *)
       | _ -> (vbl, f)
     in 
-    let aux ast =
-      if is_valid (check_trigger (foundv, false) ast)
-      then [ast]
+    let aux expr =
+      if is_valid (check_trigger (foundv, false) expr)
+      then [expr]
       else []
     in 
-    match ast with 
+    match expr with 
     | Unop (_, x) -> add_triggers_aux foundv x
     | Binop (_, x, y) ->
       aux x @ aux y
-    | FunCall _ -> aux ast 
+    | FunCall _ -> aux expr 
     | Forall {body; _} -> aux body
     | Exists {body; _} -> aux body
 
@@ -742,21 +742,21 @@ let add_triggers vs ast =
     | FAUpdate _ | PMatching _ 
     | Cstr _ -> assert false
   in
-  add_triggers_aux (List.map (fun x -> (x, false)) vs) ast
+  add_triggers_aux (List.map (fun x -> (x, false)) vs) expr
 
-(** Quantifies all the variables in the ast *)
-let quantify ast = 
-  let rec quantify_aux ast pt = 
-    let rec aux_call (asts : ast list) (pths : ptree list) = 
-      match asts with 
+(** Quantifies all the variables in the expr *)
+let quantify expr = 
+  let rec quantify_aux expr pt = 
+    let rec aux_call (exprs : expr list) (pths : ptree list) = 
+      match exprs with 
       | h1 :: t1 -> (
           match pths with 
           | h2 :: t2 ->
             quantify_aux h1 h2 :: aux_call t1 t2  
-          | [] -> asts)
+          | [] -> exprs)
       | [] -> [] 
     in
-    let q_aux_bis vs ast =  
+    let q_aux_bis vs expr =  
       match vs with 
       | h :: t -> 
         (* Separation of variables by variable kind *)
@@ -790,17 +790,17 @@ let quantify ast =
                 trgs = [](*add_triggers vs exp*); 
                 body = exp}
             | US | ARG | BLI -> assert false
-        ) ast nnvs
+        ) expr nnvs
 
-      | [] -> ast
+      | [] -> expr
     in 
 
     match pt with 
     | Node (vs, []) ->
-      q_aux_bis vs ast
+      q_aux_bis vs expr
     | Node (vs, pstl) -> 
       begin
-        match ast with 
+        match expr with 
         | Binop (op, x, y) -> 
           q_aux_bis vs ( 
             match pstl with 
@@ -849,8 +849,8 @@ let quantify ast =
             match pt with 
             | Node (vs, pstl) -> 
               assert (List.for_all (fun x -> x == Empty) pstl);
-              q_aux_bis vs ast
-            | Empty -> ast
+              q_aux_bis vs expr
+            | Empty -> expr
           )
 
         | Unop (op, x) -> 
@@ -861,7 +861,7 @@ let quantify ast =
             | Node (vs, pstl) -> 
               q_aux_bis vs 
                 (FunCall {q with args = aux_call q.args pstl})
-            | Empty -> ast)
+            | Empty -> expr)
 
         | Forall q -> 
           Forall {q with body = quantify_aux q.body pt}
@@ -871,7 +871,7 @@ let quantify ast =
         | PMatching {mtchdv; patts; valty} ->
           begin 
             match pstl with 
-            | [] -> ast
+            | [] -> expr
             | [p] -> 
               PMatching {
                 mtchdv = quantify_aux mtchdv p; 
@@ -921,7 +921,7 @@ let quantify ast =
         | FAUpdate _
         | Dummy | Cst _ | Var _ -> assert false 
       end 
-    | Empty -> ast
+    | Empty -> expr
   in 
   (* takes a list of couples (list of paths, var) 
    * and returns a a list of couples (common path prefix, var) *)
@@ -942,10 +942,10 @@ let quantify ast =
     | (p, v) :: t -> (gqp_aux p, v) :: get_q_paths t
     | _ -> []
   in 
-  (* takes an ast returns list of couples (path, var) *)
-  let rec q_aux path ast =
-    let rec get_vars ast = 
-      match ast with 
+  (* takes an expr returns list of couples (path, var) *)
+  let rec q_aux path expr =
+    let rec get_vars expr = 
+      match expr with 
       | Binop (_, x, y) ->
         get_vars x @ get_vars y 
 
@@ -987,7 +987,7 @@ let quantify ast =
       | Forall _ | Exists _ -> []
     in 
 
-    match ast with 
+    match expr with 
     | Binop (
         ( And | Or | Xor | Imp | Iff | 
           Lt | Le | Gt | Ge | Eq | Neq), 
@@ -1136,10 +1136,10 @@ let quantify ast =
   let cpll = 
     List.sort 
       (fun (_, x) (_, y) -> Int.compare x.id y.id) 
-      (q_aux [] ast) 
+      (q_aux [] expr) 
   in
   match cpll with
-  | [] -> ast 
+  | [] -> expr 
   | (fh, sh) :: t -> 
     let l, v, spll = 
       List.fold_left 
@@ -1159,5 +1159,5 @@ let quantify ast =
             insert_in_ptree p v acc)
         Empty nspll
     in 
-    quantify_aux ast pt
+    quantify_aux expr pt
 

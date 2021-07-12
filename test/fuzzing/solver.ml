@@ -4,14 +4,13 @@ module type T = Translater.T
 module type ST =
 sig 
   include T
-  val process_decls : Ast.typedecl list -> Ast.decl list -> Utils.answer list
+  val process_stmts : Ast.typedecl list -> Ast.stmt list -> Utils.answer list
 end 
 
 module CVC5: ST = 
 struct 
   include Smtlib2_tr
-  let process_decls tydecls decls = 
-    ignore tydecls;
+  let process_stmts tydecls stmts = 
     let rec get_lines (ic: in_channel) =
       try
         let l = input_line ic in
@@ -24,7 +23,7 @@ struct
 
     let oc = open_out filename in 
     let fmt = Format.formatter_of_out_channel oc in
-    Format.fprintf fmt "%a" print_decls (tydecls, decls);
+    Format.fprintf fmt "%a" print_stmts (tydecls, stmts);
     close_out oc;
 
     let ic = 
@@ -48,7 +47,7 @@ module AE: ST =
 struct 
   include Tr_altergo
 
-  let process_decls =
+  let process_stmts =
     let module AEL = AltErgoLib in
     let module SC = (val (
         if true 
@@ -59,31 +58,30 @@ struct
     let module SAT = SC.Make(AEL.Theory.Main_Default) in
     let module FE = AEL.Frontend.Make(SAT) in
     AEL.Options.set_disable_weaks true;
-    AEL.Options.set_is_gui false;
-    fun tydecls decls -> 
+    fun tydecls stmts -> 
       SAT.clear_cache ();
       let filename = "_.ae" in 
 
       let oc = open_out filename in 
       let fmt = Format.formatter_of_out_channel oc in
-      Format.fprintf fmt "%a" print_decls (tydecls, decls);
+      Format.fprintf fmt "%a" print_stmts (tydecls, stmts);
       close_out oc;
 
       let al, _ = 
         List.fold_left 
-          ( fun (al, (env, consistent, ex)) decl ->
+          ( fun (al, (env, consistent, ex)) stmt ->
 
-              let tdecl = translate_decl decl in 
+              let tstmt = translate_stmt stmt in 
 
               let env, consistent, ex = 
                 FE.process_decl 
                   (fun _ _ -> ()) (*FE.print_status*)
                   (FE.init_all_used_context ()) 
                   (Stack.create ()) 
-                  (env, consistent, ex) tdecl
+                  (env, consistent, ex) tstmt
               in
 
-              if Ast.is_goal decl 
+              if Ast.is_goal stmt 
               then 
                 if consistent 
                 then Utils.Unknown :: al, (env, consistent, ex)
@@ -92,7 +90,7 @@ struct
                 al, (env, consistent, ex)
           )
           ([], (SAT.empty (), true, AEL.Explanation.empty)) 
-          decls
+          stmts
       in al
 
 end 

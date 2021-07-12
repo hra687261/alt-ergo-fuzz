@@ -4,7 +4,7 @@ module type T = Translater.T
 module type ST =
 sig 
   include T
-  val process_decls : Ast.typedecl list -> Ast.decl list -> Utils.answer list
+  val process_stmts : Ast.typedecl list -> Ast.stmt list -> Utils.answer list
 end 
 
 module CVC5: ST
