@@ -8,11 +8,6 @@ type 'a gen_res = {
   u_dt : SS.t;
   c_funcs : SS.t}
 
-type stmtkind = (* statement kind *) 
-  | FD (* function statement *)
-  | AxD (* axiom statement *)
-  | GD (* goal statement *)
-
 let mk_empty_gen_res g_res =
   { g_res; 
     u_args = VS.empty;

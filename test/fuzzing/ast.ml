@@ -31,64 +31,6 @@ type tvar =
   { vname: string; vty: typ; 
     vk: vkind; id: int}
 
-let rec print_typ fmt typ = 
-  match typ with 
-  | Tint -> Format.fprintf fmt "int"
-  | Treal -> Format.fprintf fmt "real"
-  | Tbool -> Format.fprintf fmt "bool"
-  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
-  | TFArray {ti = Tint; tv} ->
-    Format.fprintf fmt 
-      "%a farray"
-      print_typ tv
-  | TFArray {ti; tv} ->
-    Format.fprintf fmt 
-      "(%a, %a) farray"
-      print_typ ti
-      print_typ tv
-  | TDummy -> Format.fprintf fmt "dummy"
-  | Tadt (n, _) -> Format.fprintf fmt "%s" n
-
-let print_patt_ty fmt (dn, prms: patt_ty) =
-  Format.fprintf fmt "| %s%a" dn
-    ( fun fmt l ->
-        match l with 
-        | [] -> ()
-        | (pn, ty) :: t ->
-          Format.fprintf fmt "(%s: %a" pn print_typ ty;
-          List.iter (
-            fun (pn, ty) -> 
-              Format.fprintf fmt ", %s: %a" pn print_typ ty;
-          ) t; 
-          Format.fprintf fmt ")"
-    ) prms
-
-let print_adt fmt (adt: adt) =
-  let name, dstrs = adt in 
-  Format.fprintf fmt " type %s =\n" name;
-  List.iter (
-    fun (dn, prms) ->
-      Format.fprintf fmt "%a\n" print_patt_ty (dn, prms)
-  ) (dstrs: patt_ty list)
-
-let print_ftyp fmt {atyp; rtyp} =
-  match atyp with 
-  | h :: t ->
-    Format.fprintf fmt "%a" print_typ h;
-    List.iter (
-      fun x ->
-        Format.fprintf fmt ", %a" print_typ x
-    ) t;
-    Format.fprintf fmt " -> %a" print_typ rtyp
-  | [] -> assert false 
-
-let print_typc fmt typc =
-  match typc with 
-  | A {ty; _} -> 
-    Format.fprintf fmt "%a" print_typ ty
-  | F {atyp; rtyp; _} ->
-    print_ftyp fmt {atyp; rtyp}
-
 let rec typ_tag typ = 
   match typ with 
   | Tint -> "i"
@@ -194,6 +136,11 @@ and fdef =
 type fd_info = 
   {fn: string; params: aty; rtyp: typ}
 
+type stmtkind = (* statement kind *) 
+  | FD (* function statement *)
+  | AxD (* axiom statement *)
+  | GD (* goal statement *)
+
 let dpt = 3 
 let query_max_depth = dpt
 let axiom_max_depth = dpt
@@ -209,6 +156,65 @@ let v_id, thmid, axid, gid, qid, fid, bid =
 let adt_id = ref 0
 
 (* Pretty printing *)
+
+let rec print_typ fmt typ = 
+  match typ with 
+  | Tint -> Format.fprintf fmt "int"
+  | Treal -> Format.fprintf fmt "real"
+  | Tbool -> Format.fprintf fmt "bool"
+  | TBitV n -> Format.fprintf fmt "bitv[%d]" n 
+  | TFArray {ti = Tint; tv} ->
+    Format.fprintf fmt 
+      "%a farray"
+      print_typ tv
+  | TFArray {ti; tv} ->
+    Format.fprintf fmt 
+      "(%a, %a) farray"
+      print_typ ti
+      print_typ tv
+  | TDummy -> Format.fprintf fmt "dummy"
+  | Tadt (n, _) -> Format.fprintf fmt "%s" n
+
+let print_patt_ty fmt (dn, prms: patt_ty) =
+  Format.fprintf fmt "| %s%a" dn
+    ( fun fmt l ->
+        match l with 
+        | [] -> ()
+        | (pn, ty) :: t ->
+          Format.fprintf fmt "(%s: %a" pn print_typ ty;
+          List.iter (
+            fun (pn, ty) -> 
+              Format.fprintf fmt ", %s: %a" pn print_typ ty;
+          ) t; 
+          Format.fprintf fmt ")"
+    ) prms
+
+let print_adt fmt (adt: adt) =
+  let name, dstrs = adt in 
+  Format.fprintf fmt " type %s =\n" name;
+  List.iter (
+    fun (dn, prms) ->
+      Format.fprintf fmt "%a\n" print_patt_ty (dn, prms)
+  ) (dstrs: patt_ty list)
+
+let print_ftyp fmt ({atyp; rtyp}: ftyp) =
+  match atyp with 
+  | h :: t ->
+    Format.fprintf fmt "%a" print_typ h;
+    List.iter (
+      fun x ->
+        Format.fprintf fmt ", %a" print_typ x
+    ) t;
+    Format.fprintf fmt " -> %a" print_typ rtyp
+  | [] -> assert false 
+
+let print_typc fmt typc =
+  match typc with 
+  | A {ty; _} -> 
+    Format.fprintf fmt "%a" print_typ ty
+  | F {atyp; rtyp; _} ->
+    print_ftyp fmt {atyp; rtyp}
+
 
 let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
   Format.fprintf fmt "{";

@@ -8,17 +8,13 @@ type 'a gen_res = {
   u_dt : Ast.SS.t;
   c_funcs : Ast.SS.t}
 
-type stmtkind = (* statement kind *) 
-  | FD (* function statement *)
-  | AxD (* axiom statement *)
-  | GD (* goal statement *)
-
-val dk_gen : stmtkind Cr.gen
+val dk_gen : Ast.stmtkind Cr.gen
 
 val pr_gr : (Format.formatter -> 'a -> unit) -> 
   Format.formatter -> 'a gen_res -> unit
 
-val get_gen : Ast.fd_info list -> stmtkind -> Ast.stmt gen_res Cr.gen
+val get_gen : 
+  Ast.fd_info list -> Ast.stmtkind -> Ast.stmt gen_res Cr.gen
 
 val generate_expr : 
   ?isform:bool -> ?qvars:bool -> ?args:Ast.tvar list -> 
@@ -28,6 +24,6 @@ val generate_expr :
 
 val generate_stmt : 
   ?fdefs:Ast.fd_info list -> ?adts:Ast.adt list -> 
-  ?name:string -> stmtkind -> Ast.stmt gen_res Cr.gen
+  ?name:string -> Ast.stmtkind -> Ast.stmt gen_res Cr.gen
 
 val gen_stmts : (Ast.typedecl list * Ast.stmt list) Cr.gen
