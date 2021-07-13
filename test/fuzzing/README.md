@@ -30,7 +30,7 @@ The exception and the statements that caused the crash are read from the file ``
 
 To rerun all of the outputs:
 ```
-for f in ./test/fuzzing/crash_output/op_* ; do  ./_build/default/test/fuzzing/rerun.exe "$f"; done;
+for f in ./test/fuzzing/crash_output/crash_* ; do  ./_build/default/test/fuzzing/rerun.exe "$f"; done;
 ```
 
 
