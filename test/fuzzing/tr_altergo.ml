@@ -591,9 +591,10 @@ let print_ss fmt ss =
 let print_tcm fmt (tcm: SS.t TCM.t) = 
   TCM.iter (
     fun gt ss -> 
-      Format.fprintf fmt "logic %a: %a@."
-        print_ss ss
-        print_typc gt
+      if (not (SS.is_empty ss)) then 
+        Format.fprintf fmt "logic %a: %a@."
+          print_ss ss
+          print_typc gt
   ) tcm 
 
 let print_tvar_list fmt atyp =
