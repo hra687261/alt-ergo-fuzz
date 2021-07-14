@@ -4,5 +4,5 @@ sig
   type t
   val translate_stmt: Ast.stmt -> t 
   val print_stmts: 
-    Format.formatter -> Ast.typedecl list * Ast.stmt list -> unit
+    Format.formatter -> Ast.stmt_c list -> unit
 end 

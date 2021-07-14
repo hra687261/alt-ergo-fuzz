@@ -4,13 +4,13 @@ module type T = Translater.T
 module type ST =
 sig 
   include T
-  val process_stmts : Ast.typedecl list -> Ast.stmt list -> Utils.answer list
+  val process_stmts : Ast.stmt_c list -> Utils.answer list
 end 
 
 module CVC5: ST = 
 struct 
   include Smtlib2_tr
-  let process_stmts tydecls stmts = 
+  let process_stmts stmtcs = 
     let rec get_lines (ic: in_channel) =
       try
         let l = input_line ic in
@@ -23,7 +23,7 @@ struct
 
     let oc = open_out filename in 
     let fmt = Format.formatter_of_out_channel oc in
-    Format.fprintf fmt "%a" print_stmts (tydecls, stmts);
+    Format.fprintf fmt "%a" print_stmts stmtcs;
     close_out oc;
 
     let ic = 
@@ -58,18 +58,18 @@ struct
     let module SAT = SC.Make(AEL.Theory.Main_Default) in
     let module FE = AEL.Frontend.Make(SAT) in
     AEL.Options.set_disable_weaks true;
-    fun tydecls stmts -> 
+    fun stmtcs -> 
       SAT.clear_cache ();
       let filename = "_.ae" in 
 
       let oc = open_out filename in 
       let fmt = Format.formatter_of_out_channel oc in
-      Format.fprintf fmt "%a" print_stmts (tydecls, stmts);
+      Format.fprintf fmt "%a" print_stmts stmtcs;
       close_out oc;
 
       let al, _ = 
         List.fold_left 
-          ( fun (al, (env, consistent, ex)) stmt ->
+          ( fun (al, (env, consistent, ex)) Ast.{stmt;_} ->
 
               let tstmt = translate_stmt stmt in 
 
@@ -90,7 +90,7 @@ struct
                 al, (env, consistent, ex)
           )
           ([], (SAT.empty (), true, AEL.Explanation.empty)) 
-          stmts
+          stmtcs
       in al
 
 end 

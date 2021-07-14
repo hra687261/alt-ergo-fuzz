@@ -54,12 +54,11 @@ let typc_tag {atyp; rtyp} =
 let typ_compare t1 t2 =
   compare (typ_tag t1) (typ_tag t2)
 
+let get_tctag t = 
+  match t with A {tag; _} | F {tag; _} -> tag
+
 let typc_compare a b =
-  match a, b with 
-  | A {tag = ta; _}, A {tag = tb; _} 
-  | A {tag = ta; _}, F {tag = tb; _}
-  | F {tag = ta; _}, A {tag = tb; _} 
-  | F {tag = ta; _}, F {tag = tb; _} -> compare ta tb 
+  compare (get_tctag a) (get_tctag b) 
 
 module VS = Set.Make(
   struct 
@@ -141,6 +140,76 @@ type stmtkind = (* statement kind *)
   | AxD (* axiom statement *)
   | GD (* goal statement *)
 
+(* userfull declarations and functions *)
+
+module SS = Set.Make(String)
+
+module TDS = Set.Make(
+  struct
+    type t = typedecl
+    let compare (n1, _) (n2, _) = compare n1 n2 
+  end 
+  )
+
+module VM = Map.Make(
+  struct
+    type t = tvar 
+    let compare v1 v2 =
+      let r = 
+        typ_compare v1.vty v2.vty 
+      in 
+      if r <> 0 then r
+      else compare v1.vname v2.vname
+  end)
+
+module TCM = Map.Make(
+  struct 
+    type t = typc 
+    let compare = typc_compare
+  end
+  )
+
+let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
+  TCM.fold (
+    fun k v acc ->
+      match TCM.find_opt k acc with 
+      | Some x -> TCM.add k (SS.union x v) acc
+      | None -> TCM.add k v acc
+  ) t1 t2
+
+type stmt_c = {
+  stmt : stmt; 
+  tds : TDS.t;
+  uss : SS.t TCM.t
+}
+
+let update_accs 
+    (otds, ouss : TDS.t * SS.t TCM.t) 
+    (ntds, nuss : TDS.t * SS.t TCM.t) = 
+  let atds, tptds = 
+    TDS.fold (
+      fun td (atds, tptds) ->
+        if TDS.mem td atds 
+        then (atds, tptds)
+        else (TDS.add td atds, TDS.add td tptds)
+    ) ntds (otds, TDS.empty) 
+  in
+  let auss, tpuss =
+    TCM.fold (
+      fun tc s (atcm, tpuss) ->
+        let nass, ntpss = 
+          match TCM.find_opt tc atcm with 
+          | Some ss -> 
+            SS.union s ss, 
+            SS.filter (fun n -> not (SS.mem n ss)) s
+          | None -> s, s
+        in
+        TCM.add tc nass atcm, 
+        TCM.add tc ntpss tpuss
+    ) nuss (ouss, TCM.empty)
+  in 
+  (atds, auss), (tptds, tpuss)
+
 let dpt = 3 
 let query_max_depth = dpt
 let axiom_max_depth = dpt
@@ -214,7 +283,6 @@ let print_typc fmt typc =
     Format.fprintf fmt "%a" print_typ ty
   | F {atyp; rtyp; _} ->
     print_ftyp fmt {atyp; rtyp}
-
 
 let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
   Format.fprintf fmt "{";
@@ -409,132 +477,39 @@ let print_stmt fmt stmt =
   | Goal {name; body} ->
     Format.fprintf fmt "Goal(%s):\n%a" name print body
 
-(* userfull declarations and functions *)
-
-module SS = Set.Make(String)
-
-module VM = Map.Make(
-  struct
-    type t = tvar 
-    let compare v1 v2 =
-      let r = 
-        typ_compare v1.vty v2.vty 
-      in 
-      if r <> 0 then r
-      else compare v1.vname v2.vname
-  end)
-
-module TCM = Map.Make(
-  struct 
-    type t = typc 
-    let compare = typc_compare
-  end
-  )
-
-let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
-  let f _ vo1 vo2 = 
-    match vo1, vo2 with 
-    | None, None -> None
-    | Some v, None -> Some v
-    | None, Some v -> Some v
-    | Some v1, Some v2 -> Some (SS.union v1 v2)
-  in 
-  TCM.merge f t1 t2  
-
-let rec get_usyms (expr: expr) =
-  match expr with 
-  | Var {vname; vty; vk = US; _} -> 
-    [vname, A {tag = typ_tag vty; ty = vty}]
-  | Unop (Access {fa; _}, expr) -> 
-    List.rev_append
-      (get_usyms fa)
-      (get_usyms expr)
-  | Unop (_, expr) -> 
-    get_usyms expr
-  | Binop (_, a, b) -> 
-    List.rev_append (get_usyms a) (get_usyms b)
-  | ITE {cond; cons; alt; _} -> 
-    let tmp = 
-      List.rev_append 
-        (get_usyms cons)
-        (get_usyms alt)
-    in
-    List.rev_append (get_usyms cond) tmp
-  | LetIn (_, a, b) -> 
-    List.rev_append  (get_usyms a) (get_usyms b) 
-  | FAUpdate {fa; i; v; _} ->
-    let tmp = 
-      List.rev_append 
-        (get_usyms i) 
-        (get_usyms v)
-    in
-    List.rev_append 
-      (get_usyms fa) 
-      tmp
-
-  | FunCall {fname; fk = USF; args; rtyp; atyp} -> 
-    List.fold_left (
-      fun acc a -> 
-        List.rev_append 
-          (get_usyms a) 
-          acc
-    ) [fname, F {tag = typc_tag {atyp; rtyp}; atyp; rtyp}] args
-  | FunCall {args; _} -> 
-    List.fold_left (
-      fun acc a -> 
-        List.rev_append 
-          (get_usyms a) 
-          acc
-    ) [] args
-  | Forall {trgs; body; _}
-  | Exists {trgs; body; _} ->
-    List.fold_left (
-      fun acc a -> 
-        List.rev_append 
-          (get_usyms a) 
-          acc
-    ) (get_usyms body) trgs
-
-  | PMatching {mtchdv; patts; _} -> 
-    List.fold_left (
-      fun acc {mbody; _} -> 
-        List.rev_append 
-          (get_usyms mbody) 
-          acc
-    ) (get_usyms mtchdv) patts
-
-  | Cstr {params; _} -> 
-    List.fold_left (
-      fun acc (_, a) -> 
-        List.rev_append 
-          (get_usyms a) 
-          acc
-    ) [] params
-
-  | Var {vk=(EQ|UQ|ARG|BLI); _ }
-  | Dummy
-  | Cst _ -> []
-
-
-let get_ngtm (oldgtm: SS.t TCM.t) (usyms: (string * typc) list) = 
-  let gtm_update s gto =
-    match gto with 
-    | Some ss -> Some (SS.add s ss)
-    | None -> Some (SS.add s SS.empty)
+let print_stmtc fmt {stmt; tds; uss} =
+  let pr_tds fmt e = 
+    Format.fprintf fmt "{";
+    TDS.iter (
+      fun (n, _) ->
+        Format.fprintf fmt "%s; " n
+    ) e;
+    Format.fprintf fmt "}"
   in
-  List.fold_left (
-    fun (ngtm, ogtm) (s, gt) ->
-      match TCM.find_opt gt oldgtm with 
-      | Some v -> 
-        if SS.mem s v 
-        then ngtm, TCM.update gt (gtm_update s) ogtm 
-        else 
-          TCM.update gt (gtm_update s) ngtm,
-          TCM.update gt (gtm_update s) ogtm 
-      | None -> 
-        TCM.update gt (gtm_update s) ngtm,
-        TCM.update gt (gtm_update s) ogtm 
-  ) (TCM.empty, oldgtm) usyms 
+  let pr_ss fmt e = 
+    Format.fprintf fmt "{";
+    SS.iter (
+      Format.fprintf fmt "%s; "
+    ) e;
+    Format.fprintf fmt "}"
+  in
+  let pr_tcm fmt e =
+    Format.fprintf fmt "{";
+    TCM.iter (
+      fun k v -> 
+        Format.fprintf fmt "(%s:%a)"
+          (get_tctag k) pr_ss v;
+    ) e;
+    Format.fprintf fmt "}"
+  in
+  Format.fprintf fmt "{@.";
+  Format.fprintf fmt "  stmt = \n%a@." 
+    print_stmt stmt;
+  Format.fprintf fmt "  u_dt = %a;@." 
+    pr_tds tds;
+  Format.fprintf fmt "  u_us = %a;@." 
+    pr_tcm uss;
+  Format.fprintf fmt "}@."
 
 let rec typ_to_str ty =
   match ty with
@@ -626,7 +601,7 @@ let is_goal d =
 
 (* Uninterpreted variables *)
 
-let get_uvar_expr num ty = 
+let get_u_tvar num ty = 
   let vname =
     match ty with 
     | Tint -> "ui_"^ string_of_int num 
@@ -639,7 +614,7 @@ let get_uvar_expr num ty =
     | Tadt (adtn, _) -> "u_"^adtn^"_"^string_of_int num 
     | TDummy -> assert false 
   in    
-  Var (mk_tvar_b vname ty US 0)
+  mk_tvar_b vname ty US 0
 
 (* Uninterpreted functions *)
 

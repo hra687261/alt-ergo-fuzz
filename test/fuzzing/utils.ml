@@ -17,11 +17,10 @@ type bug_info = {
   bty: string;
   exp_str: string; 
   exp_bt_str: string; 
-  tydecls: Ast.typedecl list;
-  stmts: Ast.stmt list}
+  stmtcs: Ast.stmt_c list}
 
-let mk_bug_info id bty exp_str exp_bt_str tydecls stmts =
-  {id; bty; exp_str; exp_bt_str; tydecls; stmts}
+let mk_bug_info id bty exp_str exp_bt_str stmtcs =
+  {id; bty; exp_str; exp_bt_str; stmtcs}
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
   let str =
@@ -44,7 +43,7 @@ let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
 let mknmarshall_bi 
     ?(verbose = false) ?(filename = "debug.txt")
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
-    (exp: exn) (tydecls: Ast.typedecl list) (stmts: Ast.stmt list) = 
+    (exp: exn) stmtcs = 
   let id = !cnt in 
   let exp_str = Printexc.to_string exp in 
   let exp_bt_str = Printexc.get_backtrace () in 
@@ -55,7 +54,7 @@ let mknmarshall_bi
     | Failure Timeout -> "timeout", "to"
     | _ -> "other", "o"
   in 
-  let bi = mk_bug_info id bty exp_str exp_bt_str tydecls stmts in 
+  let bi = mk_bug_info id bty exp_str exp_bt_str stmtcs in 
   let data = Stdlib.Marshal.to_string bi [] in
 
   let file_name = 
@@ -77,12 +76,13 @@ let mknmarshall_bi
     );
     sh_printf ~filename (
       Format.asprintf "\nCaused by: \n%a@." 
-        ( fun fmt stmtl ->
+        ( fun fmt stmtcl ->
             List.iter ( 
-              fun stmt ->
-                Format.fprintf fmt "\n### %a@." Ast.print_stmt stmt;
-            ) stmtl
-        ) stmts
+              fun Ast.{stmt; _} ->
+                Format.fprintf fmt "\n### %a@." 
+                  Ast.print_stmt stmt
+            ) stmtcl
+        ) stmtcs
     );
     sh_printf ~filename (
       Format.sprintf 

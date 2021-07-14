@@ -440,8 +440,7 @@ let rec print_expr fmt expr =
     Format.fprintf fmt "%s" 
       (Int.to_string x)
   | Cst (CstR x) ->
-    Format.fprintf fmt "%s" 
-      (Float.to_string x)
+    Format.fprintf fmt "%f" x
   | Cst (CstB x) ->
     Format.fprintf fmt "%b" x
   | Cst (CstBv x) ->
@@ -589,13 +588,13 @@ let print_ss fmt ss =
     ) ss false
   )
 
-let print_gtm fmt (gtm: SS.t TCM.t) = 
+let print_tcm fmt (tcm: SS.t TCM.t) = 
   TCM.iter (
     fun gt ss -> 
       Format.fprintf fmt "logic %a: %a@."
         print_ss ss
         print_typc gt
-  ) gtm 
+  ) tcm 
 
 let print_tvar_list fmt atyp =
   match atyp with
@@ -607,40 +606,6 @@ let print_tvar_list fmt atyp =
           vname print_typ vty
     ) t
   | [] -> assert false
-
-let print_stmt fmt (gtm: SS.t TCM.t) (stmt: stmt) =
-  match stmt with 
-  | Axiom {name; body} ->
-    let gtl = get_usyms body in 
-    let ngtm, gtm = get_ngtm gtm gtl in  
-    Format.fprintf fmt "\n%a@." print_gtm ngtm;
-    Format.fprintf fmt "axiom %s:\n%a@." name print_expr body; 
-    gtm
-  | Goal {name; body} ->
-    let gtl = get_usyms body in 
-    let ngtm, gtm = get_ngtm gtm gtl in  
-    Format.fprintf fmt "\n%a@." print_gtm ngtm;
-    Format.fprintf fmt "goal %s:\n%a@." name print_expr body; 
-    gtm
-  | FuncDef {name; body; atyp; rtyp} -> 
-    let gtl = get_usyms body in 
-    let ngtm, gtm = get_ngtm gtm gtl in  
-    Format.fprintf fmt "\n%a@." print_gtm ngtm;
-
-    match rtyp with 
-    | Tbool -> 
-      Format.fprintf fmt "predicate %s(%a) =\n%a@."
-        name
-        print_tvar_list atyp
-        print_expr body; 
-      gtm
-    | _ -> 
-      Format.fprintf fmt "function %s(%a):%a =\n%a@." 
-        name
-        print_tvar_list atyp
-        print_typ rtyp
-        print_expr body; 
-      gtm
 
 let print_typedecl fmt (tyd: typedecl) = 
   let pr_aux = 
@@ -674,14 +639,43 @@ let print_typedecl fmt (tyd: typedecl) =
         | _ -> assert false
     ) ptrns
 
-let print_typedecls fmt (tydecls: typedecl list) = 
-  List.iter (
+let print_typedecls fmt (tydecls: TDS.t) = 
+  TDS.iter (
     fun td -> 
       print_typedecl fmt td
   ) tydecls
 
-let print_stmts fmt (tydecls, stmts: typedecl list * stmt list) =
-  print_typedecls fmt tydecls;
+let print_stmt fmt (stmt: stmt) =
+  match stmt with 
+  | Axiom {name; body} ->
+    Format.fprintf fmt "axiom %s:\n%a@." name print_expr body
+  | Goal {name; body} ->
+    Format.fprintf fmt "goal %s:\n%a@." name print_expr body
+  | FuncDef {name; body; atyp; rtyp} -> 
+    match rtyp with 
+    | Tbool -> 
+      Format.fprintf fmt "predicate %s(%a) =\n%a@."
+        name
+        print_tvar_list atyp
+        print_expr body
+    | _ -> 
+      Format.fprintf fmt "function %s(%a):%a =\n%a@." 
+        name
+        print_tvar_list atyp
+        print_typ rtyp
+        print_expr body
+
+let print_stmts fmt (scs: stmt_c list) =
   ignore @@
-  List.fold_left (print_stmt fmt) TCM.empty stmts
+  List.iter (
+    fun {stmt; tds; uss} ->
+      if not (TDS.is_empty tds) then 
+        Format.fprintf fmt "\n%a@."
+          print_typedecls tds;
+      if not (TCM.is_empty uss) then 
+        Format.fprintf fmt "\n%a@."
+          print_tcm uss;
+      Format.fprintf fmt "\n%a@." 
+        print_stmt stmt
+  ) scs
 

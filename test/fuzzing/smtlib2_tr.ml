@@ -103,9 +103,15 @@ let rec translate_expr (a: expr) =
       else Format.sprintf "%i" i
     )
   | Cst (CstR r) -> 
-    if r = 0.
-    then Atom "0.0"
-    else 
+    Atom (
+      if r < 0.
+      then Format.sprintf "(- %f)" (-.r)
+      else Format.sprintf "%f" r
+    )
+      (*
+      if r = 0.
+      then Atom "0.0"
+      else 
       let fstr = Float.to_string (Float.abs r) in 
       begin match Str.split (Str.regexp "e") fstr with 
         | [f; p] ->
@@ -122,7 +128,7 @@ let rec translate_expr (a: expr) =
               then 
                 Format.sprintf "(- %s)" 
                   (Str.replace_first (Str.regexp "-") "" p)
-              else p
+              else Str.replace_first (Str.regexp "+") "" p
             )
           ) pq;
 
@@ -137,6 +143,7 @@ let rec translate_expr (a: expr) =
         | [_] -> Atom fstr
         | _ -> assert false   
       end 
+    *)
   | Cst (CstB true) -> Atom "true"
   | Cst (CstB false) -> Atom "false"
   | Cst (CstBv {bits; _}) -> 
@@ -291,7 +298,7 @@ let translate_stmt (d: stmt) =
     ignore name;
     let qg = Queue.create () in 
     Queue.push (Atom "assert") qg;
-    Queue.push (translate_expr body) qg;
+    Queue.push (translate_expr (Unop (Not, body))) qg;
     let q = Queue.create () in
     Queue.push (PExpr qg) q;
     let cs = Queue.create () in 
@@ -347,7 +354,7 @@ let rec print_sexp fmt s =
 let print_sort fmt s =
   Format.fprintf fmt "%a" print_sexp (translate_sort s)
 
-let print_gtm fmt (gtm: SS.t Ast.TCM.t) = 
+let print_tcm fmt (gtm: SS.t Ast.TCM.t) = 
   Ast.TCM.iter (
     fun gs ss -> 
       SS.iter (
@@ -378,29 +385,25 @@ let print_gtm fmt (gtm: SS.t Ast.TCM.t) =
       ) ss 
   ) gtm 
 
-let print_stmt fmt (gtm: SS.t Ast.TCM.t) stmt = 
-  let gtl, stmt = 
-    match stmt with 
-    | Axiom {body; _} -> get_usyms body, stmt
-    | Goal ({body; _} as d) -> 
-      get_usyms body, Goal {d with body = Ast.Unop (Not, body)} 
-    | FuncDef {body; _} -> get_usyms body, stmt
-  in
-  let (ngtm, gtm) : (SS.t Ast.TCM.t * SS.t Ast.TCM.t) = get_ngtm gtm gtl in 
-  let se = translate_stmt stmt in 
-  Format.fprintf fmt "\n%a@." print_gtm ngtm;
-  Format.fprintf fmt "\n%a@." print_sexp se; 
-  gtm
 
 let print_typedecls fmt tydecls = 
-  List.iter (
+  TDS.iter (
     fun td ->
       Format.fprintf fmt "%a\n" 
         print_sexp (translate_typedecl td)
   ) tydecls
 
-let print_stmts fmt (tydecls, stmts: typedecl list * stmt list) =
+let print_stmts fmt (scs: stmt_c list) = 
   Format.fprintf fmt "\n(set-logic ALL)@.";
-  print_typedecls fmt tydecls;
-  ignore @@
-  List.fold_left (print_stmt fmt) Ast.TCM.empty stmts  
+  List.iter (
+    fun {stmt; tds; uss} ->
+      if not (TDS.is_empty tds) then 
+        Format.fprintf fmt "\n%a@."
+          print_typedecls tds;
+      if not (TCM.is_empty uss) then 
+        Format.fprintf fmt "\n%a@."
+          print_tcm uss;
+      let se = translate_stmt stmt in 
+      Format.fprintf fmt "\n%a@." 
+        print_sexp se
+  ) scs
