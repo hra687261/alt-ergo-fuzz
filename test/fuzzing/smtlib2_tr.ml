@@ -106,8 +106,14 @@ let rec translate_expr (a: expr) =
     Atom (
       if r = 0. then "0.0" else
       if r < 0.
-      then Format.sprintf "(- %s)" (Float.to_string (-.r))
-      else Format.sprintf "%s" (Float.to_string r) 
+      then Format.sprintf "(- %s)" 
+          ( Str.replace_first 
+              (Str.regexp "\\.$") ".0" 
+              (Float.to_string (-.r)))
+      else Format.sprintf "%s" 
+          ( Str.replace_first 
+              (Str.regexp "\\.$") ".0" 
+              (Float.to_string r)) 
     )
       (*
       if r = 0.
