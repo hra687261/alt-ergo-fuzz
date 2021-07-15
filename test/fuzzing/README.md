@@ -22,15 +22,22 @@ Containing the marshalled bug_info of the statements whose satisfiability check 
 By running:
 
 ```
-./_build/default/test/fuzzing/rerun.exe ./test/fuzzing/crash_output/op_XXXXXXXXXX.txt
+./_build/default/test/fuzzing/rerun.exe ./test/fuzzing/crash_output/{sym}{num}_XXXXXXXXXX.txt
 ```
+Where {sym} is one of the following symbols: 
+  - i (internal crash)
+  - u (unsoundness) 
+  - t (timeout)
+  - o (other) 
+
+And {num} is the id of the crash
 
 The exception and the statements that caused the crash are read from the file ```op_XXXXXXXXXX.txt``` in which they were written after the crash, they are printed and then the solving loop is called on it to reproduce the bug.
 
 
 To rerun all of the outputs:
 ```
-for f in ./test/fuzzing/crash_output/crash_* ; do  ./_build/default/test/fuzzing/rerun.exe "$f"; done;
+for f in ./test/fuzzing/crash_output/[uiot]* ; do  ./_build/default/test/fuzzing/rerun.exe "$f"; done;
 ```
 
 
