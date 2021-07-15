@@ -717,3 +717,97 @@ let query env uf (ra, _, ex, _) =
 
 
 (* ################################################################ *)
+
+module Pp = Pp_utils
+
+let pr_vrb ?(p = "") fmt { classes; domains; seen_destr; seen_access; 
+                           seen_testers; selectors; size_splits; new_terms; pending_deds } =
+  (
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_e = Pp.addpref E.print_bis in
+    let print_ex = Pp.addpref Ex.print in
+    let print_x = Pp.addpref X.print in
+    let print_se =
+      Pp.print_set_lb (module SE) print_e
+    in
+
+    let module MXP = Pp.MapPrinter(MX) in
+    let module MHP = Pp.MapPrinter(MHs) in
+
+    let print_hs = Pp.addpref Hs.print in 
+    let print_hss = Pp.print_set_lb (module HSS) print_hs in
+    let print_dms = 
+      MXP.pr_lb print_x (Pp.print_doublet_lb (print_hss, print_ex))
+    in
+    let print_stst = 
+      MXP.pr_lb print_x print_hss
+    in
+    let print_eexl = 
+      Pp.print_list_lb (Pp.print_doublet_lb (print_e, print_ex))
+    in
+
+    let mhppr = 
+      MHP.pr_lb (Pp.addpref Hstring.print) print_eexl 
+    in
+    let pr_sels = MXP.pr_lb print_x mhppr in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%sclasses=" p1;
+    f fmt " %a;" 
+      (Pp.print_list_lb ~p:p2 print_se) 
+      classes;
+
+    f fmt "\n%sdomains=" p1;
+    f fmt " %a;" 
+      (print_dms ~p:p2) 
+      domains;
+
+    f fmt "\n%sseen_destr=" p1;
+    f fmt " %a;" 
+      (print_se ~p:p2) 
+      seen_destr;
+    f fmt "\n%sseen_access=" p1;
+    f fmt " %a;" 
+      (print_se ~p:p2) 
+      seen_access;
+
+    f fmt "\n%sseen_testers=" p1;
+    f fmt " %a;" 
+      (print_stst ~p:p2)
+      seen_testers;
+
+    f fmt "\n%sselectors=" p1;
+    f fmt " %a;" 
+      (pr_sels ~p:p2)
+      selectors;
+
+    f fmt "\n%ssize_splits=" p1;
+    f fmt " %a;" 
+      Numbers.Q.print 
+      size_splits;
+
+    f fmt "\n%snew_terms=" p1;
+    f fmt " %a;" 
+      (print_se ~p:p2) 
+      new_terms;
+
+    let pr1 = 
+      Sig_rel.print_literal (Pp.addpref X.print)
+    in
+    let pr2 = print_ex in
+    let pr3 = Pp.addpref Th_util.print_lit_origin in
+    let pt = 
+      Pp.print_triplet_lb (pr1, pr2, pr3)
+    in
+    let pl = 
+      Pp.print_list_lb pt
+    in
+    f fmt "\n%spending_deds=" p1;
+    f fmt " %a" (pl ~p:p2) pending_deds;
+
+    f fmt "\n%s}" p
+  )

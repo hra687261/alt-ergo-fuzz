@@ -130,6 +130,39 @@ let iter vec f =
   for i = 0 to size vec - 1 do
     f (get vec i)
   done
+
+let pr_vrb : 
+  (?p:string -> Format.formatter -> 'a -> unit) -> 
+  (?p:string -> Format.formatter -> 'a t -> unit) = 
+  fun pr ?(p = "") fmt {dummy; data; sz} ->
+  (
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "\n%s{" p;
+
+    f fmt "\n%sdummy =" p1;
+    f fmt "\n%a;" (pr ~p:p2) dummy;
+
+    f fmt "\n%sdata = %d %d" p1 sz (Array.length data);
+    f fmt " %a;" (
+      fun fmt arr ->  
+        let l = Array.length data in 
+        if sz > 100 || l > 100 
+        then 
+          f fmt "[|size=%d, length=%d|]" sz l
+        else 
+          Pp_utils.print_array_lb ~p:p2 pr fmt arr
+    ) data;
+
+    f fmt "\n%ssz =" p1;
+    f fmt " %d;" sz;
+
+    f fmt "\n%s}" p
+
+  )
+
 (*
 template<class V, class T>
 static inline void remove(V& ts, const T& t)

@@ -48,6 +48,8 @@ module type S = sig
   val query :
     Util.matching_env -> t -> theory -> (trigger_info * gsubst list) list
 
+  val print_vrb: ?p:string -> Format.formatter -> t -> unit
+
 end
 
 

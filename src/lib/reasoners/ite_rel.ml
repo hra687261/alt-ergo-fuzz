@@ -180,3 +180,67 @@ let new_terms _ = E.Set.empty
 let instantiate ~do_syntactic_matching:_ _ env _ _ = env, []
 
 let assume_th_elt t _ _ = t
+
+module Pp = Pp_utils
+
+let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt { pending_deds; guarded_pos_deds; guarded_neg_deds;
+                      assumed_pos_preds; assumed_neg_preds} ->
+    (
+      let f = Format.fprintf in
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      let module MEP = Pp.MapPrinter(ME) in
+      let module ME2P = Pp.MapPrinter(ME2) in
+
+      let print_e = Pp.addpref E.print_bis in
+
+      let print_ex = Pp.addpref Ex.print in
+
+      let print_dex = 
+        Pp.print_doublet_lb (print_e, print_e) 
+      in
+
+      let print_me2 =
+        ME2P.pr_lb print_dex print_ex
+      in
+      let print_se2 =
+        Pp.print_set_lb (module SE2) print_dex
+      in
+      let print_me_se2 =
+        MEP.pr_lb print_e print_se2
+      in
+      let print_me_eX =
+        MEP.pr_lb print_e print_ex
+      in
+
+      f fmt "%s{" p;
+
+      f fmt "\n%spending_deds=" p1;
+      f fmt " %a"
+        (print_me2 ~p:p2)
+        pending_deds;
+
+      f fmt "\n%sguarded_pos_deds=" p1;
+      f fmt " %a"
+        (print_me_se2 ~p:p2)
+        guarded_pos_deds;
+
+      f fmt "\n%sguarded_neg_deds=" p1;
+      f fmt " %a"
+        (print_me_se2 ~p:p2)
+        guarded_neg_deds;
+
+      f fmt "\n%sassumed_pos_preds=" p1;
+      f fmt " %a"
+        (print_me_eX ~p:p2)
+        assumed_pos_preds;
+
+      f fmt "\n%sassumed_neg_preds=" p1;
+      f fmt " %a"
+        (print_me_eX ~p:p2)
+        assumed_neg_preds;
+
+      f fmt "\n%s}" p
+    )

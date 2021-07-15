@@ -41,3 +41,5 @@ type lit_origin =
   | CS of theory * Numbers.Q.t
   | NCS of theory * Numbers.Q.t
   | Other
+
+val print_lit_origin : Format.formatter -> lit_origin -> unit

@@ -543,6 +543,419 @@ and print_triggers fmt trs =
     ) trs
 
 
+module Pp = Pp_utils
+
+let f = Format.fprintf
+
+
+let rec  print_list_bis fmt = print_list_sep_bis "," fmt
+
+and print_list_sep_bis sep fmt = function
+  | [] -> ()
+  | [t] -> print_bis fmt t
+  | t::l -> Format.fprintf fmt "%a%s%a" print_bis t sep (print_list_sep_bis sep) l
+
+and print_bis :
+  Format.formatter -> expr -> unit = 
+  fun fmt { f ; xs ; ty; bind; _ } ->
+  (
+    match f, xs with
+    (* Formulas *)
+    | Sy.Form form, xs ->
+      begin
+        match form, xs, bind with
+        | Sy.F_Unit _, [f1; f2], _ ->
+          fprintf fmt "(%a /\\ %a)" print_bis f1 print_bis f2
+
+        | Sy.F_Iff, [f1; f2], _ ->
+          fprintf fmt "(%a <-> %a)" print_bis f1 print_bis f2
+
+        | Sy.F_Xor, [f1; f2], _ ->
+          fprintf fmt "(%a xor %a)" print_bis f1 print_bis f2
+
+        | Sy.F_Clause _, [f1; f2], _ ->
+          fprintf fmt "(%a \\/ %a)" print_bis f1 print_bis f2
+
+        | Sy.F_Lemma, [], B_lemma { user_trs ; main ; name ; binders; _ } ->
+          (*if get_verbose () then*)
+          fprintf fmt "(lemma: %s forall %a%a %a)"
+            name
+            print_binders binders
+            print_triggers user_trs
+            print_bis main
+        (*else 
+          fprintf fmt "(lem %s)" name*)
+
+        | Sy.F_Skolem, [], B_skolem { main; binders; _ } ->
+          fprintf fmt "(<sko exists %a.> %a)"
+            print_binders binders print_bis main
+
+        | _ -> assert false
+      end
+
+    | Sy.Let, [] -> 
+      let x = match bind with B_let x -> x | _ -> assert false in
+      fprintf fmt
+        "(let%a %a = %a in %a)"
+        (fun fmt x -> ignore (fmt, x) (*
+           fprintf fmt
+             "(sko = %a)" print_bis x.let_sko*) ) x
+        Sy.print x.let_v print_bis x.let_e print_bis x.in_e
+
+    (* Literals *)
+    | Sy.Lit lit, xs -> 
+      begin
+        match lit, xs with
+        | Sy.L_eq, a::l -> 
+          fprintf fmt "(%a%a)"
+            print_bis a (fun fmt -> List.iter (fprintf fmt " = %a" print_bis)) l
+
+        | Sy.L_neg_eq, [a; b] ->
+          fprintf fmt "(%a <> %a)" print_bis a print_bis b
+
+        | Sy.L_neg_eq, a::l ->
+          fprintf fmt "distinct(%a%a)"
+            print_bis a (fun fmt -> List.iter (fprintf fmt ", %a" print_bis)) l
+
+        | Sy.L_built Sy.LE, [a;b] ->
+          fprintf fmt "(%a <= %a)" print_bis a print_bis b
+
+        | Sy.L_built Sy.LT, [a;b] ->
+          fprintf fmt "(%a < %a)" print_bis a print_bis b
+
+        | Sy.L_neg_built Sy.LE, [a; b] ->
+          fprintf fmt "(%a > %a)" print_bis a print_bis b
+
+        | Sy.L_neg_built Sy.LT, [a; b] ->
+          fprintf fmt "(%a >= %a)" print_bis a print_bis b
+
+        | Sy.L_neg_pred, [a] ->
+          fprintf fmt "(not %a)" print_bis a
+
+        | Sy.L_built (Sy.IsConstr hs), [e] ->
+          fprintf fmt "(%a ? %a)" print_bis e Hstring.print hs
+
+        | Sy.L_neg_built (Sy.IsConstr hs), [e] ->
+          fprintf fmt "not (%a ? %a)" print_bis e Hstring.print hs
+
+        | (Sy.L_built (Sy.LT | Sy.LE) | Sy.L_neg_built (Sy.LT | Sy.LE)
+          | Sy.L_neg_pred | Sy.L_eq | Sy.L_neg_eq
+          | Sy.L_built (Sy.IsConstr _)
+          | Sy.L_neg_built (Sy.IsConstr _)) , _ ->
+          assert false
+      end
+
+    | Sy.Op Sy.Get, [e1; e2] -> 
+      fprintf fmt "%a[%a]" print_bis e1 print_bis e2
+
+    | Sy.Op Sy.Set, [e1; e2; e3] -> 
+      fprintf fmt "%a[%a<-%a]" print_bis e1 print_bis e2 print_bis e3
+
+    | Sy.Op Sy.Concat, [e1; e2] -> 
+      fprintf fmt "%a%@%a" print_bis e1 print_bis e2
+
+    | Sy.Op Sy.Extract, [e1; e2; e3] -> 
+      fprintf fmt "%a^{%a,%a}" print_bis e1 print_bis e2 print_bis e3
+
+    | Sy.Op (Sy.Access field), [e] -> 
+      fprintf fmt "%a.%s" print_bis e (Hstring.view field)
+
+    | Sy.Op (Sy.Record), _ -> 
+      begin match ty with
+        | Ty.Trecord { Ty.lbs = lbs; _ } ->
+          assert (List.length xs = List.length lbs);
+          fprintf fmt "{";
+          ignore (List.fold_left2 (fun first (field,_) e ->
+              fprintf fmt "%s%s = %a"  (if first then "" else "; ")
+                (Hstring.view field) print_bis e;
+              false
+            ) true lbs xs);
+          fprintf fmt "}";
+        | _ -> assert false
+      end
+
+    (* TODO: introduce PrefixOp in the future to simplify this ? *)
+    | Sy.Op op, [e1; e2] when op == Sy.Pow || op == Sy.Integer_round ||
+                              op == Sy.Max_real || op == Sy.Max_int ||
+                              op == Sy.Min_real || op == Sy.Min_int ->
+      fprintf fmt "%a(%a,%a)" Sy.print f print_bis e1 print_bis e2
+
+    (* TODO: introduce PrefixOp in the future to simplify this ? *)
+    | Sy.Op (Sy.Constr hs), ((_::_) as l) -> 
+      fprintf fmt "%a(%a)" Hstring.print hs print_list l
+
+    | Sy.Op _, [e1; e2] -> 
+      fprintf fmt "(%a %a %a)" print_bis e1 Sy.print f print_bis e2
+
+    | Sy.Op Sy.Destruct (hs, grded), [e] -> 
+      fprintf fmt "%a#%s%a"
+        print_bis e (if grded then "" else "!") Hstring.print hs
+
+    | Sy.In(lb, rb), [t] -> 
+      fprintf fmt "(%a in %a, %a)" print_bis t Sy.print_bound lb Sy.print_bound rb
+
+    | _, [] -> 
+      fprintf fmt "%a" Sy.print f
+
+    | _, _ -> 
+      fprintf fmt "%a(%a)" Sy.print f print_list_bis xs
+  )
+
+let pr_ty = Pp.addpref Ty.print
+
+let pr_sy = Pp.addpref Sy.print
+
+let pr_tyi = Pp.addpref (
+    Pp.print_doublet (pr_ty, Pp.pr_int))
+
+let rec print_decl_kind :
+  string -> formatter -> decl_kind -> unit =
+  fun p fmt kind ->
+  (
+    let p1 = "  "^p in 
+    let p2 = "  "^p1 in 
+
+    match kind with 
+    | Dtheory -> 
+      f fmt "Dtheory" 
+    | Daxiom -> 
+      f fmt "Daxiom" 
+    | Dgoal -> 
+      f fmt "Dgoal" 
+    | Dpredicate e -> 
+      f fmt 
+        "Dpredicate \n%s(((\n%a\n%s)))"
+        p1 (print_vrb ~p:p2) e p1
+    | Dfunction e -> 
+      f fmt 
+        "Dfunction \n%s(((\n%a\n%s)))"
+        p1 (print_vrb ~p:p2) e p1 
+  )
+
+and print_quantified :
+  string -> Format.formatter -> quantified -> unit =
+  fun p fmt { name; main; toplevel; user_trs; binders; 
+              sko_v; sko_vty; loc; kind} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      f fmt "%s{" p;
+
+      f fmt "\n%sname =" p1;
+      f fmt " %s;" name; 
+
+      f fmt "\n%smain =" p1;
+      f fmt "\n%a;" (print_vrb ~p:p2) main ; 
+
+      f fmt "\n%stoplevel =" p1;
+      f fmt " %b;" toplevel;
+
+      f fmt "\n%suser_trs =" p1;
+      f fmt "%a;" print_triggers user_trs;
+
+      f fmt "\n%sbinders =" p1;
+      f fmt " %a;" (SMap.print pr_tyi) binders; 
+
+      f fmt "\n%ssko_v =" p1;
+      f fmt " %a;" (print_list_bis ~p:p1) sko_v;  
+
+      f fmt "\n%ssko_vty =" p1;
+      f fmt " %a;" Ty.print_list sko_vty; 
+
+      f fmt "\n%sloc =" p1;
+      f fmt " %a;" Loc.report loc; 
+
+      f fmt "\n%skind =" p1;
+      f fmt " %a;" (print_decl_kind p1) kind; 
+
+      f fmt "\n%s}" p
+    )
+
+and print_letin :
+  string -> Format.formatter -> letin -> unit =
+  fun p fmt { let_v; let_e; in_e; let_sko; is_bool} -> 
+  (
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%slet_v =" p1;
+    f fmt "\n%s%a;" p2 Sy.print let_v; 
+
+    f fmt "\n%slet_e =" p1;
+    f fmt "\n%a;" (print_vrb ~p:p2) let_e ;  
+
+    f fmt "\n%sin_e =" p1;
+    f fmt "\n%a;" (print_vrb ~p:p2) in_e ; 
+
+    f fmt "\n%slet_sko =" p1;
+    f fmt "\n%a;" (print_vrb ~p:p2) let_sko; 
+
+    f fmt "\n%sis_bool =" p1;
+    f fmt " %b;" is_bool; 
+
+    f fmt "\n%s}" p
+  )
+
+and print_bind_kind :
+  string -> Format.formatter -> bind_kind -> unit = 
+  fun p fmt bind ->
+  (
+    let p1 = "  "^p in 
+    match bind with 
+    | B_none -> 
+      f fmt "B_none"
+    | B_lemma quantified -> 
+      f fmt "B_lemma \n%a"
+        (print_quantified p1) quantified
+    | B_skolem quantified -> 
+      f fmt "B_skolem \n%a"
+        (print_quantified p1) quantified
+    | B_let letin -> 
+      f fmt "B_let \n%a"
+        (print_letin p1) letin
+  )
+
+and print_vrb :
+  ?p:string -> Format.formatter -> expr -> unit =
+  fun ?(p = "") fmt { f = sy; xs; ty; bind; tag; vars; vty; 
+                      depth; nb_nodes; pure; neg} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      let pr_svty = Pp.print_set_lb (module Ty.Svty) Pp.pr_int in
+      let module SMP = Pp.MapPrinter(SMap) in 
+
+      f fmt "%s{" p;
+
+      f fmt "\n%sf =" p1;
+      f fmt " %a;" Sy.print_verbose sy; 
+
+      f fmt "\n%sxs =" p1;
+      f fmt " %a;" (print_list_bis ~p:p2) xs; 
+
+      f fmt "\n%sty =" p1;
+      f fmt " %a;" Ty.print ty; 
+
+      f fmt "\n%sbind =" p1;
+      f fmt " %a;" (print_bind_kind p2) bind; 
+
+      f fmt "\n%stag =" p1;
+      f fmt " %d;" tag; 
+
+      f fmt "\n%svars =" p1;
+      f fmt " %a;" (SMP.pr_lb ~p:p2 pr_sy pr_tyi) vars; 
+
+      f fmt "\n%svty =" p1;
+      f fmt " %a;" (pr_svty ~p:p2) vty; 
+
+      f fmt "\n%sdepth =" p1;
+      f fmt " %d;" depth; 
+
+      f fmt "\n%snb_nodes =" p1;
+      f fmt " %d;" nb_nodes; 
+
+      f fmt "\n%spure =" p1;
+      f fmt " %b;" pure; 
+
+      f fmt "\n%sneg =" p1;
+      f fmt " %a;"
+        (Pp.print_opt_lb ~p:p2 (Pp.addpref print_bis))
+        neg;
+
+      f fmt "\n%s}" p
+    )
+
+and print_list_bis : ?p:tag -> formatter -> expr list -> unit =
+  Pp.print_list_lb (Pp.addpref print_bis)
+
+let print_strg : 
+  ?p:string -> Format.formatter -> semantic_trigger -> unit =
+  fun ?(p = "") fmt st -> 
+  (
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_e = Pp.addpref print_bis in 
+    let print_syb = Pp.addpref Sy.print_bound in 
+
+    match st with 
+    | Interval (e, syb1, syb2) ->
+      f fmt "%sInterval" p;
+      let prt = 
+        Pp.print_triplet_lb
+          ( print_e,
+            print_syb,
+            print_syb)
+      in
+      f fmt "\n%a" (prt ~p:p2) (e, syb1, syb2)
+
+    | MapsTo (v, e) ->
+      f fmt "%sMapsTo" p;
+      let prd = 
+        Pp.print_doublet_lb
+          (Pp.addpref Var.print, print_e)
+      in
+      f fmt "\n%a" (prd ~p:p2) (v, e)
+
+    | NotTheoryConst e ->
+      f fmt "%sNotTheoryConst" p;
+      f fmt "\n%a" (print_e ~p:p2) e
+
+    | IsTheoryConst e ->
+      f fmt "%sIsTheoryConst" p;
+      f fmt "\n%a" (print_e ~p:p2) e
+
+    | LinearDependency (e1, e2) ->
+      f fmt "%sLinearDependency" p;
+      let prd = 
+        Pp.print_doublet_lb
+          (print_e, print_e)
+      in
+      f fmt "\n%a" (prd ~p:p2) (e1, e2)
+  )
+
+let print_trg : 
+  ?p:string -> Format.formatter -> trigger -> unit =
+  fun ?(p = "") fmt 
+    {content; semantic; hyp; t_depth; from_user; guard} -> 
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      let print_e =  Pp.addpref print_bis in
+      let print_el = Pp.print_list_lb print_e  in
+      let print_eo = Pp.print_opt_lb print_e in
+      let print_st = print_strg in
+      let print_stl = Pp.print_list_lb print_st in
+
+      f fmt "%s{" p;
+
+      f fmt "\n%scontent =" p1;
+      f fmt "\n%a;" (print_el ~p:p2) content; 
+
+      f fmt "\n%ssemantic =" p1;
+      f fmt "\n%a;" (print_stl ~p:p2) semantic; 
+
+      f fmt "\n%shyp =" p1;
+      f fmt "\n%a;" (print_el ~p:p2) hyp;
+
+      f fmt "\n%st_depth =" p1;
+      f fmt " %d;" t_depth; 
+
+      f fmt "\n%sfrom_user =" p1;
+      f fmt " %b;" from_user; 
+
+      f fmt "\n%sguard =" p1;
+      f fmt "\n%a;" (print_eo ~p:p2) guard;
+
+      f fmt "\n%s}" p
+
+    )
+
 (** Some auxiliary functions *)
 
 let type_info t = t.ty
@@ -1308,14 +1721,14 @@ let (cache : t Msbty.t Msbt.t TMap.t ref) = ref TMap.empty
 
 let apply_subst =
   fun ((sbt, sbty) as s) f ->
-    let ch = !cache in
-    try TMap.find f ch |> Msbt.find sbt |> Msbty.find sbty
-    with Not_found ->
-      let nf = apply_subst_aux s f in
-      let c_sbt = try TMap.find f ch with Not_found -> Msbt.empty in
-      let c_sbty = try Msbt.find sbt c_sbt with Not_found -> Msbty.empty in
-      cache := TMap.add f (Msbt.add sbt (Msbty.add sbty nf c_sbty) c_sbt) ch;
-      nf
+  let ch = !cache in
+  try TMap.find f ch |> Msbt.find sbt |> Msbty.find sbty
+  with Not_found ->
+    let nf = apply_subst_aux s f in
+    let c_sbt = try TMap.find f ch with Not_found -> Msbt.empty in
+    let c_sbty = try Msbt.find sbt c_sbt with Not_found -> Msbty.empty in
+    cache := TMap.add f (Msbt.add sbt (Msbty.add sbty nf c_sbty) c_sbt) ch;
+    nf
 
 let apply_subst s t =
   if Options.get_timers() then
@@ -1549,7 +1962,11 @@ let skolemize { main = f; binders; sko_v; sko_vty; _ } =
       ) binders SMap.empty
   in
   let res = apply_subst_aux (sbt, Ty.esubst) f in
-  assert (is_ground res);
+  if not (is_ground res)
+  then (
+    Format.printf
+      "%a is not ground" print_silent res;
+    assert false); 
   res
 
 
@@ -1591,7 +2008,11 @@ let rec elim_let =
        ie_e due to simplification *)
     let let_sko = apply_subst (subst, Ty.esubst) let_sko in
     let let_sko = ground_sko let_sko in
-    assert (is_ground let_sko);
+    if not (is_ground let_sko)
+    then (
+      Format.printf
+        "%a is not ground" print let_sko;
+      assert false);
     let let_e = apply_subst (subst, Ty.esubst) let_e in
     if let_sko.nb_nodes >= let_e.nb_nodes && let_e.pure then
       let subst = SMap.add let_v let_e subst in
@@ -1619,7 +2040,11 @@ let elim_let ~recursive letin =
      (ie. Let-sko = let-in branche /\ ...)
      to have tail-calls in the mutually recursive functions above *)
   let res = elim_let ~recursive ~conjs:[] SMap.empty letin in
-  assert (is_ground res);
+  if not (is_ground res)
+  then (
+    Format.printf
+      "%a is not ground" print res;
+    assert false);
   res
 
 
@@ -2546,3 +2971,55 @@ let print_th_elt fmt t =
 let clear_hc () = 
   cache := TMap.empty;
   HC.empty ()
+
+let print_gform : 
+  ?p:string -> Format.formatter -> gformula -> unit =
+  fun ?(p = "") fmt { ff; nb_reductions; trigger_depth; age; 
+                      lem; origin_name; from_terms; mf; 
+                      gf; gdist; hdist; theory_elim} ->
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%sff=" p1;
+    f fmt "\n%s%a" p2 print_bis ff;
+
+    f fmt "\n%snb_reductions=" p1;
+    f fmt " %d;" nb_reductions;
+
+    f fmt "\n%strigger_depth=" p1;
+    f fmt " %d;" trigger_depth;
+
+    f fmt "\n%sage=" p1;
+    f fmt " %d;" age;
+
+    f fmt "\n%slem=" p1;
+    f fmt " %a"
+      (Pp.print_opt_lb ~p:p2 (Pp.addpref print_bis))
+      lem;
+
+    f fmt "\n%sorigin_name=" p1;
+    f fmt " %s" origin_name;
+
+    f fmt "\n%sfrom_terms=" p1;
+    f fmt " %a"
+      (Pp.print_list_lb ~p:p2 print_vrb)
+      from_terms;
+
+    f fmt "\n%smf=" p1;
+    f fmt " %b;" mf;
+
+    f fmt "\n%sgf=" p1;
+    f fmt " %b;" gf;
+
+    f fmt "\n%sgdist=" p1;
+    f fmt " %d;" gdist;
+
+    f fmt "\n%shdist=" p1;
+    f fmt " %d;" hdist;
+
+    f fmt "\n%stheory_elim=" p1;
+    f fmt " %b;" theory_elim;
+
+    f fmt "\n%s}" p

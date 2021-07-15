@@ -91,6 +91,7 @@ module type S = sig
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t
 
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
 end
 
 let print_view ?(lbl="") pr_elt fmt vw =
@@ -320,5 +321,10 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
     | EQ(a,b), _ -> [a;b]
     | PR a, _    -> [a]
     | BT (_,l), _ | EQ_LIST l, _ -> l
+
+  let pr_vrb ?(p = "") fmt  {neg; tpos; tneg; _} = 
+    Format.fprintf fmt 
+      "%s(atom, %b, %d, %d)" 
+      p neg tpos tneg
 
 end

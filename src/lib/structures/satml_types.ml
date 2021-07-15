@@ -16,7 +16,8 @@ module ME = Expr.Map
 module E = Expr
 module Hs = Hstring
 
-
+module Pp = Pp_utils
+let f = Format.fprintf
 
 module type ATOM = sig
 
@@ -103,6 +104,12 @@ module type ATOM = sig
 
   module Set : Set.S with type elt = atom
   module Map : Map.S with type key = atom
+
+  val pr_atom_vrb : ?p:string -> Format.formatter -> atom -> unit
+  val pr_clause_vrb : ?p:string -> Format.formatter -> clause -> unit
+  val pr_var_vrb : ?p:string -> Format.formatter -> var -> unit
+  val print_env_vrb : ?p:string -> Format.formatter -> hcons_env -> unit
+
 end
 
 (*
@@ -416,6 +423,190 @@ module Atom : ATOM = struct
   module Set = Set.Make(struct type t=atom let compare=cmp_atom end)
   module Map = Map.Make(struct type t=atom let compare=cmp_atom end)
 
+  let is_dummy_atom : atom -> bool = 
+    fun { watched = {data; sz;_} ; is_true; timp; is_guard; aid; _} ->
+    (
+      aid = -102 &&  
+      timp == 0 &&
+      is_true == false &&
+      is_guard == false &&
+      Array.length data = 0 &&
+      sz = 0
+    )
+
+  let is_dummy_clause : clause -> bool = 
+    fun {name; atoms = {data; sz;_}; activity; removed; learnt; cpremise; _} ->
+    (
+      name == "" &&
+      activity == -1. &&
+      removed == false &&
+      learnt == false &&
+      cpremise == [] &&
+      Array.length data = 0 &&
+      sz = 0
+    )
+
+  let is_dummy_var : var -> bool = 
+    fun { vid; weight; sweight; seen; 
+          level; index; reason; vpremise; _} ->
+      (
+        vid = -101 &&
+        level = -1 &&
+        index = -1 &&
+        reason == None &&
+        weight == -1. &&
+        sweight = 0 &&
+        seen == false &&
+        vpremise == []
+      )
+
+  let rec pr_atom_vrb :
+    ?p:string -> Format.formatter -> atom -> unit =
+    fun ?(p = "") fmt ({ var; lit; neg; watched;
+                         is_true; timp; is_guard; aid} as a) ->
+      (
+        if is_dummy_atom a 
+        then
+          f fmt "%sdummy_atom" p
+        else
+          let p1 = p^"  " in
+          let p2 = p1^"  " in
+
+          f fmt "\n%s{" p;
+
+          f fmt "\n%svar =" p1;
+          f fmt " %a" (pr_var_vrb ~p:p2) var;
+
+          f fmt "\n%slit =" p1;
+          f fmt " %a" E.print lit;
+
+          f fmt "\n%sneg =" p1;
+          f fmt "\n%s%a" p2 Debug.atom neg;
+
+          f fmt "\n%swatched =" p1; (*
+          f fmt " %a" 
+            (Vec.pr_vrb ~p:p2 (Pp.addpref Debug.clause)) watched;
+            *)
+          ignore watched; (* * *)
+
+          f fmt "\n%sis_true =" p1;
+          f fmt " %b" is_true;
+
+          f fmt "\n%stimp =" p1;
+          f fmt " %d;" timp;
+          f fmt "\n%sis_guard =" p1;
+          f fmt " %b;" is_guard;
+          f fmt "\n%said =" p1;
+          f fmt " %d;" aid;
+
+          f fmt "\n%s}" p
+      )
+
+  and pr_clause_vrb :
+    ?p:string -> Format.formatter -> clause -> unit =
+    fun ?(p = "") fmt ({ name; atoms; activity; removed;
+                         learnt; cpremise; form} as c) ->
+      (
+        if is_dummy_clause c
+        then
+          f fmt "%sdummy_clause" p  
+        else
+          let p1 = p^"  " in
+          let p2 = p1^"  " in
+
+          f fmt "\n%s{clause" p;
+
+          f fmt "\n%sname =" p1;
+          f fmt " %s;" name;
+          f fmt "\n%satoms =" p1;
+          (*f fmt " %a" (Vec.pr_vrb ~p:p2 pr_atom_vrb) atoms;*)
+          f fmt "\n%s%a" p2 Debug.atoms_vec atoms;
+
+          f fmt "\n%sactivity =" p1;
+          f fmt " %f;" activity;
+          f fmt "\n%sremoved =" p1;
+          f fmt " %b;" removed;
+
+          f fmt "\n%slearnt =" p1;
+          f fmt " %b;" learnt;
+          f fmt "\n%scpremise =" p1;
+          f fmt " %a" 
+            (Pp.print_list_lb ~p:p2 (Pp.addpref Debug.clause)) 
+            cpremise;
+          f fmt "\n%sform =" p1;
+          f fmt "\n%s%a" p2 E.print form;
+
+          f fmt "\n%s}" p
+      )
+
+  and pr_var_vrb : 
+    ?p:string -> Format.formatter -> var -> unit =
+    fun ?(p = "") fmt ({ vid; pa; na; weight; sweight; seen; 
+                         level; index; reason; vpremise} as v)  ->
+      (
+        if is_dummy_var v
+        then
+          f fmt "%sdummy_var" p
+        else
+          let p1 = p^"  " in
+          let p2 = p1^"  " in
+
+          f fmt "\n%s{var" p;
+
+          f fmt "\n%svid =" p1;
+          f fmt " %d;" vid;
+
+          f fmt "\n%spa =" p1;
+          f fmt "\n%s%a;" p2 Debug.atom pa;        
+          f fmt "\n%sna =" p1;
+          f fmt "\n%s%a;" p2 Debug.atom na;    
+
+          f fmt "\n%sweight =" p1;
+          f fmt " %f;" weight;
+
+          f fmt "\n%ssweight =" p1;
+          f fmt " %d;" sweight;        
+          f fmt "\n%sseen =" p1;
+          f fmt " %b;" seen;        
+          f fmt "\n%slevel =" p1;
+          f fmt " %d;" level;
+
+          f fmt "\n%sindex =" p1;
+          f fmt " %d;" index;        
+          f fmt "\n%sreason =" p1;
+          f fmt " %a;" 
+            ( Pp.print_opt_lb ~p:p2  
+                (Pp.addpref Debug.clause)) reason;
+          (*(Pp.print_opt ~p:p2 pr_clause_vrb) reason;*)
+          f fmt "\n%svpremise =" p1;
+          f fmt " %a;" 
+            ( Pp.print_list_lb ~p:p2
+                (Pp.addpref Debug.clause)) vpremise;
+          (*(Pp.print_list ~p:p2 pr_clause_vrb) vpremise;*)
+
+          f fmt "\n%s}" p
+      )
+
+  let print_env_vrb : 
+    ?p:string -> Format.formatter -> hcons_env -> unit =
+    fun ?(p = "") fmt {tbl; cpt} ->
+    (
+      let p1 = p^"  " in 
+      let p2 = p1^"  " in
+      let module HTP = Pp.HTPrinter(HT) in 
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%stbl =" p1;
+      f fmt " %a" (HTP.pr_lb (Pp.addpref E.print_bis) pr_var_vrb ~p:p2) tbl;
+
+      f fmt "\n%scpt =" p1;
+      f fmt " ref %d;" !cpt;
+
+      f fmt "\n%s}" p
+    )
+
+
 end
 
 (******************************************************************************)
@@ -468,6 +659,16 @@ module type FLAT_FORMULA = sig
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t
+
+  val pr_view_vrb :
+    ?p:string -> Format.formatter -> view -> unit
+
+  val pr_vrb : 
+    ?p:string -> Format.formatter -> t -> unit
+
+  val print_env_vrb : 
+    ?p:string -> Format.formatter -> hcons_env -> unit
+
 end
 
 module Flat_Formula : FLAT_FORMULA = struct
@@ -964,6 +1165,72 @@ module Flat_Formula : FLAT_FORMULA = struct
   module Set = Set.Make(struct type t'=t type t=t' let compare=compare end)
   module Map = Map.Make(struct type t'=t type t=t' let compare=compare end)
 
+  let rec pr_view_vrb :
+    ?p:string -> Format.formatter -> view -> unit =
+    fun ?(p = "") fmt view ->
+    (
+      let p1 = p^"  " in
+
+      let prl = 
+        Pp.print_list_lb
+          pr_vrb
+      in
+      match view with
+      | UNIT atom ->
+        f fmt "UNIT";
+        f fmt "%a" (Atom.pr_atom_vrb ~p:p1) atom
+      | AND tl ->
+        f fmt "AND";
+        f fmt "%a" (prl ~p:p1) tl
+      | OR tl ->
+        f fmt "OR";
+        f fmt "%a" (prl ~p:p1) tl
+    )
+
+  and pr_vrb : 
+    ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt {view; tag; neg} -> 
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%sview=" p1;
+      f fmt " %a;" (pr_view_vrb ~p:p2) view;
+
+      f fmt "\n%stag=" p1;
+      f fmt " %d;" tag;
+
+      f fmt "\n%smf=" p1;
+      f fmt " neg;" (*(pr_vrb ~p:p2) neg*);
+      ignore neg;
+
+      f fmt "\n%s}" p
+    )
+
+  let print_env_vrb : 
+    ?p:string -> Format.formatter -> hcons_env -> unit =
+    fun ?(p = "") fmt {tbl; cpt; atoms} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      let module HTP = Pp.HTPrinter(HT) in 
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%stbl =" p1;
+      f fmt " %a" (HTP.pr_lb pr_vrb pr_vrb ~p:p2) tbl;
+
+      f fmt "\n%scpt =" p1;
+      f fmt " ref %d;" !cpt;
+
+      f fmt "\n%satoms =" p1;
+      f fmt " %a;" (Atom.print_env_vrb ~p:p2) atoms;
+
+      f fmt "\n%s}" p
+    )
 end
 
 module Proxy_formula = struct

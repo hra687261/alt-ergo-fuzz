@@ -223,7 +223,12 @@ module Sim_Wrap = struct
       [LR.mkv_eq r1 r2, true, Th_util.CS (Th_util.Th_arith, s)]
     in
     let aux_1 uf x (info,_) acc =
-      assert (X.type_info x == Ty.Tint);
+      if not (X.type_info x == Ty.Tint) then begin 
+        Format.printf 
+          "\n (X.type_info x == Ty.Tint) = false \n x = %a\n ty = %a@." 
+          X.print x Ty.print (X.type_info x);
+        assert false 
+      end;
       match finite_non_point_dom info with
       | Some s when
           (Sim.Core.equals_optimum info.Sim.Core.value info.Sim.Core.mini ||
@@ -2181,7 +2186,12 @@ let domain_matching _lem_name tr sbt env uf optimized =
 
            | E.Interval (t, lb, ub) ->
              let tt = E.apply_subst sbt t in
-             assert (E.is_ground tt);
+             if not (E.is_ground tt)
+             then (
+               Format.printf
+                 "%a is not ground" E.print tt;
+               assert false 
+             );
              let uf, _ = Uf.add uf tt in
              let rr, _ex = Uf.find uf tt in
              let p = poly_of rr in
@@ -2489,3 +2499,279 @@ let instantiate ~do_syntactic_matching env uf selector =
       Timers.exec_timer_pause Timers.M_Arith Timers.F_instantiate;
       raise e
   else instantiate ~do_syntactic_matching env uf selector
+
+module Pp = Pp_utils
+
+module MEP = Pp.MapPrinter(ME) 
+
+let f = Format.fprintf
+
+let print_q = Pp.addpref Q.print
+
+let print_dq = Pp.print_doublet_lb (print_q, print_q)
+
+let print_e = Pp.addpref E.print_bis
+
+let print_se = Pp.print_set_lb (module SE) print_e
+
+let print_sc_b : 
+  ?p:string -> Format.formatter -> Sim.Core.bound -> unit = 
+  fun ?(p = "") fmt b -> 
+  (
+    let pr_opt = Pp.print_opt_lb print_dq in
+    f fmt "\n%a" (pr_opt ~p) b
+  )
+
+let print_sc_vs : 
+  ?p:string -> Format.formatter -> Sim.Core.value_status -> unit = 
+  fun ?(p = "") fmt e -> 
+  (
+    match e with 
+    | ValueOK -> 
+      f fmt "%sValueOK" p
+    | LowerKO ->
+      f fmt "%sLowerKO" p
+    | UpperKO ->
+      f fmt "%sUpperKO" p
+  )
+
+let print_sc_r2 : 
+  ?p:string -> Format.formatter -> Sim.Core.R2.t -> unit = 
+  fun ?(p = "") fmt r2 -> 
+  (
+    print_dq ~p fmt r2
+  )
+
+let print_sc_vi : 
+  ?p:string -> Format.formatter -> Sim.Core.var_info -> unit = 
+  fun ?(p = "") fmt  { mini; maxi; min_ex; max_ex; 
+                       value; vstatus; empty_dom } ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+      let pr_ex =
+        Pp.addpref Ex.print
+      in
+
+      f fmt "%s{" p;
+
+      f fmt "\n%smini = " p1;
+      f fmt "\n%a;" (print_sc_b ~p:p2) mini;
+
+      f fmt "\n%smaxi = " p1;
+      f fmt "\n%a;" (print_sc_b ~p:p2) maxi;
+
+      f fmt "\n%smin_ex = " p1;
+      f fmt "\n%a;" (pr_ex ~p:p2) min_ex;
+
+      f fmt "\n%smax_ex = " p1;
+      f fmt "\n%a;" (pr_ex ~p:p2) max_ex;
+
+      f fmt "\n%svalue = " p1;
+      f fmt "\n%a;" (print_sc_r2 ~p:p2) value;
+
+      f fmt "\n%svstatus = " p1;
+      f fmt "\n%a;" (print_sc_vs ~p:p2) vstatus;
+
+      f fmt "\n%sempty_dom = " p1;
+      f fmt " %b;" empty_dom;
+
+      f fmt "\n%s}" p
+    )
+
+let print_sc_ss : 
+  ?p:string -> Format.formatter -> Sim.Core.simplex_status -> unit = 
+  fun ?(p = "") fmt e ->
+  (
+    match e with 
+    | UNK ->
+      f fmt "UNK"
+    | UNSAT r -> 
+      f fmt "UNSAT";
+      f fmt  "\n%s%a" p X.print r 
+    | SAT ->
+      f fmt "SAT"
+  )
+
+let print_sc : ?p:string -> Format.formatter -> Sim.Core.t -> unit = 
+  fun ?(p = "") fmt { basic; non_basic; slake; fixme; is_int;
+                      status; debug; check_invs; nb_pivots} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+      let print_sc_p = 
+        Pp.addpref Sim.Core.P.print
+      in
+      let print_sc_sx =
+        Pp.print_set_lb (module Sim.Core.SX) (Pp.addpref X.print)
+      in
+      let pr_vi_pt = 
+        Pp.print_doublet_lb (print_sc_vi, print_sc_p)
+      in
+      let pr_vi_sxt = 
+        Pp.print_doublet_lb (print_sc_vi, print_sc_sx)
+      in
+      let module MXP = Pp.MapPrinter(Sim.Core.MX) in 
+      let pr_mx1 =
+        MXP.pr_lb (Pp.addpref X.print) pr_vi_pt
+      in
+      let pr_mx2 =
+        MXP.pr_lb (Pp.addpref X.print) pr_vi_sxt
+      in
+      let pr_mx3 =
+        MXP.pr_lb (Pp.addpref X.print) print_sc_p
+      in
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%sbasic =" p1;
+      f fmt " %a;" (pr_mx1 ~p:p2) basic;
+
+      f fmt "\n%snon_basic =" p1;
+      f fmt " %a;" (pr_mx2 ~p:p2) non_basic;
+
+      f fmt "\n%sslake =" p1;
+      f fmt " %a;" (pr_mx3 ~p:p2) slake;
+
+      f fmt "\n%sfixme =" p1;
+      f fmt " %a;" (print_sc_sx ~p:p2) fixme;
+
+      f fmt "\n%sis_int =" p1;
+      f fmt " %b;" is_int;
+
+      f fmt "\n%sstatus =" p1;
+      f fmt " %a;" (print_sc_ss ~p:p2) status;
+
+      f fmt "\n%sdebug =" p1;
+      f fmt " %d;" debug;
+
+      f fmt "\n%scheck_invs =" p1;
+      f fmt " %b;" check_invs;
+
+      f fmt "\n%snb_pivots = ref" p1;
+      f fmt " %d;" !nb_pivots;
+
+      f fmt "\n%s}" p
+    )
+
+let pr_vrb ?(p = "") fmt  { inequations; monomes; polynomes; used_by;
+                            known_eqs; improved_p; improved_x; classes; 
+                            size_splits; int_sim; rat_sim; new_uf; 
+                            th_axioms; linear_dep; syntactic_matching;} =
+  let p1 = p^"  " in
+  let p2 = p1^"  " in
+
+  let print_i = Pp.addpref I.print in
+  let print_p = Pp.addpref P.print in
+  let module MP0P = Pp.MapPrinter(MP0) in
+  let print_mp0 =
+    MP0P.pr_lb print_p print_i
+  in
+  let print_sp =
+    Pp.print_set_lb (module SP) print_p 
+  in
+
+  let module MXP = Pp.MapPrinter(MX) in
+  let print_x = Pp.addpref X.print in
+  let print_sxh = 
+    Pp.print_set_lb (module SX) print_x
+  in
+
+  let print_ineqs = 
+    MEP.pr_lb print_e 
+      (Pp.addpref Oracle.print_inequation)
+  in
+  let pd =
+    Pp.print_doublet_lb
+      (Pp.addpref E.print_th_elt, Pp.addpref Ex.print)
+  in 
+  let print_axioms = 
+    MEP.pr_lb print_e pd
+  in
+  let print_lin_deps = 
+    MEP.pr_lb print_e print_se
+  in
+
+  let pd1 = 
+    fun ?(p = "" ) ->
+      Pp.print_doublet_lb ~p 
+        (print_i, print_sxh)
+  in 
+
+
+  let pl1 =
+    Pp.print_list_lb Matching_types.print_gsubst
+  in
+  let pd2 =
+    Pp.print_doublet_lb 
+      (Matching_types.print_trigger_info, pl1) 
+  in
+  let pl2 = Pp.print_list_lb pd2 in 
+  let pr_sm = Pp.print_list_lb pl2 in 
+
+
+  f fmt "%s{" p;
+
+  f fmt "\n%sinequations=" p1;
+  f fmt " %a" 
+    (print_ineqs ~p:p2) 
+    inequations;
+
+  f fmt "\n%smonomes=" p1;
+  f fmt " %a" 
+    (MXP.pr_lb print_x pd1 ~p:p2) 
+    monomes;
+
+  f fmt "\n%spolynomes=" p1;
+  f fmt " %a" 
+    (print_mp0 ~p:p2) 
+    polynomes;
+
+  f fmt "\n%sused_by=" p1;
+  f fmt " %a" 
+    (MXP.pr_lb print_x print_se ~p:p2) 
+    (MX0.map (fun v -> v.pow) used_by);
+
+  f fmt "\n%sknown_eqs=" p1;
+  f fmt " %a" 
+    (print_sxh ~p:p2) 
+    known_eqs;
+
+  f fmt "\n%simproved_p=" p1;
+  f fmt " %a" 
+    (print_sp ~p:p2) 
+    improved_p;
+
+  f fmt "\n%simproved_x=" p1;
+  f fmt " %a" 
+    (print_sxh ~p:p2) 
+    improved_x;
+
+  f fmt "\n%sclasses=" p1;
+  f fmt " %a" 
+    (Pp.print_list_lb ~p:p2 print_se) 
+    classes;
+
+  f fmt "\n%ssize_splits=" p1;
+  f fmt " %a" Q.print size_splits;
+
+  f fmt "\n%sint_sim=" p1;
+  f fmt " %a" (print_sc ~p:p2) int_sim;
+
+  f fmt "\n%srat_sim=" p1;
+  f fmt " %a" (print_sc ~p:p2) rat_sim;
+
+  f fmt "\n%snew_uf=" p1;
+  f fmt " %a" (Uf.pr_vrb ~p:p2) new_uf;
+
+  f fmt "\n%sth_axioms=" p1;
+  f fmt " %a" (print_axioms ~p:p2) th_axioms;
+
+  f fmt "\n%slinear_dep=" p1;
+  f fmt " %a" 
+    (print_lin_deps ~p:p2) linear_dep;
+
+  f fmt "\n%ssyntactic_matching=" p1;
+  f fmt " %a" (pr_sm ~p:p2) syntactic_matching;
+
+  f fmt "\n%s}" p

@@ -56,6 +56,8 @@ module type S = sig
   val query :
     Util.matching_env -> t -> theory -> (trigger_info * gsubst list) list
 
+  val print_vrb: ?p:string -> Format.formatter -> t -> unit
+
 end
 
 module type Arg = sig
@@ -697,4 +699,37 @@ module Make (X : Arg) : S with type theory = X.t = struct
 
   let terms_info env = env.info, env.fils
 
+  module Pp = Pp_utils
+
+  let print_vrb ?(p = "") fmt {fils; info; max_t_depth; pats} = 
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let module MEP = Pp.MapPrinter(ME) in
+    let module MSP = Pp.MapPrinter(Symbols.Map) in
+
+    f fmt "\n%s{" p; 
+    let print_e = Pp.addpref E.print_bis in
+    let print_el = Pp.print_list_lb ~ind:true print_e in
+    let pr_me1 = MEP.pr_lb print_e print_el in 
+    let pr_ms1 = MSP.pr_lb (Pp.addpref Symbols.print) pr_me1 in 
+    let pr_me_pi = MEP.pr_lb print_e Matching_types.print_info in 
+
+    f fmt "\n%sfils=" p1;
+
+    f fmt " %a" (pr_ms1 ~p:p2) fils; 
+
+    f fmt "\n%sinfo=" p1;
+    f fmt " %a" (pr_me_pi ~p:p2) info; 
+
+    f fmt "\n%smax_t_depth=" p1;
+    f fmt " %d;" max_t_depth; 
+
+    f fmt "\n%spats=" p1;
+    f fmt " %a;" 
+      (Pp.print_list_lb Matching_types.print_trigger_info ~p:p2)
+      pats; 
+
+    f fmt "\n%s}" p
 end

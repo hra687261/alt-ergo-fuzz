@@ -35,7 +35,12 @@ let compare a b =
   let c = a.id - b.id in
   if c <> 0 then c
   else begin
-    assert (Hstring.equal a.hs b.hs);
+    if not (Hstring.equal a.hs b.hs)
+    then ( 
+      Format.printf 
+        "\nHstring.equal a.hs b.hs = false\na.hs = %a\nb.hs = %a\n@." 
+        Hstring.print a.hs Hstring.print b.hs
+    );
     c
   end
 

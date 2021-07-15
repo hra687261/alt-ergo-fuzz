@@ -184,4 +184,62 @@ module Make (Th : Theory.S) = struct
             SE.add (formula_of_atom env a) acc) r SE.empty
       in
       raise (Bottom (Ex.make_deps r, [], env))
+
+  module Pp = Pp_utils
+
+  let print_env ?(p = "") fmt { sat; assumed; proxies; inv_proxies; 
+                            hcons_env; decisions; pending;} =
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_e = Pp.addpref E.print_bis in
+    let module MEP = Pp.MapPrinter(ME) in
+    let print_se = Pp.print_set_lb (module E.Set) print_e in
+
+    let module MAP = Pp.MapPrinter(MA) in
+    let print_a = 
+      Atom.pr_atom_vrb
+    in
+
+    let print_db1 = 
+      Pp.print_doublet_lb (Pp.pr_int, Pp.addpref E.print)
+    in 
+    let print_l1 = Pp.print_list_lb print_db1 in
+    let print_db2 =
+      Pp.print_doublet_lb (E.print_gform, Pp.addpref Ex.print)
+    in
+    let print_l2 = Pp.print_list_lb print_db2 in
+    let print_l2 = Pp.print_list_lb print_l2 in
+
+
+
+    f fmt "\n%s{" p;
+
+    f fmt "\n%ssat =" p1;
+    f fmt " %a" (SAT.print_env ~p:p2) sat;
+
+    f fmt "\n%sassumed =" p1;
+    f fmt " %a;" (print_se ~p:p2) assumed;
+
+    f fmt "\n%sproxies =" p1;
+    f fmt " %a" (MEP.pr_lb print_e Atom.pr_atom_vrb ~p:p2) proxies;
+
+    f fmt "\n%sinv_proxies =" p1;
+    f fmt " %a" 
+      (MAP.pr_lb print_a (Pp.addpref E.print_bis) ~p:p2) 
+      inv_proxies;
+
+    f fmt "\n%shcons_env =" p1;
+    f fmt " %a" 
+      (Atom.print_env_vrb ~p:p2) hcons_env;
+
+    f fmt "\n%sdecisions =" p1;
+    f fmt " %a" (print_l1 ~p:p2) decisions;
+
+    f fmt "\n%spending =" p1;
+    f fmt " %a" (print_l2 ~p:p2) pending;
+
+    f fmt "\n%s}" p
+
 end

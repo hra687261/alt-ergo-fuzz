@@ -42,6 +42,9 @@ module Sy = Symbols
 
 module CC_X = Ccx.Main
 
+module Pp = Pp_utils
+let f = Format.fprintf
+
 module type S = sig
   type t
 
@@ -74,6 +77,8 @@ module type S = sig
     int -> int -> t * Sig_rel.instances
 
   val get_assumed : t -> E.Set.t
+
+  val pr_brv : ?p:string -> Format.formatter -> t -> unit
 
 end
 
@@ -745,6 +750,88 @@ module Main_Default : S = struct
 
   let get_assumed env = env.assumed_set
 
+  let pr_brv : ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt { assumed_set; assumed; cs_pending_facts;
+                        terms; gamma; gamma_finite; choices} -> 
+      (
+        let p1 = p^"  " in 
+        let p2 = p1^"  " in 
+
+        let print_e = Pp.addpref E.print_bis in
+        let print_se = Pp.print_set_lb (module E.Set) print_e in
+
+        let print_eii = Pp.addpref (
+          Pp.print_triplet (
+            Pp.addpref E.print,
+            Pp.pr_int,
+            Pp.pr_int
+          ))
+        in
+        let print_eiil = 
+          Pp.print_list_lb print_eii
+        in
+        let print_eiill = 
+          Pp.print_list_lb print_eiil
+        in
+        let print_eexii = Pp.addpref (
+          Pp.print_quadruplet (
+            Pp.addpref E.print,
+            Pp.addpref Ex.print,
+            Pp.pr_int,
+            Pp.pr_int
+          ))
+        in
+        let print_eexiil = 
+          Pp.print_list_lb print_eexii
+        in
+        let print_eexiill = 
+          Pp.print_list_lb print_eexiil
+        in
+
+        let print_xv =
+          fun ?(p = "") ->
+            A.print_view ~lbl:p X.print 
+        in
+        let print_choice_sign ?(p = "") fmt e = 
+          match e with 
+          | CNeg -> 
+            f fmt "CNeg"
+          | CPos x -> 
+            f fmt "CPos";
+            f fmt "\n%a" (Ex.print_exp_vrb ~p) x
+        in
+        let print_q =
+          Pp.print_quadruplet_lb
+            ( print_xv, 
+              Pp.addpref Th_util.print_lit_origin,
+              print_choice_sign,
+              Pp.addpref Ex.print)
+        in
+        let print_ql = 
+          Pp.print_list_lb print_q 
+        in
+        f fmt "\n%s{" p;
+
+        f fmt "\n%sassumed_set =" p1;
+        f fmt " %a;" (print_se ~p:p2) assumed_set;
+        f fmt "\n%sassumed =" p1;
+        f fmt " %a;" (print_eiill ~p:p2) assumed;
+        f fmt "\n%scs_pending_facts =" p1;
+        f fmt " %a;" (print_eexiill ~p:p2) cs_pending_facts;
+
+
+        f fmt "\n%sterms =" p1;
+        f fmt " %a;" (print_se ~p:p2) terms;
+        f fmt "\n%sgamma =" p1;
+        f fmt " %a;" (CC_X.pr_vrb ~p:p2) gamma;
+        f fmt "\n%sgamma_finite =" p1;
+        f fmt " %a;" (CC_X.pr_vrb ~p:p2) gamma_finite;
+        f fmt "\n%schoices =" p1;
+        f fmt " %a;" (print_ql ~p:p2) choices;
+
+        f fmt "\n%s}" p
+      )
+
 end
 
 module Main_Empty : S = struct
@@ -780,4 +867,22 @@ module Main_Empty : S = struct
   let assume_th_elt e _ _ = e
   let theories_instances ~do_syntactic_matching:_ _ e _ _ _ = e, []
   let get_assumed env = env.assumed_set
+
+  let pr_brv : ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt {assumed_set} -> 
+    (
+      let p1 = p^"  " in 
+      let p2 = p1^"  " in 
+
+      let print_e = Pp.addpref E.print_bis in
+      let print_se = Pp.print_set_lb (module E.Set) print_e in
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%sassumed_set =" p1;
+      f fmt " %a;" (print_se ~p:p2) assumed_set;
+
+      f fmt "\n%s}" p
+    )
+
 end

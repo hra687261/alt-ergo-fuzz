@@ -88,6 +88,9 @@ module type S = sig
 
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t
+
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
+
 end
 
 val print_view :

@@ -87,6 +87,8 @@ module type S = sig
     Matching_types.info Expr.Map.t * Expr.t list Expr.Map.t Symbols.Map.t ->
     t -> (Expr.t -> Expr.t -> bool) -> t * instances
 
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit 
+
 end
 
 module Main : S = struct
@@ -777,5 +779,26 @@ module Main : S = struct
     in
     Uf.term_repr env.uf t
 
+  let pr_vrb : 
+    ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt {use; uf; relation} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+      let f = Format.fprintf in 
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%suse=" p1;
+      f fmt " %a;" (Use.pr_vrb ~p:p2) use;
+
+      f fmt"\n%suf =" p1; 
+      f fmt " %a;" (Uf.pr_vrb ~p:p2) uf;
+
+      f fmt "\n%srelation =" p1; 
+      f fmt " %a;" (Rel.pr_vrb ~p:p2 ) relation;
+
+      f fmt "\n%s}" p
+    )
 
 end

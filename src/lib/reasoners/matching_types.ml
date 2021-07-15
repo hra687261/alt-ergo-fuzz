@@ -61,11 +61,109 @@ type info = {
   but : bool  (* le terme a-t-il un lien avec le but final de la PO *)
 }
 
-val print_info : 
-  ?p:string -> Format.formatter -> info -> unit
+module Pp = Pp_utils
 
-val print_trigger_info : 
-  ?p:string -> Format.formatter -> trigger_info -> unit
+let f = Format.fprintf
 
-val print_gsubst : 
-  ?p:string -> Format.formatter -> gsubst -> unit 
+let print_e = Pp.addpref Expr.print_bis 
+
+let print_info : 
+  ?p:string -> Format.formatter -> info -> unit =
+  fun ?(p = "") fmt {age; lem_orig; t_orig; but} -> 
+  (
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_el = Pp.print_list_lb print_e in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%sage=" p1;
+    f fmt " %d;" age;
+
+    f fmt "\n%slem_orig=" p1;
+    f fmt " %a;" 
+      (print_el ~p:p2) lem_orig;
+
+    f fmt "\n%st_orig=" p1;
+    f fmt " %a;" 
+      (print_el ~p:p2) t_orig;
+
+    f fmt "\n%sbut=" p1;
+    f fmt " %b;" but;
+
+    f fmt "\n%s}" p
+  )
+
+let print_trigger_info : 
+  ?p:string -> Format.formatter -> trigger_info -> unit =
+  fun ?(p = "") fmt { trigger; trigger_age; trigger_orig; trigger_formula; 
+                      trigger_dep; trigger_increm_guard} -> 
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%strigger=" p1;
+    f fmt " %a" (Expr.print_trg ~p:p2) trigger;
+
+    f fmt "\n%strigger_age=" p1;
+    f fmt "%d" trigger_age;
+
+    f fmt "\n%strigger_orig=" p1;
+    f fmt " %a" 
+      (Expr.print_vrb ~p:p2) trigger_orig;  
+
+    f fmt "\n%strigger_formula=" p1;
+    f fmt " %a" 
+      (Expr.print_vrb ~p:p2) trigger_formula;  
+
+    f fmt "\n%strigger_dep=" p1;
+    f fmt "\n%s%a" 
+      p2 Explanation.print trigger_dep;  
+
+    f fmt "\n%strigger_increm_guard=" p1;
+    f fmt " %a" 
+      (Expr.print_vrb ~p:p2) trigger_increm_guard;  
+
+    f fmt "\n%s}" p
+
+let print_gsubst : 
+  ?p:string -> Format.formatter -> gsubst -> unit =
+  fun ?(p = "") fmt  {sbs; sty; gen; goal; s_term_orig; s_lem_orig} -> 
+  (
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let pr_ty = Pp.addpref Ty.print in
+    let pr_sy = Pp.addpref Symbols.print in
+
+    let module TyMP = Pp.MapPrinter(Ty.M) in 
+    let module SyMP = Pp.MapPrinter(Symbols.Map) in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%ssbs=" p1;
+    f fmt " %a" 
+      (SyMP.pr_lb pr_sy print_e ~p:p2) sbs;
+
+    f fmt "\n%ssty=" p1;
+    f fmt " %a" 
+      (TyMP.pr_lb Pp.pr_int pr_ty ~p:p2) sty;
+
+    f fmt "\n%sgen=" p1;
+    f fmt "%d" gen;
+
+    f fmt "\n%sgoal=" p1;
+    f fmt "%b" goal;
+
+    f fmt "\n%ss_term_orig=" p1;
+    f fmt " %a" 
+      (Pp.print_list_lb ~p:p2 Expr.print_vrb) s_term_orig;
+
+    f fmt "\n%ss_lem_orig=" p1;
+    f fmt " %a" 
+      (Expr.print_vrb ~p:p2) s_lem_orig;
+
+    f fmt "\n%s}" p
+  )

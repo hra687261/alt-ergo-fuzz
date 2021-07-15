@@ -72,6 +72,9 @@ module type S = sig
   val reset_refs : unit -> unit
 
   val clear_cache : unit -> unit
+
+  val print_env : ?p:string -> Format.formatter -> t -> unit
+
 end
 
 

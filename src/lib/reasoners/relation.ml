@@ -198,3 +198,33 @@ let new_terms env =
              (Expr.Set.union t5
                 (Expr.Set.union t6 t7)) )))
 
+let pr_vrb ?(p = "") fmt {r1: Rel1.t; r2: Rel2.t; r3: Rel3.t; r4: Rel4.t;
+                          r5: Rel5.t; r6: Rel6.t; r7: Rel7.t} =
+  let f = Format.fprintf in
+  let p1 = p^"  " in
+  let p2 = p1^"  " in
+
+  f fmt "\n%s{" p;
+
+  f fmt "\n%sr1=" p1;
+  f fmt "\n%a" (Rel1.pr_vrb ~p:p2) r1;
+
+  f fmt "\n%sr2=" p1;
+  f fmt "\n%a" (Rel2.pr_vrb ~p:p2) r2;
+
+  f fmt "\n%sr3=" p1;
+  f fmt "\n%a" (Rel3.pr_vrb ~p:p2) r3;
+
+  f fmt "\n%sr4=" p1;
+  f fmt "\n%a" (Rel4.pr_vrb ~p:p2) r4;
+
+  f fmt "\n%sr5=" p1;
+  f fmt "\n%a" (Rel5.pr_vrb ~p:p2) r5;
+
+  f fmt "\n%sr6=" p1;
+  f fmt "\n%a" (Rel6.pr_vrb ~p:p2) r6;
+
+  f fmt "\n%sr7=" p1;
+  f fmt "\n%a" (Rel7.pr_vrb ~p:p2) r7;
+
+  f fmt "\n%s}" p

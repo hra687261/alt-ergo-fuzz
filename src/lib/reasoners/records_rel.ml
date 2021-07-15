@@ -43,3 +43,7 @@ let assume_th_elt t th_elt _ =
   | Util.Records ->
     failwith "This Theory does not support theories extension"
   | _ -> t
+
+let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt env ->
+  ignore (p, fmt, env)

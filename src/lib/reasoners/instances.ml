@@ -75,6 +75,7 @@ module type S = sig
   val matching_terms_info :
     t -> Matching_types.info Expr.Map.t * Expr.t list Expr.Map.t Symbols.Map.t
 
+  val print_vrb : ?p:string -> Format.formatter -> t -> unit
 end
 
 module Make(X : Theory.S) : S with type tbox = X.t = struct
@@ -470,5 +471,65 @@ module Make(X : Theory.S) : S with type tbox = X.t = struct
     else m_predicates env tbox selector ilvl mconf
 
   let matching_terms_info env = EM.terms_info env.matching
+
+  module Pp = Pp_utils
+
+  let print_vrb : 
+    ?p:string -> Format.formatter -> t -> unit = 
+    fun ?(p = "") fmt { guards; lemmas; predicates; 
+                        ground_preds; matching} ->
+      (
+        let p1 = p^"  " in
+        let p2 = p1^"  " in
+        let f = Format.fprintf in 
+
+        let pr_e =
+          Pp.addpref E.print_bis
+        in
+        let pr_eb = 
+          Pp.print_doublet_lb (pr_e, Pp.pr_bool)
+        in
+        let pr_ebl =
+          Pp.print_list_lb pr_eb
+        in
+        let module MEP = Pp.MapPrinter(ME) in 
+        let pr_eblm =
+          MEP.pr_lb pr_e pr_ebl
+        in 
+        let pr_ex = 
+          Pp.addpref Ex.print_bis
+        in
+        let pr_eiex = 
+          Pp.print_triplet_lb (pr_e, Pp.pr_int, pr_ex)
+        in
+        let pr_eiexm =
+          MEP.pr_lb pr_e pr_eiex
+        in 
+        let pr_eeex = 
+          Pp.print_triplet_lb (pr_e, pr_e, pr_ex)
+        in        
+        let pr_eeexm =
+          MEP.pr_lb pr_e pr_eeex
+        in 
+
+        f fmt "\n%s{" p;
+
+        f fmt "\n%sguards =" p1;
+        f fmt " %a" (pr_eblm ~p:p2) guards;
+
+        f fmt "\n%slemmas =" p1;
+        f fmt " %a" (pr_eiexm ~p:p2) lemmas;
+
+        f fmt "\n%spredicates =" p1;
+        f fmt " %a" (pr_eiexm ~p:p2) predicates;
+
+        f fmt "\n%sground_preds =" p1;
+        f fmt " %a" (pr_eeexm ~p:p2) ground_preds;
+
+        f fmt "\n%smatching =" p1; 
+        f fmt " %a" (EM.print_vrb ~p:p2) matching;
+
+        f fmt "\n%s};" p
+      )
 
 end

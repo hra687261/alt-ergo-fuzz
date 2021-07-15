@@ -42,10 +42,10 @@ module LR = Uf.LX
 (* map get |-> { set } des associations (get,set) deja splites *)
 module Tmap = struct
   include E.Map
-  let update t a mp =
+  let update1 t a mp =
     try add t (E.Set.add a (find t mp)) mp
     with Not_found -> add t (E.Set.singleton a) mp
-  let splited t a mp = try E.Set.mem a (find t mp) with Not_found -> false
+  let splited1 t a mp = try E.Set.mem a (find t mp) with Not_found -> false
 end
 
 module LRset= LR.Set
@@ -76,10 +76,10 @@ module S :Set.S with type elt = stype = Set.Make
    de ses affectations *)
 module TBS = struct
   include Map.Make(E)
-  let find k mp = try find k mp with Not_found -> S.empty
+  let find1 k mp = try find k mp with Not_found -> S.empty
 
   (* add reutilise find ci-dessus *)
-  let add k v mp = add k (S.add v (find k mp)) mp
+  let add1 k v mp = add k (S.add v (find1 k mp)) mp
 end
 
 type t =
@@ -179,7 +179,7 @@ let rec update_gets_sets acc t =
   match Sy.is_get f, Sy.is_set f, xs with
   | true , false, [a;i]   -> G.add {g=t; gt=a; gi=i; gty=ty} gets, tbset
   | false, true , [a;i;v] ->
-    gets, TBS.add a {s=t; st=a; si=i; sv=v; sty=ty} tbset
+    gets, TBS.add1 a {s=t; st=a; si=i; sv=v; sty=ty} tbset
   | false, false, _ -> (gets,tbset)
   | _  -> assert false
 
@@ -236,9 +236,9 @@ let get_of_set are_eq are_dist gtype (env,acc) class_of =
   let {g=get; gt=gtab; gi=gi; gty=gty} = gtype in
   L.fold_left
     (fun (env,acc) set ->
-       if Tmap.splited get set env.seen then (env,acc)
+       if Tmap.splited1 get set env.seen then (env,acc)
        else
-         let env = {env with seen = Tmap.update get set env.seen} in
+         let env = {env with seen = Tmap.update1 get set env.seen} in
          let { E.f; xs; _ } =
            match E.term_view set with
            | E.Not_a_term _ -> assert false
@@ -270,17 +270,17 @@ let get_of_set are_eq are_dist gtype (env,acc) class_of =
 let get_from_set _are_eq _are_dist stype (env,acc) class_of =
   let sets =
     L.fold_left
-      (fun acc t -> S.union acc (TBS.find t env.tbset))
+      (fun acc t -> S.union acc (TBS.find1 t env.tbset))
       (S.singleton stype) (class_of stype.st)
   in
 
   S.fold (fun { s = set; si = si; sv = sv; _ } (env,acc) ->
       let ty_si = E.type_info sv in
       let get = E.mk_term (Sy.Op Sy.Get) [set; si] ty_si in
-      if Tmap.splited get set env.seen then (env,acc)
+      if Tmap.splited1 get set env.seen then (env,acc)
       else
         let env = {env with
-                   seen = Tmap.update get set env.seen;
+                   seen = Tmap.update1 get set env.seen;
                    new_terms = E.Set.add get env.new_terms }
         in
         let p_ded = E.mk_eq ~iff:false get sv in
@@ -295,15 +295,15 @@ let get_and_set are_eq are_dist gtype (env,acc) class_of =
 
   let suff_sets =
     L.fold_left
-      (fun acc t -> S.union acc (TBS.find t env.tbset))
+      (fun acc t -> S.union acc (TBS.find1 t env.tbset))
       S.empty (class_of gtab)
   in
   S.fold
     (fun  {s=set; st=stab; si=si; sv=sv; _ } (env,acc) ->
-       if Tmap.splited get set env.seen then (env,acc)
+       if Tmap.splited1 get set env.seen then (env,acc)
        else
          begin
-           let env = {env with seen = Tmap.update get set env.seen} in
+           let env = {env with seen = Tmap.update1 get set env.seen} in
            let xi, _ = X.make gi in
            let xj, _ = X.make si in
            let get_stab  = E.mk_term (Sy.Op Sy.Get) [stab;gi] gty in
@@ -460,3 +460,118 @@ let assume_th_elt t th_elt _ =
   | Util.Arrays ->
     failwith "This Theory does not support theories extension"
   | _ -> t
+
+module Pp = Pp_utils
+
+let f = Format.fprintf
+
+let pr_gtype : 
+  ?p:string -> Format.formatter -> gtype -> unit =
+  fun ?(p = "") fmt {g; gt; gi; gty} -> 
+  (
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%sg=" p1;
+    f fmt "\n%s%a" p2 E.print g; 
+
+    f fmt "\n%sgt=" p1;
+    f fmt "\n%s%a" p2 E.print gt;
+
+    f fmt "\n%sgi=" p1;
+    f fmt "\n%s%a" p2 E.print gi;
+
+    f fmt "\n%sgty=" p1;
+    f fmt "\n%s%a" p2 Ty.print gty;
+
+    f fmt "\n%s}" p
+  )
+
+let pr_stype : 
+  ?p:string -> Format.formatter -> stype -> unit =
+  fun ?(p = "") fmt {s; st; si; sv; sty} -> 
+  (
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "%s{" p;
+
+    f fmt "\n%ss=" p1;
+    f fmt "\n%s%a" p2 E.print s; 
+
+    f fmt "\n%sst=" p1;
+    f fmt "\n%s%a" p2 E.print st;
+
+    f fmt "\n%ssi=" p1;
+    f fmt "\n%s%a" p2 E.print si;
+
+    f fmt "\n%ssv=" p1;
+    f fmt "\n%s%a" p2 E.print sv;
+
+    f fmt "\n%ssty=" p1;
+    f fmt "\n%s%a" p2 Ty.print sty;
+
+    f fmt "\n%s}" p
+  )
+
+let pr_vrb : 
+  ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt { gets; tbset; split; conseq; seen; 
+                      new_terms; size_splits} -> 
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      let pr_e = Pp.addpref E.print_bis in
+      let pr_ex = Pp.addpref Ex.print in 
+
+      let module TBSP = Pp.MapPrinter(TBS) in 
+
+      let pr_g = 
+        Pp.print_set_lb (module G) pr_gtype
+      in 
+      let pr_s = 
+        Pp.print_set_lb (module S) pr_stype 
+      in
+
+      let module TP = Pp.MapPrinter(Tmap) in 
+      let pr_se =
+        Pp.print_set_lb (module E.Set) pr_e
+      in
+
+      let pr_eex = Pp.print_doublet_lb (pr_e, pr_ex) in
+      let pr_conseq =
+        Pp.print_set_lb (module Conseq) pr_eex
+      in
+
+      let module LRmP = Pp.MapPrinter(LRmap) in 
+      let pr_lrs = Pp.print_set_lb (module LRset) LR.pr_vrb in 
+
+      f fmt "%s{" p;
+
+      f fmt "\n%sgets=" p1;
+      f fmt " %a" (pr_g ~p:p2) gets;  
+
+      f fmt "\n%stbset=" p1;
+      f fmt " %a" (TBSP.pr_lb pr_e pr_s ~p:p2) tbset;  
+
+      f fmt "\n%ssplit=" p1;
+      f fmt " %a" (pr_lrs ~p:p2) split; 
+
+      f fmt "\n%sconseq=" p1;
+      f fmt " %a" (LRmP.pr_lb LR.pr_vrb pr_conseq ~p:p2) conseq; 
+
+      f fmt "\n%sseen=" p1;
+      f fmt " %a" (TP.pr_lb pr_e pr_se ~p:p2) seen; 
+
+      f fmt "\n%snew_terms=" p1;
+      f fmt " %a" (pr_se ~p:p2) new_terms; 
+
+      f fmt "\n%ssize_splits=" p1;
+      f fmt " %a" Numbers.Q.print size_splits;  
+
+      f fmt "\n%s}" p
+    )
+

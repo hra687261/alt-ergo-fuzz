@@ -58,6 +58,9 @@ module type S = sig
     int -> int -> t * Sig_rel.instances
 
   val get_assumed : t -> Expr.Set.t
+
+  val pr_brv : ?p:string -> Format.formatter -> t -> unit
+  
 end
 
 module Main_Default : S

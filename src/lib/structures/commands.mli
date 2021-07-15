@@ -46,3 +46,5 @@ type sat_tdecl = {
 }
 
 val print : Format.formatter -> sat_tdecl -> unit
+
+val print_verbose : Format.formatter -> sat_tdecl -> unit

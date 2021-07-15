@@ -202,3 +202,70 @@ let has_no_bj s =
 let compare = S.compare
 
 let subset = S.subset
+
+let f = Format.fprintf 
+
+let print_bis fmt ex =
+  f fmt "{";
+  S.iter (
+    function
+    | Literal a -> 
+      f fmt "{Literal:%a}; " Satml_types.Atom.pr_atom a
+    | Fresh i -> 
+      f fmt "{Fresh:%i}; " i;
+    | Dep d ->
+      f fmt "{Dep:%a}; " E.print_bis d
+    | RootDep r -> 
+      f fmt "{RootDep:%s}; " r.name
+    | Bj d -> 
+      f fmt "{BJ:%a}; " E.print_bis d
+  ) ex;
+  f fmt "}"
+
+let print_exp_vrb : ?p:string -> Format.formatter -> exp -> unit =
+  fun ?(p = "") fmt e ->
+  (
+    let p1 = p^"  " in 
+    let p2 = p1^"  " in 
+
+    let print_rootdep ?(p = "") fmt {name; f = e; loc} =
+      f fmt "%s{" p;
+
+      f fmt "\n%sname =" p1;
+      f fmt " %s;" name;
+
+      f fmt "\n%sf =" p1;
+      f fmt "\n%s%a" p2 E.print e;
+
+      f fmt "\n%sloc =" p1;
+      f fmt "\n%s%a" p2 Loc.report loc;
+
+      f fmt "\n%s}" p
+    in
+    match e with 
+    | Literal atom -> 
+      f fmt "%s" p;
+      f fmt "\n%s(" p1;
+      f fmt "\n%a" 
+        (Satml_types.Atom.pr_atom_vrb ~p:p2) 
+        atom; 
+      f fmt "\n%s)" p1
+    | Fresh n ->
+      f fmt "%s" p;
+      f fmt "\n%s(%d)" p1 n
+    | Bj e ->
+      f fmt "%s" p;
+      f fmt "\n%s(" p1;
+      f fmt "\n%s%a" p2 E.print e;
+      f fmt "\n%s)" p1
+    | Dep e ->
+      f fmt "%s" p;
+      f fmt "\n%s(" p1;
+      f fmt "\n%s%a" p2 E.print e;
+      f fmt "\n%s)" p1
+    | RootDep rd ->
+      f fmt "%s" p;
+      f fmt "\n%s(" p1;
+      f fmt "\n%a" (print_rootdep ~p:p2) rd;
+      f fmt "\n%s)" p1
+  )

@@ -47,6 +47,10 @@ type 'a result = {
   remove: Expr.t list;
 }
 
+val print_literal : 
+  (Format.formatter -> 'a -> unit) ->
+  (?p:string -> Format.formatter -> 'a literal -> unit)
+
 module type RELATION = sig
   type t
 
@@ -78,6 +82,8 @@ module type RELATION = sig
   val new_terms : t -> Expr.Set.t
 
   val assume_th_elt : t -> Expr.th_elt -> Explanation.t -> t
+
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
 
 end
 

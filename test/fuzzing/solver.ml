@@ -72,6 +72,9 @@ struct
           ( fun (al, (env, consistent, ex)) Ast.{stmt;_} ->
 
               let tstmt = translate_stmt stmt in 
+              
+              Format.printf ">>> %a@." AEL.Commands.print tstmt;
+              Format.printf "$$$ %a\n@." AEL.Commands.print_verbose tstmt;
 
               let env, consistent, ex = 
                 FE.process_decl 

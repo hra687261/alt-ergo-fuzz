@@ -322,3 +322,14 @@ val const_term : t -> bool
 
 val clear_hc : unit -> unit
 (** Clears the maps that were allocated by the hashconsing library *)
+
+val print_bis : Format.formatter -> t -> unit
+
+val print_vrb : ?p:string -> Format.formatter -> t -> unit
+
+val print_strg : 
+  ?p:string ->  Format.formatter -> semantic_trigger -> unit 
+
+val print_trg : ?p:string -> Format.formatter -> trigger -> unit
+
+val print_gform : ?p:string -> Format.formatter -> gformula -> unit

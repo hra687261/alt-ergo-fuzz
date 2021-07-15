@@ -37,3 +37,7 @@ val remove : 'a t -> 'a -> unit
 val fast_remove : 'a t -> 'a -> unit
 val sort : 'a t -> ('a -> 'a -> int) -> unit
 val iter : 'a t -> ('a -> unit) -> unit
+
+val pr_vrb : 
+  (?p:string -> Format.formatter -> 'a -> unit) -> 
+  (?p:string -> Format.formatter -> 'a t -> unit)
