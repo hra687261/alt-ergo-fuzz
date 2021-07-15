@@ -440,7 +440,7 @@ let rec print_expr fmt expr =
     Format.fprintf fmt "%s" 
       (Int.to_string x)
   | Cst (CstR x) ->
-    Format.fprintf fmt "%f" x
+    Format.fprintf fmt "%s" (Float.to_string x)
   | Cst (CstB x) ->
     Format.fprintf fmt "%b" x
   | Cst (CstBv x) ->

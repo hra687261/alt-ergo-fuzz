@@ -104,9 +104,10 @@ let rec translate_expr (a: expr) =
     )
   | Cst (CstR r) -> 
     Atom (
+      if r = 0. then "0.0" else
       if r < 0.
-      then Format.sprintf "(- %f)" (-.r)
-      else Format.sprintf "%f" r
+      then Format.sprintf "(- %s)" (Float.to_string (-.r))
+      else Format.sprintf "%s" (Float.to_string r) 
     )
       (*
       if r = 0.
