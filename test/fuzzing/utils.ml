@@ -22,26 +22,7 @@ type bug_info = {
 let mk_bug_info id bty exp_str exp_bt_str stmtcs =
   {id; bty; exp_str; exp_bt_str; stmtcs}
 
-let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
-  let str =
-    Format.sprintf  
-      ( if firstcall 
-        then "printf \"%s\" > %s 2>&1"
-        else "printf \"%s\" >> %s 2>&1"
-      ) content filename
-  in
-  let command = 
-    Lwt_process.shell str
-  in 
-  ignore (
-    Lwt_process.exec 
-      ~stdin:`Dev_null 
-      ~stdout:`Keep 
-      ~stderr:`Keep 
-      command)
-
-let mknmarshall_bi 
-    ?(verbose = false) ?(filename = "debug.txt")
+let mknmarshall_bi ?(verbose = false)
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
     (exp: exn) stmtcs = 
   let id = !cnt in 
@@ -70,25 +51,19 @@ let mknmarshall_bi
 
   if verbose 
   then (
-    sh_printf ~filename (
-      Format.sprintf "\nException: %s\n%s@." 
-        exp_str exp_bt_str
-    );
-    sh_printf ~filename (
-      Format.asprintf "\nCaused by: \n%a@." 
-        ( fun fmt stmtcl ->
-            List.iter ( 
-              fun Ast.{stmt; _} ->
-                Format.fprintf fmt "\n### %a@." 
-                  Ast.print_stmt stmt
-            ) stmtcl
-        ) stmtcs
-    );
-    sh_printf ~filename (
-      Format.sprintf 
-        "Marshalled and written to the file : %s@." 
-        file_name
-    )
+    Format.printf "\nException: %s\n%s@." 
+      exp_str exp_bt_str;
+    Format.printf "\nCaused by: \n%a@." 
+      ( fun fmt stmtcl ->
+          List.iter ( 
+            fun Ast.{stmt; _} ->
+              Format.fprintf fmt "\n### %a@." 
+                Ast.print_stmt stmt
+          ) stmtcl
+      ) stmtcs;
+    Format.printf 
+      "Marshalled and written to the file : %s@." 
+      file_name
   ) 
 
 let timeout_limit = ref 5

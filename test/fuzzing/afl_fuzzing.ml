@@ -5,13 +5,11 @@ module AES = Solver.AE
 module C5S = Solver.CVC5
 
 let () =
-  sh_printf ~firstcall:true ""; 
   Cr.add_test ~name:"ae" 
     [Generator.gen_stmts] 
     ( fun stmtcs -> 
         Cr.check (
           try
-            sh_printf "\n";
             incr cnt;
             let aeres = 
               AES.process_stmts stmtcs
