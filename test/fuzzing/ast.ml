@@ -743,7 +743,7 @@ let add_triggers vs expr =
     match expr with 
     | Unop (_, x) -> add_triggers_aux foundv x
     | Binop (_, x, y) ->
-      aux x @ aux y
+      List.rev_append (aux x) (aux y)
     | FunCall _ -> aux expr 
     | Forall {body; _} -> aux body
     | Exists {body; _} -> aux body
@@ -958,40 +958,46 @@ let quantify expr =
     let rec get_vars expr = 
       match expr with 
       | Binop (_, x, y) ->
-        get_vars x @ get_vars y 
+        List.rev_append (get_vars x) (get_vars y) 
 
       | Unop (Access {fa; _}, x) ->
-        get_vars fa @ get_vars x 
+        List.rev_append (get_vars fa) (get_vars x) 
 
       | Unop (_, x) -> get_vars x
 
       | FunCall {args; _} -> 
         List.fold_left 
           ( fun l x -> 
-              get_vars x @ l)
-          ([])
-          args 
+              List.rev_append (get_vars x) l)
+          [] args 
 
-      | Var ({vk = (EQ|UQ); _} as var) -> 
-        [var]
+      | Var ({vk = (EQ|UQ); _} as var) -> [var]
 
       | FAUpdate {fa; i; v; _} ->
-        get_vars fa @ get_vars i @ get_vars v
+        let tmp = List.rev_append 
+            (get_vars i) (get_vars v)
+        in
+        List.rev_append tmp (get_vars fa)
 
-      | ITE {cond; cons; alt; _} -> 
-        get_vars cond @ get_vars cons @ get_vars alt
+      | ITE {cond; cons; alt; _} ->
+        let tmp = List.rev_append 
+            (get_vars cons) (get_vars alt)
+        in 
+        List.rev_append (get_vars cond) tmp
       | LetIn (_, e, b) ->  
-        get_vars e @ get_vars b
+        List.rev_append 
+          (get_vars e) (get_vars b)
 
       | PMatching {mtchdv; patts; _} ->
         List.fold_left (
-          fun acc {mbody; _} -> get_vars mbody @ acc
+          fun acc {mbody; _} -> 
+            List.rev_append (get_vars mbody) acc
         ) (get_vars mtchdv) patts 
 
       | Cstr {params; _} -> 
         List.fold_left (
           fun acc (_, a) -> 
-            get_vars a @ acc
+            List.rev_append (get_vars a) acc
         ) [] params
 
       | Dummy | Cst _ | Var _ 
@@ -1003,55 +1009,72 @@ let quantify expr =
         ( And | Or | Xor | Imp | Iff | 
           Lt | Le | Gt | Ge | Eq | Neq), 
         x, y) -> 
-      q_aux (0::path) x @  q_aux (1::path) y
+      List.rev_append 
+        (q_aux (0::path) x) (q_aux (1::path) y)
 
     | Binop (_, x, y) -> 
       let rpath = 
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars x @ get_vars y)
+      List.map (fun x -> (rpath, x)) 
+        ( List.rev_append
+            (get_vars x) (get_vars y))
 
 
     | ITE {cond; cons; alt; ty = Tbool} -> 
-      q_aux (0::path) cond @ 
-      q_aux (1::path) cons @ 
-      q_aux (2::path) alt
+      let tmp = 
+        List.rev_append 
+          (q_aux (1::path) cons)  
+          (q_aux (2::path) alt)
+      in
+      List.rev_append 
+        (q_aux (0::path) cond) tmp 
+
 
     | ITE {cond; cons; alt; _} -> 
       let rpath = 
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars cond @ get_vars cons @ get_vars alt)
-
+      List.map (fun x -> (rpath, x)) 
+        ( let tmp = 
+            List.rev_append 
+              (get_vars cons)  
+              (get_vars alt)
+          in  
+          List.rev_append 
+            (get_vars cond) tmp
+        )
 
     | LetIn ({vty = Tbool;_}, e, b) ->  
-      q_aux (0::path) e @ 
-      q_aux (1::path) b
+      List.rev_append
+        (q_aux (0::path) e)
+        (q_aux (1::path) b)
 
     | LetIn (_, e, b) ->  
       let rpath = 
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      (List.map 
-         (fun x -> rpath, x) 
-         (get_vars e @ get_vars b)) 
-
+      ( List.map (fun x -> rpath, x) 
+          ( List.rev_append 
+              (get_vars e) (get_vars b)
+          )) 
 
     | FAUpdate  {fa; i; v; _} -> 
       let rpath = 
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars fa @ get_vars i @ get_vars v)
+      List.map (fun x -> (rpath, x)) 
+        ( let tmp = 
+            List.rev_append 
+              (get_vars i) (get_vars v)
+          in
+          List.rev_append
+            (get_vars fa) tmp
+        )
 
     | Unop (Not, x) -> 
       q_aux path x
@@ -1061,24 +1084,26 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars fa @ get_vars x)
+      List.map (fun x -> (rpath, x)) ( 
+        List.rev_append
+          (get_vars fa) (get_vars x)
+      )
 
     | Unop (_, x) -> 
       let rpath = 
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map
-        ( fun x -> (rpath, x)) 
-        ( get_vars x)
+      List.map (fun x -> (rpath, x)) 
+        (get_vars x)
 
     | FunCall {args; rtyp = Tbool; _} -> 
       fst @@
       List.fold_left 
         ( fun (l, n) x -> 
-            q_aux (n::path) x @ l, n + 1)
+            List.rev_append 
+              (q_aux (n::path) x) l, 
+            n + 1)
         ([], 0)
         args
 
@@ -1090,10 +1115,12 @@ let quantify expr =
       let vars = 
         List.fold_left 
           ( fun acc x -> 
-              List.map 
-                (fun x -> (rpath, x))
-                (get_vars x) @ acc) 
-          [] args 
+              let tmp = 
+                List.map (fun x -> (rpath, x))
+                  (get_vars x)
+              in
+              List.rev_append tmp acc
+          ) [] args 
       in 
       vars 
 
@@ -1117,9 +1144,12 @@ let quantify expr =
       let vars = 
         List.fold_left 
           ( fun acc {mbody; _} -> 
-              List.map 
-                (fun x -> (rpath, x))
-                (get_vars mbody) @ acc) 
+              let tmp = 
+                List.map 
+                  (fun x -> (rpath, x))
+                  (get_vars mbody)
+              in 
+              List.rev_append tmp acc) 
           vs patts 
       in 
       vars
@@ -1136,7 +1166,7 @@ let quantify expr =
               (fun x -> (rpath, x))
               (get_vars a) 
           in 
-          l @ acc
+          List.rev_append l acc
       ) [] params 
 
     | Dummy | Cst _ | Var _  
