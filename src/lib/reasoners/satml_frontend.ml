@@ -28,7 +28,8 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   let clear_cache () = 
     reset_refs ();
     Expr.clear_hc ();
-    Shostak.Combine.empty_cache ()
+    Shostak.Combine.empty_cache ();
+    Gc.major ()
 
   type guards = {
     current_guard: E.t;

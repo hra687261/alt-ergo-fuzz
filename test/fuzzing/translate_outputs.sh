@@ -29,7 +29,7 @@ then
   make
 fi
 
-for i in test/fuzzing/crash_output/crash* 
+for i in test/fuzzing/crash_output/[uito]* 
 do 
   opf=$(echo "$i" | awk -F'[/.]' '{print $1 "/" $2 "/trfiles/" $4 "." $5}')
   opf="${opf}${ext}"

@@ -192,7 +192,8 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   let clear_cache () = 
     reset_refs ();
     Expr.clear_hc ();
-    Shostak.Combine.empty_cache ()
+    Shostak.Combine.empty_cache ();
+    Gc.major ()
 
   let save_guard_and_refs env new_guard =
     let refs = {unit_facts = !(env.unit_facts_cache)} in

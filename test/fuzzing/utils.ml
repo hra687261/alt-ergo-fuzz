@@ -50,8 +50,8 @@ let mknmarshall_bi
   let bty, sym = 
     match exp with 
     | Failure Unsound -> "unsoundness", "u"
-    | Failure InternalCrash -> "internalcrash", "ic"
-    | Failure Timeout -> "timeout", "to"
+    | Failure InternalCrash -> "internalcrash", "i"
+    | Failure Timeout -> "timeout", "t"
     | _ -> "other", "o"
   in 
   let bi = mk_bug_info id bty exp_str exp_bt_str stmtcs in 
@@ -59,7 +59,7 @@ let mknmarshall_bi
 
   let file_name = 
     Format.sprintf
-      "%s/crash_%s_%d_%f.txt"
+      "%s/%s%d_%f.txt"
       crash_output_folder_path sym !cnt (Unix.gettimeofday ())
   in
 
