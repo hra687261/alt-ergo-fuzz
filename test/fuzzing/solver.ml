@@ -67,7 +67,7 @@ struct
       Format.fprintf fmt "%a" print_stmts stmtcs;
       close_out oc;
 
-      let al, _ = 
+      let ral, _ = 
         List.fold_left 
           ( fun (al, (env, consistent, ex)) Ast.{stmt;_} ->
 
@@ -91,6 +91,8 @@ struct
           )
           ([], (SAT.empty (), true, AEL.Explanation.empty)) 
           stmtcs
-      in al
+      in 
+      let al = List.rev ral in 
+      al 
 
 end 
