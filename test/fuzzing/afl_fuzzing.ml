@@ -1,7 +1,8 @@
 open Utils
 
 module Cr = Crowbar 
-module AES = Solver.AE
+module AE_CDCL = Solver.AE_CDCL
+module AE_Tableaux = Solver.AE_Tableaux
 module C5S = Solver.CVC5
 
 let () =
@@ -11,13 +12,16 @@ let () =
         Cr.check (
           try
             incr cnt;
-            let aeres = 
-              AES.process_stmts stmtcs
+            let ae_cdcl_res = 
+              AE_CDCL.process_stmts stmtcs
+            in
+            let ae_t_res = 
+              AE_Tableaux.process_stmts stmtcs
             in
             let cvc5res = 
               C5S.process_stmts stmtcs
             in
-            cmp_answers_exn2 aeres cvc5res;
+            cmp_answers_exn3 ae_t_res ae_cdcl_res cvc5res;
             true
           with
           | exp ->

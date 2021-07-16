@@ -9,10 +9,10 @@ let () =
 
   let module W = (val ( 
       if issl2 
-      then (module Writer.Make(Solver.CVC5))
+      then (module Writer.Make(Smtlib2_tr))
       else (
         if isae 
-        then (module Writer.Make(Solver.AE))
+        then (module Writer.Make(Tr_altergo))
         else assert false)
     ): Writer.T)
   in 

@@ -9,4 +9,6 @@ end
 
 module CVC5: ST
 
-module AE: ST
+module AE_Tableaux: ST
+
+module AE_CDCL: ST
