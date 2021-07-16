@@ -10,36 +10,47 @@ end
 module CVC5: ST = 
 struct 
   include Smtlib2_tr
-  let process_stmts stmtcs = 
+  let process_stmts =
+    let procl = ref [] in
+    let kill_procs () =
+      List.iter (
+        fun proc ->
+          let id = Unix.process_in_pid proc in
+          Unix.kill id Sys.sigkill;
+          close_in proc
+      ) !procl;
+      procl := []
+    in
     let rec get_lines (ic: in_channel) =
       try
         let l = input_line ic in
         l :: get_lines ic
-      with End_of_file ->
-        close_in ic; 
-        []
+      with End_of_file -> []
     in
-    let filename = "_.smt2" in 
+    at_exit kill_procs;
+    fun stmtcs ->
+      kill_procs ();
+      let filename = "_.smt2" in
 
-    let oc = open_out filename in 
-    let fmt = Format.formatter_of_out_channel oc in
-    Format.fprintf fmt "%a" print_stmts stmtcs;
-    close_out oc;
+      let oc = open_out filename in
+      let fmt = Format.formatter_of_out_channel oc in
+      Format.fprintf fmt "%a" print_stmts stmtcs;
+      close_out oc;
 
-    let ic = 
-      Unix.open_process_in 
-        (Format.sprintf "cvc5 --incremental %s" filename)
-    in
-    let lines = get_lines ic in 
-    close_in ic;
+      let ic = 
+        Unix.open_process_in 
+          (Format.sprintf "cvc5 --incremental %s" filename)
+      in
+      procl := ic :: !procl;
+      let lines = get_lines ic in
 
-    List.map (
-      function 
-      | "sat" -> Utils.Sat
-      | "unsat" -> Utils.Unsat
-      | "unknown" -> Utils.Unknown 
-      | _ as x -> Format.printf "\n(((%s)))@." x; assert false
-    ) lines
+      List.map (
+        function
+        | "sat" -> Utils.Sat
+        | "unsat" -> Utils.Unsat
+        | "unknown" -> Utils.Unknown
+        | _ as x -> Format.printf "\n(((%s)))@." x; assert false
+      ) lines
 
 end
 

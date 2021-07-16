@@ -22,6 +22,24 @@ type bug_info = {
 let mk_bug_info id bty exp_str exp_bt_str stmtcs =
   {id; bty; exp_str; exp_bt_str; stmtcs}
 
+let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
+  let str =
+    Format.sprintf  
+      ( if firstcall 
+        then "printf \"%s\" > %s 2>&1"
+        else "printf \"%s\" >> %s 2>&1"
+      ) content filename
+  in
+  let command = 
+    Lwt_process.shell str
+  in 
+  ignore (
+    Lwt_process.exec 
+      ~stdin:`Dev_null 
+      ~stdout:`Keep 
+      ~stderr:`Keep 
+      command)
+
 let mknmarshall_bi ?(verbose = false)
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
     (exp: exn) stmtcs = 
