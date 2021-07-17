@@ -1,7 +1,7 @@
 
 module type T =
-sig 
-  val write : string -> string -> unit  
-end 
+sig
+  val write : string -> string -> unit
+end
 
-module Make(Tr: Solver.ST): T
+module Make(Tr: Translater.T): T

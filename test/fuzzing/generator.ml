@@ -685,8 +685,8 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
                   (fun bop -> binop_gen Treal fuel bop ag_aux)
                   [ Lt; Le; Gt; Ge; Eq; Neq]
               in 
-              let tmp = l2 @ l3 in 
-              l1 @ tmp
+              let tmp = List.rev_append l2 l3 in 
+              List.rev_append l1 tmp
             | TBitV len ->
               get_bv_gens ag_aux fuel len
 
@@ -718,12 +718,12 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
           then []
           else [Cr.choose pm_gens]
         in
-        let tmp = gl7 @ gl6 in
-        let tmp = gl5 @ tmp in
-        let tmp = gl4 @ tmp in
-        let tmp = gl3 @ tmp in
-        let tmp = gl2 @ tmp in
-        gl1 @ tmp
+        let tmp = List.rev_append gl7 gl6 in
+        let tmp = List.rev_append gl5 tmp in
+        let tmp = List.rev_append gl4 tmp in
+        let tmp = List.rev_append gl3 tmp in
+        let tmp = List.rev_append gl2 tmp in
+        List.rev_append gl1 tmp
       )
   in 
   ag_aux max_depth ty
@@ -860,7 +860,7 @@ let update_fdis : fd_info list -> stmt gen_res -> fd_info list =
     then fdefs
     else 
       let fdi = mk_fd_info name atyp rtyp in 
-      fdefs @ [fdi]
+      List.rev_append fdefs [fdi]
   | _ -> fdefs
 
 (********************************************************************)

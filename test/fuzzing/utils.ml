@@ -22,6 +22,11 @@ type bug_info = {
 let mk_bug_info id bty exp_str exp_bt_str stmtcs =
   {id; bty; exp_str; exp_bt_str; stmtcs}
 
+let answer_to_string = function 
+  | Sat -> "sat"
+  | Unsat -> "unsat"
+  | Unknown -> "unknown"
+
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
   let str =
     Format.sprintf  
@@ -40,8 +45,7 @@ let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
       ~stderr:`Keep 
       command)
 
-let mknmarshall_bi 
-    ?(verbose = false) ?(filename = "debug.txt")
+let mknmarshall_bi ?(verbose = false)
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
     (exp: exn) stmtcs = 
   let id = !cnt in 
@@ -70,25 +74,19 @@ let mknmarshall_bi
 
   if verbose 
   then (
-    sh_printf ~filename (
-      Format.sprintf "\nException: %s\n%s@." 
-        exp_str exp_bt_str
-    );
-    sh_printf ~filename (
-      Format.asprintf "\nCaused by: \n%a@." 
-        ( fun fmt stmtcl ->
-            List.iter ( 
-              fun Ast.{stmt; _} ->
-                Format.fprintf fmt "\n### %a@." 
-                  Ast.print_stmt stmt
-            ) stmtcl
-        ) stmtcs
-    );
-    sh_printf ~filename (
-      Format.sprintf 
-        "Marshalled and written to the file : %s@." 
-        file_name
-    )
+    Format.printf "\nException: %s\n%s@." 
+      exp_str exp_bt_str;
+    Format.printf "\nCaused by: \n%a@." 
+      ( fun fmt stmtcl ->
+          List.iter ( 
+            fun Ast.{stmt; _} ->
+              Format.fprintf fmt "\n### %a@." 
+                Ast.print_stmt stmt
+          ) stmtcl
+      ) stmtcs;
+    Format.printf 
+      "Marshalled and written to the file : %s@." 
+      file_name
   ) 
 
 let timeout_limit = ref 5
@@ -107,24 +105,43 @@ let run_with_timeout timeout proc stmts =
   | Failure Timeout -> finish (); raise (Failure Timeout)
   | exn -> finish (); raise exn
 
-let cmp_answers_exn2 l1 l2 = 
+let cmp_answers_exn2 l1 l2 =
   List.iter2 (
-    fun x y -> 
-      match x, y with 
+    fun x y ->
+      match x, y with
       | Sat, Unsat 
       | Unsat, Sat -> raise (Failure Unsound)
-      | _ ->  ()
+      | _ -> ()
   ) l1 l2
 
-let cmp_answers_pr2 l1 l2 = 
+let rec cmp_answers_exn3 l1 l2 l3 =
+  match l1, l2, l3 with
+  | h1 :: t1, h2 :: t2, h3 :: t3 ->
+    begin match h1, h2, h3 with
+      | Unsat, Unsat, Sat
+      | Unknown, Unsat, Sat
+      | Unsat, Unknown, Sat -> raise (Failure Unsound)
+      | _ -> cmp_answers_exn3 t1 t2 t3
+    end
+  | [], [], [] -> ()
+  | _ -> assert false
+
+
+let cmp_answers_pr2 l1 l2 =
   List.iter2 (
-    fun x y -> 
-      let aux = 
-        function 
-        | Sat -> "sat"
-        | Unsat -> "unsat"
-        | Unknown -> "unknown"
-      in
-      Format.printf "%s %s@." 
-        (aux x) (aux y)
+    fun x y ->
+      Format.printf "%s  %s@."
+        (answer_to_string x)
+        (answer_to_string y)
   ) l1 l2
+
+let rec cmp_answers_pr3 l1 l2 l3 =
+  match l1, l2, l3 with
+  | h1 :: t1, h2 :: t2, h3 :: t3 ->
+    Format.printf "%s  %s  %s@."
+      (answer_to_string h1)
+      (answer_to_string h2)
+      (answer_to_string h3);
+    cmp_answers_pr3 t1 t2 t3
+  | [], [], [] -> ()
+  | _ -> assert false
