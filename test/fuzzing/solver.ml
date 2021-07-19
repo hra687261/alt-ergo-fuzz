@@ -18,7 +18,7 @@ struct
       with End_of_file -> []
     in
     let filename = 
-      Format.sprintf "store/_%f.smt2"
+      Format.sprintf "tmp_%f.smt2"
         (Unix.gettimeofday ()) in
 
     let oc = open_out filename in
