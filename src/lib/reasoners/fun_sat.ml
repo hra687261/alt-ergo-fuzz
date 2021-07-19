@@ -189,12 +189,6 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     terminated_normally := false;
     Steps.reset_steps ()
 
-  let clear_cache () = 
-    reset_refs ();
-    Expr.clear_hc ();
-    Shostak.Combine.empty_cache ();
-    Gc.major ()
-
   let save_guard_and_refs env new_guard =
     let refs = {unit_facts = !(env.unit_facts_cache)} in
     Stack.push (new_guard,refs) env.guards.stack_elt;
@@ -1143,14 +1137,13 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
      The reason for this modification is that a set of instances may
      cause several conflict, and we don't always detect the one which
      makes us backjump better. *)
-  let update_instances_cache =
-    let last_cache = ref [] in
-    fun l_opt ->
-      match l_opt with
-      | None   -> Some !last_cache (* Get *)
-      | Some l -> (* Set or reset if l = [] *)
-        last_cache := List.filter (fun (_,e) -> Ex.has_no_bj e) l;
-        None
+  let last_cache = ref []
+  let update_instances_cache l_opt =
+    match l_opt with
+    | None   -> Some !last_cache (* Get *)
+    | Some l -> (* Set or reset if l = [] *)
+      last_cache := List.filter (fun (_,e) -> Ex.has_no_bj e) l;
+      None
 
   (* returns the (new) env and true if some new instances are made *)
   let inst_and_assume mconf env inst_function inst_env =
@@ -1961,4 +1954,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
   let assume_th_elt env th_elt dep =
     {env with tbox = Th.assume_th_elt env.tbox th_elt dep}
+
+  let clear_cache () = 
+    last_cache := [];
+    reset_refs ();
+    Expr.clear_hc ();
+    Shostak.Combine.empty_cache ();
+    Gc.major ()
 end

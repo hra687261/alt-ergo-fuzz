@@ -25,12 +25,6 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
   let reset_refs () = Steps.reset_steps ()
 
-  let clear_cache () = 
-    reset_refs ();
-    Expr.clear_hc ();
-    Shostak.Combine.empty_cache ();
-    Gc.major ()
-
   type guards = {
     current_guard: E.t;
     stack_guard: E.t Stack.t;
@@ -1165,6 +1159,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     SAT.assume_th_elt env.satml th_elt dep;
     env
 
+  let clear_cache () = 
+    reset_refs ();
+    Expr.clear_hc ();
+    Shostak.Combine.empty_cache ();
+    Gc.major ()
 end
 
 (*
