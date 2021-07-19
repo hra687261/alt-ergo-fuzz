@@ -10,63 +10,42 @@ end
 module CVC5: ST = 
 struct 
   include Smtlib2_tr
-  let process_stmts =
-    let procl = ref [] in
-    let kill_procs () =
-      List.iter (
-        fun proc ->
-          let id = Unix.process_in_pid proc in
-          Unix.kill id Sys.sigkill;
-          close_in proc
-      ) !procl;
-      procl := []
-    in
+  let process_stmts stmtcs =
     let rec get_lines (ic: in_channel) =
       try
         let l = input_line ic in
         l :: get_lines ic
       with End_of_file -> []
     in
-    at_exit kill_procs;
-    fun stmtcs ->
-      kill_procs ();
-      let filename = "_.smt2" in
+    let filename = 
+      Format.sprintf "tmp_%f.smt2"
+        (Unix.gettimeofday ()) in
 
-      let oc = open_out filename in
-      let fmt = Format.formatter_of_out_channel oc in
-      Format.fprintf fmt "%a" print_stmts stmtcs;
-      close_out oc;
+    let oc = open_out filename in
+    let fmt = Format.formatter_of_out_channel oc in
+    Format.fprintf fmt "%a" print_stmts stmtcs;
+    close_out oc;
 
-      let ic = 
-        Unix.open_process_in 
-          ( Format.sprintf 
-              "cvc5 --incremental --tlimit=%d %s" 
-              5000 filename)
-      in
-      procl := ic :: !procl;
-      let lines = get_lines ic in
+    let ic = 
+      Unix.open_process_in 
+        ( Format.sprintf 
+            "cvc5 --incremental --tlimit=%d %s; rm %s" 
+            5000 filename filename)
+    in
+    let lines = get_lines ic in
+    let _ = Unix.close_process_in ic in
 
-      List.map (
-        function
-        | "sat" -> Utils.Sat
-        | "unsat" -> Utils.Unsat
-        | "unknown" -> Utils.Unknown
-        | _ as x -> Format.printf "\n(((%s)))@." x; assert false
-      ) lines
+    List.map (
+      function
+      | "sat" -> Utils.Sat
+      | "unsat" -> Utils.Unsat
+      | "unknown" -> Utils.Unknown
+      | _ as x -> Format.printf "\n(((%s)))@." x; assert false
+    ) lines
 
 end
 
 module AEL = AltErgoLib
-
-
-
-(*
-val print_set_lb: 
-  (module Set.S with type elt = 'a and type t = 't) ->
-  (?p:string -> fmt -> 'a -> unit) ->
-  (?p:string -> fmt -> 't -> unit)
-*)
-
 
 let solve_with_ae 
     (module SAT: AEL.Sat_solver_sig.S)
@@ -109,12 +88,6 @@ struct
     AEL.Options.set_disable_weaks true;
     fun stmtcs -> 
       SAT.clear_cache ();
-      let filename = "_.ae" in 
-
-      let oc = open_out filename in 
-      let fmt = Format.formatter_of_out_channel oc in
-      Format.fprintf fmt "%a" print_stmts stmtcs;
-      close_out oc;
       solve_with_ae (module SAT) (module Tr_altergo) stmtcs
 
 end 
@@ -129,12 +102,6 @@ struct
     AEL.Options.set_disable_weaks true;
     fun stmtcs -> 
       SAT.clear_cache ();
-      let filename = "_.ae" in 
-
-      let oc = open_out filename in 
-      let fmt = Format.formatter_of_out_channel oc in
-      Format.fprintf fmt "%a" print_stmts stmtcs;
-      close_out oc;
       solve_with_ae (module SAT) (module Tr_altergo) stmtcs
 
 end
