@@ -114,17 +114,33 @@ let cmp_answers_exn2 l1 l2 =
       | _ -> ()
   ) l1 l2
 
-let rec cmp_answers_exn3 l1 l2 l3 =
-  match l1, l2, l3 with
-  | h1 :: t1, h2 :: t2, h3 :: t3 ->
-    begin match h1, h2, h3 with
-      | Unsat, Unsat, Sat
-      | Unknown, Unsat, Sat
-      | Unsat, Unknown, Sat -> raise (Failure Unsound)
-      | _ -> cmp_answers_exn3 t1 t2 t3
-    end
-  | [], [], [] -> ()
-  | _ -> assert false
+let cmp_answers_exn3 l1 l2 l3 =
+  let rec aux l1 l2 l3 =
+    match l1, l2, l3 with
+    | h1 :: t1, h2 :: t2, h3 :: t3 ->
+      begin match h1, h2, h3 with
+        | Unsat, Unsat, Sat
+        | Unknown, Unsat, Sat
+        | Unsat, Unknown, Sat -> raise (Failure Unsound)
+        | _ -> aux t1 t2 t3
+      end
+    | [], [], [] -> ()
+    | _ -> assert false
+  in
+  let len1, len2, len3 = 
+    List.length l1, List.length l2, List.length l3
+  in
+  if (len1 = len2 && len2 = len3)
+  then 
+    aux l1 l2 l3
+  else 
+    raise(
+      Invalid_argument (
+        Format.sprintf  
+          "cmp_answers_exn3 [%d] [%d] [%d]"
+          len1 len2 len3
+      )
+    )
 
 
 let cmp_answers_pr2 l1 l2 =
@@ -135,13 +151,29 @@ let cmp_answers_pr2 l1 l2 =
         (answer_to_string y)
   ) l1 l2
 
-let rec cmp_answers_pr3 l1 l2 l3 =
-  match l1, l2, l3 with
-  | h1 :: t1, h2 :: t2, h3 :: t3 ->
-    Format.printf "%s  %s  %s@."
-      (answer_to_string h1)
-      (answer_to_string h2)
-      (answer_to_string h3);
-    cmp_answers_pr3 t1 t2 t3
-  | [], [], [] -> ()
-  | _ -> assert false
+let cmp_answers_pr3 l1 l2 l3 =
+  let rec aux l1 l2 l3 =
+    match l1, l2, l3 with
+    | h1 :: t1, h2 :: t2, h3 :: t3 ->
+      Format.printf "%s  %s  %s@."
+        (answer_to_string h1)
+        (answer_to_string h2)
+        (answer_to_string h3);
+      aux t1 t2 t3
+    | [], [], [] -> ()
+    | _ -> assert false
+  in
+  let len1, len2, len3 = 
+    List.length l1, List.length l2, List.length l3
+  in
+  if (len1 = len2 && len2 = len3)
+  then 
+    aux l1 l2 l3
+  else 
+    raise(
+      Invalid_argument (
+        Format.sprintf  
+          "cmp_answers_exn3 [%d] [%d] [%d]"
+          len1 len2 len3
+      )
+    )
