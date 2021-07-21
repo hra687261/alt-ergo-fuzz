@@ -25,7 +25,7 @@ let () =
             true
           with
           | exp ->
-            mknmarshall_bi exp stmtcs; 
+            mknmarshall_bi_na exp stmtcs; 
             false
         )
     )

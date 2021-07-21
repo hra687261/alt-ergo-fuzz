@@ -10,38 +10,46 @@ end
 module CVC5: ST = 
 struct 
   include Smtlib2_tr
-  let process_stmts stmtcs =
+
+  let process_stmts =
     let rec get_lines (ic: in_channel) =
       try
         let l = input_line ic in
         l :: get_lines ic
       with End_of_file -> []
     in
-    let filename = 
-      Format.sprintf "tmp_%f.smt2"
-        (Unix.gettimeofday ()) in
+    fun stmtcs ->
+      let filename = 
+        Format.sprintf "tmp_%f.smt2"
+          (Unix.gettimeofday ()) in
 
-    let oc = open_out filename in
-    let fmt = Format.formatter_of_out_channel oc in
-    Format.fprintf fmt "%a" print_stmts stmtcs;
-    close_out oc;
+      let oc = open_out filename in
+      let fmt = Format.formatter_of_out_channel oc in
+      Format.fprintf fmt "%a" print_stmts stmtcs;
+      close_out oc;
 
-    let ic = 
-      Unix.open_process_in 
-        ( Format.sprintf 
-            "cvc5 --incremental --tlimit=%d %s; rm %s" 
-            5000 filename filename)
-    in
-    let lines = get_lines ic in
-    let _ = Unix.close_process_in ic in
+      let ic = 
+        Unix.open_process_in 
+          ( Format.sprintf 
+              "cvc5 --incremental --tlimit=%d %s 2>&1; rm %s" 
+              10000 filename filename)
+      in
+      let lines = get_lines ic in
+      let _ = Unix.close_process_in ic in
 
-    List.map (
-      function
-      | "sat" -> Utils.Sat
-      | "unsat" -> Utils.Unsat
-      | "unknown" -> Utils.Unknown
-      | _ as x -> Format.printf "\n(((%s)))@." x; assert false
-    ) lines
+      List.map (
+        fun x ->  
+          match x with 
+          | "sat" -> Utils.Sat
+          | "unsat" -> Utils.Unsat
+          | "unknown" -> Utils.Unknown
+          | "cvc5 interrupted by timeout." -> 
+            Format.printf "\nCVC5.process_stmts <1> %s@." x;
+            raise (Utils.Failure Utils.Timeout)
+          | _ -> 
+            Format.printf "\nCVC5.process_stmts <2> %s@." x;
+            raise (Utils.Failure (Utils.Other x))
+      ) lines
 
 end
 

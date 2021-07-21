@@ -17,7 +17,7 @@ let () =
   let str = really_input_string ic (in_channel_length ic) in
   close_in ic;
 
-  let {stmtcs; exp_str; exp_bt_str; _}: bug_info =
+  let {stmtcs; exp_str; exp_bt_str; ae_c; ae_t; cvc5; _}: bug_info =
     Marshal.from_string str 0
   in
 
@@ -30,11 +30,16 @@ let () =
         ) stmts
     ) stmtcs;
 
-  let ae_cdcl_res =
-    AE_CDCL.process_stmts stmtcs
-  in
-  let ae_t_res =
-    AE_Tableaux.process_stmts stmtcs
-  in
-  let cvc5res = C5S.process_stmts stmtcs in
-  cmp_answers_pr3 ae_t_res ae_cdcl_res cvc5res
+  Format.printf "\nOriginal answers:@.";
+  Format.printf "%d %d %d@."
+    (List.length ae_c) 
+    (List.length ae_t) 
+    (List.length cvc5);
+  cmp_answers_pr3 ae_c ae_t cvc5;
+
+  let ae_cr = AE_CDCL.process_stmts stmtcs in
+  let ae_tr = AE_Tableaux.process_stmts stmtcs in
+  let c5rn = C5S.process_stmts stmtcs in
+
+  Format.printf "\nRerunning answers:@.";
+  cmp_answers_pr3_exn ae_cr ae_tr c5rn
