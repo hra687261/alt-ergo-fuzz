@@ -11,8 +11,6 @@ type bug_type =
 
 exception Failure of bug_type
 
-let cnt = ref 0 
-
 type bug_info = { 
   id: int;
   bty: string;
@@ -29,12 +27,10 @@ type stmt_cache = bug_info list
 let mk_bi_aux id ae_c ae_t cvc5 bty exp_str exp_bt_str stmtcs =
   {id; ae_c; ae_t; cvc5; bty; exp_str; exp_bt_str; stmtcs}
 
-let mk_bi_success ae_c ae_t cvc5 stmtcs =
-  { id = -1; ae_c; ae_t; cvc5; 
-    bty = ""; exp_str = ""; exp_bt_str = ""; stmtcs}
+let mk_bi_success id ae_c ae_t cvc5 stmtcs =
+  mk_bi_aux id ae_c ae_t cvc5 "" "" "" stmtcs
 
-let mk_bi exp ae_c ae_t c5 stmtcs =
-  let id = !cnt in 
+let mk_bi id exp ae_c ae_t c5 stmtcs =
   let exp_str = Printexc.to_string exp in 
   let exp_bt_str = Printexc.get_backtrace () in 
   let bty = 
@@ -46,8 +42,8 @@ let mk_bi exp ae_c ae_t c5 stmtcs =
   in 
   mk_bi_aux id ae_c ae_t c5 bty exp_str exp_bt_str stmtcs 
 
-let mk_bi_empty exp stmtcs =
-  mk_bi exp [] [] [] stmtcs
+let mk_bi_empty id exp stmtcs =
+  mk_bi id exp [] [] [] stmtcs
 
 let answer_to_string = function 
   | Sat -> "sat"
@@ -72,10 +68,15 @@ let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
       ~stderr:`Keep 
       command)
 
+let data_to_file data file_path =
+  let oc = open_out file_path in
+  let fmt = Format.formatter_of_out_channel oc in
+  Format.fprintf fmt "%s" data;
+  close_out oc
+
 let mknmarshall_bi ?(verbose = false)
-    ?(crash_output_folder_path = "test/fuzzing/crash_output") 
-    exn stmtcs ae_c ae_t cvc5 = 
-  let id = !cnt in 
+    ?(output_folder_path = "test/fuzzing/crash_output") 
+    id exn stmtcs ae_c ae_t cvc5 = 
   let exn_str = Printexc.to_string exn in 
   let exn_bt_str = Printexc.get_backtrace () in 
   let bty, sym = 
@@ -90,16 +91,13 @@ let mknmarshall_bi ?(verbose = false)
   in
   let data = Stdlib.Marshal.to_string bi [] in
 
-  let file_name =
+  let file_path =
     Format.sprintf
       "%s/%s%d_%f.txt"
-      crash_output_folder_path sym !cnt (Unix.gettimeofday ())
+      output_folder_path sym id (Unix.gettimeofday ())
   in
 
-  let oc = open_out file_name in
-  let fmt = Format.formatter_of_out_channel oc in
-  Format.fprintf fmt "%s" data;
-  close_out oc;
+  data_to_file data file_path;
 
   if verbose
   then (
@@ -115,15 +113,14 @@ let mknmarshall_bi ?(verbose = false)
       ) stmtcs;
     Format.printf
       "Marshalled and written to the file : %s@."
-      file_name
+      file_path
   ) 
 
-
 let mknmarshall_bi_na ?(verbose = false)
-    ?(crash_output_folder_path = "test/fuzzing/crash_output")
-    exn stmtcs =
-  mknmarshall_bi
-    ~verbose ~crash_output_folder_path
+    ?(output_folder_path = "test/fuzzing/crash_output")
+    id exn stmtcs =
+  mknmarshall_bi id
+    ~verbose ~output_folder_path
     exn stmtcs [] [] []
 
 let mknmarshall_stmt_cache 
