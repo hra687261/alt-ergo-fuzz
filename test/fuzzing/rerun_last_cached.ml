@@ -43,7 +43,5 @@ let () =
   let ae_cr = AE_CDCL.process_stmts stmtcs in
   let ae_tr = AE_Tableaux.process_stmts stmtcs in
 
-  Format.printf "ICI4@.";
-
   Format.printf "\nRerunning answers:@.";
   cmp_answers_pr3_exn ae_cr ae_tr c5rn
