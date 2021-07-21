@@ -22,12 +22,10 @@ let () =
     List.hd (List.rev bis) 
   in  
 
-  let b = exp_str <> "" in 
-
   Format.printf 
-    "\n######################################### %d %b@." 
-    (List.length bis - 1) b;
-  if b then (
+    "\n######################################### %d@." 
+    (List.length bis - 1);
+  if exp_str <> "" then (
     Format.printf 
       "Original exception: \nFatal error: exception %s\n%s@."
       exp_str exp_bt_str;

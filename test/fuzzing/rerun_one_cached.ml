@@ -22,11 +22,9 @@ let () =
 
   let {ae_c; ae_t; cvc5; stmtcs; exp_str; exp_bt_str; _} = List.nth bis num in  
 
-  let b = exp_str <> "" in 
-
   Format.printf 
-    "\n######################################### %d %b@." num b;
-  if b then (
+    "\n######################################### %d@." num;
+  if exp_str <> "" then (
     Format.printf 
       "Original exception: \nFatal error: exception %s\n%s@."
       exp_str exp_bt_str;
