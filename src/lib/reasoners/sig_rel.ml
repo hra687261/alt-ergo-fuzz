@@ -30,6 +30,39 @@ let print_literal : (Format.formatter -> 'a -> unit) ->
     Format.fprintf fmt "%a"
       (Xliteral.print_view ~lbl:p pr) l
 
+let print_fact : (Format.formatter -> 'a -> unit) ->
+  ?p:string -> Format.formatter -> 'a fact -> unit =
+  fun pr ?(p = "  ") fmt (lit, ex, lit_o) ->
+  let p1 = p^"  " in 
+  let p2 = p1^"  " in 
+
+  Format.fprintf fmt "%s{@." p;
+  Format.fprintf fmt "%sliteral = \n%a;@."
+    p1 (print_literal pr ~p:p2) lit;
+  Format.fprintf fmt "%sexplanation = %a;@."
+    p1 Explanation.print ex;
+  Format.fprintf fmt "%slit_origin = %a;@."
+    p1 Th_util.print_lit_origin lit_o;
+  Format.fprintf fmt "%s}" p
+
+let print_facts : (Format.formatter -> 'a -> unit) ->
+  ?p:string -> Format.formatter -> 'a facts -> unit =
+  fun pr ?(p = "  ") fmt {equas; diseqs; ineqs; touched} ->
+  let p1 = p^"  " in 
+
+  Format.fprintf fmt "%s{@." p;
+  Format.fprintf fmt "%sequas = %a@." p1
+    (Pp_utils.print_queue (print_fact pr)) equas;
+  Format.fprintf fmt "%sdiseqs = %a@." p1
+    (Pp_utils.print_queue (print_fact pr)) diseqs;
+  Format.fprintf fmt "%sineqs = %a@." p1
+    (Pp_utils.print_queue (print_fact pr)) ineqs;
+  let module PMI = Pp_utils.MapPrinter(Util.MI) in
+  Format.fprintf fmt "%stouched = %a@." p1
+    (PMI.pr Pp_utils.pr_int (Pp_utils.addpref pr)) touched;
+  Format.fprintf fmt "%s}" p
+
+
 module type RELATION = sig
   type t
 

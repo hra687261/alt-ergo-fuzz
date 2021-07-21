@@ -36,6 +36,8 @@ module type S = sig
   type t
   type r = Shostak.Combine.r
 
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
+
   val empty : unit -> t
 
   val empty_facts : unit -> r Sig_rel.facts
@@ -79,8 +81,6 @@ module type S = sig
     do_syntactic_matching:bool ->
     Matching_types.info Expr.Map.t * Expr.t list Expr.Map.t Symbols.Map.t ->
     t -> (Expr.t -> Expr.t -> bool) -> t * Sig_rel.instances
-
-  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
 
 end
 

@@ -1,6 +1,12 @@
 (executables
- (names afl_fuzzing rerun translate_and_write issue_creation)
- (public_names afl_fuzzing rerun translate_and_write issue_creation)
+ (names 
+   afl_fuzzing rerun 
+   afl_fuzzing_cached rerun_all_cached rerun_one_cached rerun_last_cached
+   translate_and_write issue_creation)
+ (public_names
+   afl_fuzzing rerun 
+   afl_fuzzing_cached rerun_all_cached rerun_one_cached rerun_last_cached
+   translate_and_write issue_creation)
  (libraries alt-ergo-lib crowbar lwt git-cohttp git-cohttp-unix)
  (modules_without_implementation translater)
  (package alt-ergo-lib)

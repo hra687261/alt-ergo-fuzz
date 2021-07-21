@@ -2020,16 +2020,15 @@ module Make (Th : Theory.S) : SAT_ML with type th = Th.t = struct
         f fmt " %a" (print_sff ~p:p2) relevants;
 
         f fmt "\n%srelevants_queue =" p1;
-        (*
         f fmt " %a" (print_sffv ~p:p2) relevants_queue;
-        *)
-        ignore relevants_queue;
-        ignore print_sffv;
 
         f fmt "\n%sff_lvl =" p1;
         f fmt " %a" (print_imff ~p:p2) ff_lvl;
         f fmt "\n%slvl_ff =" p1;
+        f fmt " %a" (UMIP.pr Pp.pr_int print_sff ) lvl_ff;
+        (*
         f fmt " %a" (UMIP.pr_lb Pp.pr_int print_sff ~p:p2) lvl_ff;
+        *)
         f fmt "\n%sincrem_guards =" p1; 
         f fmt " %a" (print_av ~p:p2) increm_guards;
 

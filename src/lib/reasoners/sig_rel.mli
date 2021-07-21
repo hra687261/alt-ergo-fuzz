@@ -51,6 +51,13 @@ val print_literal :
   (Format.formatter -> 'a -> unit) ->
   (?p:string -> Format.formatter -> 'a literal -> unit)
 
+val print_fact : 
+  (Format.formatter -> 'a -> unit) -> ?p:string -> Format.formatter -> 
+  'a literal * Explanation.t * Th_util.lit_origin -> unit
+
+val print_facts : (Format.formatter -> 'a -> unit) ->
+  ?p:string -> Format.formatter -> 'a facts -> unit 
+
 module type RELATION = sig
   type t
 

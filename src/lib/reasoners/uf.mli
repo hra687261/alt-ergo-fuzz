@@ -30,6 +30,8 @@ type t
 
 type r = Shostak.Combine.r
 
+val pr_vrb : ?p:string -> Format.formatter -> t -> unit
+
 module LX : Xliteral.S with type elt = r
 
 val empty : unit -> t
@@ -67,5 +69,3 @@ val is_normalized : t -> r -> bool
 
 val assign_next : t -> (r Xliteral.view * bool * Th_util.lit_origin) list * t
 val output_concrete_model : t -> unit
-
-val pr_vrb : ?p:string -> Format.formatter -> t -> unit

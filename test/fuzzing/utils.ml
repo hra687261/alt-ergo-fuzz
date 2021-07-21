@@ -24,10 +24,12 @@ type bug_info = {
   stmtcs: Ast.stmt_c list
 }
 
+type stmt_cache = bug_info list
+
 let mk_bi_aux id ae_c ae_t cvc5 bty exp_str exp_bt_str stmtcs =
   {id; ae_c; ae_t; cvc5; bty; exp_str; exp_bt_str; stmtcs}
 
-let mk_bug_info_empty ae_c ae_t cvc5 stmtcs =
+let mk_bi_success ae_c ae_t cvc5 stmtcs =
   { id = -1; ae_c; ae_t; cvc5; 
     bty = ""; exp_str = ""; exp_bt_str = ""; stmtcs}
 
@@ -43,6 +45,9 @@ let mk_bi exp ae_c ae_t c5 stmtcs =
     | _ -> "other"
   in 
   mk_bi_aux id ae_c ae_t c5 bty exp_str exp_bt_str stmtcs 
+
+let mk_bi_empty exp stmtcs =
+  mk_bi exp [] [] [] stmtcs
 
 let answer_to_string = function 
   | Sat -> "sat"
@@ -120,6 +125,23 @@ let mknmarshall_bi_na ?(verbose = false)
   mknmarshall_bi
     ~verbose ~crash_output_folder_path
     exn stmtcs [] [] []
+
+let mknmarshall_stmt_cache 
+    ?(crash_output_folder_path = "test/fuzzing/crash_output") 
+    (bis: stmt_cache) =
+
+  let file_name = 
+    Format.sprintf
+      "%s/c_%f.txt"
+      crash_output_folder_path (Unix.gettimeofday ())
+  in
+
+  let data = Stdlib.Marshal.to_string bis [] in
+
+  let oc = open_out file_name in 
+  let fmt = Format.formatter_of_out_channel oc in
+  Format.fprintf fmt "%s" data;
+  close_out oc
 
 let timeout_limit = ref 5
 

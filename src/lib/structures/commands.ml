@@ -67,32 +67,32 @@ let print fmt decl = print_aux fmt decl.st_decl
 
 let f = Format.fprintf
 
-let print_aux_bis fmt = function
+let print_aux_bis ?(p = "") fmt = function
   | Assume (name, e, b) ->
-    f fmt "assume %s(%b): \n%a" 
+    f fmt "%sassume %s(%b): \n%a" p
       name b
-      (Expr.print_vrb ~p:"") e
+      (Expr.print_vrb ~p:(p^"  ")) e
   | PredDef (e, name) ->
-    f fmt "pred-def %s: \n%a"
+    f fmt "%spred-def %s: \n%a" p
       name
-      (Expr.print_vrb ~p:"") e
+      (Expr.print_vrb ~p:(p^"  ")) e
   | RwtDef l ->
-    f fmt "rwrts: \n%a"
+    f fmt "%srwrts: \n%a" p
       (Util.print_list_pp
          ~sep:Format.pp_print_space
          ~pp:(print_rwt Expr.print)
       ) l
   | Query (name, e, sort) ->
-    f fmt "query %s(%a): \n%a"
+    f fmt "%squery %s(%a): \n%a" p
       name print_goal_sort
       sort
-      (Expr.print_vrb ~p:"") e
+      (Expr.print_vrb ~p:(p^"  ")) e
   | ThAssume t ->
     f fmt
-      "th assume %a" Expr.print_th_elt t
+      "%sth assume %a" p Expr.print_th_elt t
   | Push n ->
-    f fmt "Push %d" n
+    f fmt "%sPush %d" p n
   | Pop n ->
-    f fmt "Pop %d" n
+    f fmt "%sPop %d" p n
 
-let print_verbose fmt decl = print_aux_bis fmt decl.st_decl
+let pr_vrb ?(p = "") fmt decl = print_aux_bis ~p fmt decl.st_decl

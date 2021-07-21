@@ -51,12 +51,13 @@ let main () =
   let module FE = Frontend.Make (SAT) in
 
   let solve all_context (cnf, goal_name) =
+    (*
     List.iter (
       fun x ->
         Format.printf ">>> %a@." Commands.print x;
-        Format.printf "$$$ %a\n@." Commands.print_verbose x
-        ) 
-      cnf;
+        Format.printf "$$$ %a\n@." (Commands.pr_vrb ~p:"") x
+    ) cnf;
+    *)
     let used_context = FE.choose_used_context all_context ~goal_name in
     let consistent_dep_stack = Stack.create () in
     Signals_profiling.init_profiling ();
