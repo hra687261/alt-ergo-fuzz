@@ -477,7 +477,7 @@ let rec print_expr fmt expr =
 
   | FunCall {fname; args; _} -> 
     Format.fprintf fmt "%s(" fname;
-    begin match List.rev args with 
+    begin match args with 
       | h :: t ->
         Format.fprintf fmt "%a" print_expr h;
         List.iter (

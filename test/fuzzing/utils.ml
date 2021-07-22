@@ -25,7 +25,7 @@ type bug_info = {
 let mk_bi_aux id ae_c ae_t cvc5 bty exp_str exp_bt_str stmtcs =
   {id; ae_c; ae_t; cvc5; bty; exp_str; exp_bt_str; stmtcs}
 
-let mk_bug_info_empty id ae_c ae_t cvc5 stmtcs =
+let mk_bi_success id ae_c ae_t cvc5 stmtcs =
   mk_bi_aux id ae_c ae_t cvc5 "" "" "" stmtcs
 
 let mk_bi id exp ae_c ae_t c5 stmtcs =
@@ -39,6 +39,9 @@ let mk_bi id exp ae_c ae_t c5 stmtcs =
     | _ -> "other"
   in 
   mk_bi_aux id ae_c ae_t c5 bty exp_str exp_bt_str stmtcs 
+
+let mk_bi_empty id exp stmtcs =
+  mk_bi id exp [] [] [] stmtcs
 
 let answer_to_string = function 
   | Sat -> "sat"
@@ -63,10 +66,11 @@ let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
       ~stderr:`Keep 
       command)
 
-let data_to_file data file_path =
-  let oc = open_out file_path in
+let data_to_file data of_path =
+  let str = Stdlib.Marshal.to_string data [] in
+  let oc = open_out of_path in
   let fmt = Format.formatter_of_out_channel oc in
-  Format.fprintf fmt "%s" data;
+  Format.fprintf fmt "%s" str;
   close_out oc
 
 let mknmarshall_bi ?(verbose = false)
@@ -84,15 +88,14 @@ let mknmarshall_bi ?(verbose = false)
   let bi =
     mk_bi_aux id ae_c ae_t cvc5 bty exn_str exn_bt_str stmtcs
   in
-  let data = Stdlib.Marshal.to_string bi [] in
 
-  let file_path =
+  let of_path =
     Format.sprintf
       "%s/%s%d_%f.txt"
       output_folder_path sym id (Unix.gettimeofday ())
   in
 
-  data_to_file data file_path;
+  data_to_file bi of_path;
 
   if verbose
   then (
@@ -108,7 +111,7 @@ let mknmarshall_bi ?(verbose = false)
       ) stmtcs;
     Format.printf
       "Marshalled and written to the file : %s@."
-      file_path
+      of_path
   ) 
 
 let mknmarshall_bi_na ?(verbose = false)

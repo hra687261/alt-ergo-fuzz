@@ -285,7 +285,7 @@ let func_call_gen :
       auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
     ] (
       fun a1 a2 a3 a4 a5 ->
-        let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
+        let rargs, u_args, u_bvars, u_dt, u_us, c_funcs = 
           List.fold_left (
             fun ((l, vs, bv, ud, uus, fcs) as acc) gr -> 
               if is_dummy gr.g_res
@@ -301,6 +301,7 @@ let func_call_gen :
               TCM.empty, SS.add fname SS.empty)
             [a1; a2; a3; a4; a5]
         in
+        let args = List.rev rargs in
         { g_res = FunCall {
               fname; fk = UDF; 
               atyp = 
@@ -731,7 +732,7 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
 (********************************************************************)
 let fdef_gen ?(fdefs = []) ?(adts : adt list = []) 
     name func_max_depth = 
-  let ag = 
+  let ag () = 
     Cr.map [
       typ_gen (); typ_gen (); typ_gen ();
       typ_gen (); typ_gen (); typ_gen ();
@@ -740,7 +741,7 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
         (t1, t2, t3, t4, t5), rtyp
     )
   in
-  let fg = 
+  let fg () = 
     fun ((t1, t2, t3, t4, t5), rtyp) ->
       let a1, a2, a3, a4, a5 = 
         mk_tvar "a1" t1 ARG,
@@ -775,7 +776,7 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
       ge
   in
   Cr.with_printer (pr_gr print_stmt) @@
-  Cr.dynamic_bind ag fg
+  Cr.dynamic_bind (ag ()) (fg ())
 
 let goal_gen ?(fdefs = []) ?(adts : adt list = []) 
     query_max_depth =
