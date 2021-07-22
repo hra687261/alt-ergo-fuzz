@@ -208,7 +208,7 @@ let rec translate_expr (a: expr) =
     List.iter (
       fun a ->
         Queue.push (translate_expr a) q
-    ) (List.rev args);
+    ) args;
     PExpr q
 
   | Forall {qvars; body; _}
@@ -391,7 +391,6 @@ let print_tcm fmt (gtm: SS.t Ast.TCM.t) =
               print_sort rtyp
       ) ss 
   ) gtm 
-
 
 let print_typedecls fmt tydecls = 
   TDS.iter (

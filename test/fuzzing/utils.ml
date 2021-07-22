@@ -68,10 +68,11 @@ let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
       ~stderr:`Keep 
       command)
 
-let data_to_file data file_path =
-  let oc = open_out file_path in
+let data_to_file data of_path =
+  let str = Stdlib.Marshal.to_string data [] in
+  let oc = open_out of_path in
   let fmt = Format.formatter_of_out_channel oc in
-  Format.fprintf fmt "%s" data;
+  Format.fprintf fmt "%s" str;
   close_out oc
 
 let mknmarshall_bi ?(verbose = false)
@@ -89,15 +90,14 @@ let mknmarshall_bi ?(verbose = false)
   let bi =
     mk_bi_aux id ae_c ae_t cvc5 bty exn_str exn_bt_str stmtcs
   in
-  let data = Stdlib.Marshal.to_string bi [] in
 
-  let file_path =
+  let of_path =
     Format.sprintf
       "%s/%s%d_%f.txt"
       output_folder_path sym id (Unix.gettimeofday ())
   in
 
-  data_to_file data file_path;
+  data_to_file bi of_path;
 
   if verbose
   then (
@@ -113,7 +113,7 @@ let mknmarshall_bi ?(verbose = false)
       ) stmtcs;
     Format.printf
       "Marshalled and written to the file : %s@."
-      file_path
+      of_path
   ) 
 
 let mknmarshall_bi_na ?(verbose = false)
