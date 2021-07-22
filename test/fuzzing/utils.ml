@@ -127,18 +127,13 @@ let mknmarshall_stmt_cache
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
     (bis: stmt_cache) =
 
-  let file_name = 
+  let of_path = 
     Format.sprintf
       "%s/c_%f.txt"
       crash_output_folder_path (Unix.gettimeofday ())
   in
 
-  let data = Stdlib.Marshal.to_string bis [] in
-
-  let oc = open_out file_name in 
-  let fmt = Format.formatter_of_out_channel oc in
-  Format.fprintf fmt "%s" data;
-  close_out oc
+  data_to_file bis of_path
 
 let timeout_limit = ref 5
 
