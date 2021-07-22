@@ -167,7 +167,7 @@ let usymf_genl ty gen fuel =
         auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
       ] (
         fun a1 a2 a3 a4 a5 ->
-          let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
+          let rargs, u_args, u_bvars, u_dt, u_us, c_funcs = 
             List.fold_left (
               fun (l, vs, bv, ud, uus, fcs) b -> 
                 if is_dummy b.g_res
@@ -182,6 +182,7 @@ let usymf_genl ty gen fuel =
             ) ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty) 
               [a1; a2; a3; a4; a5]
           in
+          let args = List.rev rargs in 
           let atyp = 
             List.filter 
               (fun x -> x <> TDummy) 
@@ -863,6 +864,33 @@ let update_fdis : fd_info list -> stmt gen_res -> fd_info list =
       let fdi = mk_fd_info name atyp rtyp in 
       List.rev_append fdefs [fdi]
   | _ -> fdefs
+
+let update_accs 
+    (otds, ouss : TDS.t * SS.t TCM.t) 
+    (ntds, nuss : TDS.t * SS.t TCM.t) = 
+  let atds, tptds = 
+    TDS.fold (
+      fun td (atds, tptds) ->
+        if TDS.mem td atds 
+        then (atds, tptds)
+        else (TDS.add td atds, TDS.add td tptds)
+    ) ntds (otds, TDS.empty) 
+  in
+  let auss, tpuss =
+    TCM.fold (
+      fun tc s (atcm, tpuss) ->
+        let nass, ntpss = 
+          match TCM.find_opt tc atcm with 
+          | Some ss -> 
+            SS.union s ss, 
+            SS.filter (fun n -> not (SS.mem n ss)) s
+          | None -> s, s
+        in
+        TCM.add tc nass atcm, 
+        TCM.add tc ntpss tpuss
+    ) nuss (ouss, TCM.empty)
+  in 
+  (atds, auss), (tptds, tpuss)
 
 (********************************************************************)
 

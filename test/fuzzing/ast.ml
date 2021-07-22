@@ -183,33 +183,6 @@ type stmt_c = {
   uss : SS.t TCM.t
 }
 
-let update_accs 
-    (otds, ouss : TDS.t * SS.t TCM.t) 
-    (ntds, nuss : TDS.t * SS.t TCM.t) = 
-  let atds, tptds = 
-    TDS.fold (
-      fun td (atds, tptds) ->
-        if TDS.mem td atds 
-        then (atds, tptds)
-        else (TDS.add td atds, TDS.add td tptds)
-    ) ntds (otds, TDS.empty) 
-  in
-  let auss, tpuss =
-    TCM.fold (
-      fun tc s (atcm, tpuss) ->
-        let nass, ntpss = 
-          match TCM.find_opt tc atcm with 
-          | Some ss -> 
-            SS.union s ss, 
-            SS.filter (fun n -> not (SS.mem n ss)) s
-          | None -> s, s
-        in
-        TCM.add tc nass atcm, 
-        TCM.add tc ntpss tpuss
-    ) nuss (ouss, TCM.empty)
-  in 
-  (atds, auss), (tptds, tpuss)
-
 let dpt = 3 
 let query_max_depth = dpt
 let axiom_max_depth = dpt
