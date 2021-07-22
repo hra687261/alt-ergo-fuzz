@@ -865,49 +865,20 @@ let update_fdis : fd_info list -> stmt gen_res -> fd_info list =
       List.rev_append fdefs [fdi]
   | _ -> fdefs
 
-let update_accs 
-    (otds, ouss : TDS.t * SS.t TCM.t) 
-    (ntds, nuss : TDS.t * SS.t TCM.t) = 
-  let atds, tptds = 
-    TDS.fold (
-      fun td (atds, tptds) ->
-        if TDS.mem td atds 
-        then (atds, tptds)
-        else (TDS.add td atds, TDS.add td tptds)
-    ) ntds (otds, TDS.empty) 
-  in
-  let auss, tpuss =
-    TCM.fold (
-      fun tc s (atcm, tpuss) ->
-        let nass, ntpss = 
-          match TCM.find_opt tc atcm with 
-          | Some ss -> 
-            SS.union s ss, 
-            SS.filter (fun n -> not (SS.mem n ss)) s
-          | None -> s, s
-        in
-        TCM.add tc nass atcm, 
-        TCM.add tc ntpss tpuss
-    ) nuss (ouss, TCM.empty)
-  in 
-  (atds, auss), (tptds, tpuss)
-
 (********************************************************************)
 
 let rec iter : 
-  fd_info list -> typedecl list -> TDS.t * SS.t TCM.t * SS.t -> 
+  fd_info list -> typedecl list -> SS.t -> 
   stmtkind list -> stmt_c list -> stmt_c list Cr.gen =
-  fun fds adtl (otds, ouss, ofcs) kndl acc ->
+  fun fds adtl ocfs kndl acc ->
   match kndl with 
   | [knd] -> 
-    liter fds adtl (otds, ouss, ofcs) knd acc
+    liter fds adtl ocfs knd acc
   | h :: t ->
     let a : stmt gen_res Cr.gen = mk_gen fds adtl h in 
     let b : stmt gen_res -> stmt_c list Cr.gen = 
       fun ({g_res = stmt; u_dt; u_us; c_funcs; _} as gr) ->
-        let nfds = update_fdis fds gr in 
-        let afcs = SS.union c_funcs ofcs in  
-        let ntds = 
+        let tds = 
           SS.fold (
             fun str acc -> 
               let nt = 
@@ -916,26 +887,24 @@ let rec iter :
               TDS.add nt acc 
           ) u_dt TDS.empty 
         in
-        let (atds, auss), (tds, uss) = 
-          update_accs (otds, ouss) (ntds, u_us)
-        in 
-        let stmtc = {stmt; tds; uss} in
-        iter nfds adtl (atds, auss, afcs) t (stmtc :: acc)
+        let nfds = update_fdis fds gr in 
+        let ncfs = SS.union c_funcs ocfs in 
+        let stmtc = {stmt; tds; uss = u_us} in
+        iter nfds adtl ncfs t (stmtc :: acc)
     in      
     Cr.dynamic_bind a b
   | _ -> assert false 
 
 and liter : 
-  fd_info list -> typedecl list -> TDS.t * SS.t TCM.t * SS.t -> 
+  fd_info list -> typedecl list -> SS.t -> 
   stmtkind -> stmt_c list -> stmt_c list Cr.gen =
-  fun fds adtl (otds, ouss, ofcs) knd acc ->
+  fun fds adtl ocfs knd acc ->
   let a : stmt gen_res Cr.gen =
     mk_gen fds adtl knd
   in
   let b : stmt gen_res -> stmt_c list Cr.gen = 
-    fun {g_res = stmt; u_dt; u_us; c_funcs; _} ->
-      let afcs = SS.union c_funcs ofcs in  
-      let ntds = 
+    fun {g_res = stmt; u_dt; u_us; c_funcs; _} -> 
+      let tds = 
         SS.fold (
           fun str acc -> 
             let nt = 
@@ -944,19 +913,16 @@ and liter :
             TDS.add nt acc 
         ) u_dt TDS.empty 
       in
-      let _, (tds, uss) = 
-        update_accs (otds, ouss) (ntds, u_us)
-      in 
-      let tmp = {stmt; tds; uss} in 
-      let stmtcl = tmp :: acc in 
-      let rstmtcs, _, _ = 
+      let ncfs = SS.union c_funcs ocfs in 
+      let stmtc = {stmt; tds; uss = u_us} in 
+
+      let stmtcl = stmtc :: acc in 
+      let stmtcs = 
         List.fold_left (
-          fun (acc, ptds, puss) {stmt; tds; uss} -> 
-            let tds = TDS.union ptds tds in
-            let uss = tcm_union puss uss in
+          fun acc {stmt; tds; uss} -> 
             match stmt with 
             | FuncDef ({name; atyp; _} as f) -> 
-              if SS.mem name afcs
+              if SS.mem name ncfs
               then 
                 let stmt = 
                   FuncDef 
@@ -966,20 +932,16 @@ and liter :
                           fun v -> not (is_dummy_tvar v)
                         ) atyp
                     }
-                in {stmt; tds; uss} :: acc, TDS.empty, TCM.empty
-              else acc, tds, uss
-
-            | _ -> {stmt; tds; uss} :: acc, TDS.empty, TCM.empty
-        ) ([], TDS.empty, TCM.empty) (List.rev stmtcl)
+                in {stmt; tds; uss} :: acc
+              else acc
+            | _ -> {stmt; tds; uss} :: acc
+        ) [] stmtcl
       in 
-      let stmtcs = List.rev rstmtcs in
       Cr.const stmtcs
   in    
   Cr.dynamic_bind a b
 
 (********************************************************************)
-
-
 
 (*
 (* the more stmts are generated the slower the fuzzing will be *)
@@ -1004,7 +966,6 @@ let gen_stmts =
       (fun adt1 adt2 e1 e2 -> (adt1, adt2), (e1, e2))
   ) (
     fun ((adt1, adt2), (e1, e2)) -> 
-      iter [] [adt1; adt2] 
-        (TDS.empty, TCM.empty, SS.empty) 
+      iter [] [adt1; adt2] SS.empty 
         [e1; e2; GD] []
   )

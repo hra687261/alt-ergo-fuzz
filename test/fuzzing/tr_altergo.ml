@@ -668,15 +668,37 @@ let print_stmt fmt (stmt: stmt) =
 
 let print_stmts fmt (scs: stmt_c list) =
   ignore @@
-  List.iter (
-    fun {stmt; tds; uss} ->
-      if not (TDS.is_empty tds) then 
+  List.fold_left (
+    fun (dtds, duss) {stmt; tds; uss} ->
+      let atds, tptds = 
+        TDS.fold (
+          fun td (atds, tptds) ->
+            if TDS.mem td atds 
+            then (atds, tptds)
+            else (TDS.add td atds, TDS.add td tptds)
+        ) tds (dtds, TDS.empty)
+      in 
+      let auss, tpuss =
+        TCM.fold (
+          fun tc s (atcm, tpuss) ->
+            let nass, ntpss = 
+              match TCM.find_opt tc atcm with 
+              | Some ss -> 
+                SS.union s ss, 
+                SS.filter (fun n -> not (SS.mem n ss)) s
+              | None -> s, s
+            in
+            TCM.add tc nass atcm, 
+            TCM.add tc ntpss tpuss
+        ) uss (duss, TCM.empty)
+      in 
+      if not (TDS.is_empty tptds) then 
         Format.fprintf fmt "\n%a@."
-          print_typedecls tds;
-      if not (TCM.is_empty uss) then 
+          print_typedecls tptds;
+      if not (TCM.is_empty tpuss) then 
         Format.fprintf fmt "\n%a@."
-          print_tcm uss;
+          print_tcm tpuss;
       Format.fprintf fmt "\n%a@." 
-        print_stmt stmt
-  ) scs
-
+        print_stmt stmt;
+      atds, auss
+  ) (TDS.empty, TCM.empty) scs
