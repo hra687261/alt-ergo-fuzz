@@ -115,7 +115,7 @@ let rec translate_expr (a: expr) =
               (Str.regexp "\\.$") ".0" 
               (Float.to_string r)) 
     )
-      (*
+    (*
       if r = 0.
       then Atom "0.0"
       else 
@@ -281,7 +281,6 @@ let rec translate_expr (a: expr) =
     PExpr q
 
   | Cstr {cname; params; _} ->
-    ignore (cname, params);
     let q = Queue.create () in
     Queue.push (Atom cname) q;
     List.iter (
@@ -294,15 +293,13 @@ let rec translate_expr (a: expr) =
 
 let translate_stmt (d: stmt) =
   match d with 
-  | Axiom {name; body} ->
-    ignore name;
+  | Axiom {body; _} ->
     let q = Queue.create () in 
     Queue.push (Atom "assert") q;
     Queue.push (translate_expr body) q;
     PExpr q
 
-  | Goal {name; body} -> 
-    ignore name;
+  | Goal {body; _} -> 
     let qg = Queue.create () in 
     Queue.push (Atom "assert") qg;
     Queue.push (translate_expr (Unop (Not, body))) qg;
