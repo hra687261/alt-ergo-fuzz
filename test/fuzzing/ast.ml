@@ -1,3 +1,4 @@
+open Gen_stngs 
 
 type typ = 
   | Tint | Treal | Tbool | TDummy
@@ -182,20 +183,6 @@ type stmt_c = {
   tds : TDS.t;
   uss : SS.t TCM.t
 }
-
-let dpt = 3 
-let query_max_depth = dpt
-let axiom_max_depth = dpt
-let func_max_depth = dpt
-
-let nb_us_vars = 5
-let nb_q_vars = 5
-let max_nb_fun_args = 5
-
-let v_id, thmid, axid, gid, qid, fid, bid = 
-  ref 0, ref 0, ref 0, ref 0, ref 0, ref 0, ref 0
-
-let adt_id = ref 0
 
 (* Pretty printing *)
 

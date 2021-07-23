@@ -14,9 +14,6 @@ val dk_gen : Ast.stmtkind Cr.gen
 val pr_gr : (Format.formatter -> 'a -> unit) -> 
   Format.formatter -> 'a gen_res -> unit
 
-val get_gen : 
-  Ast.fd_info list -> Ast.stmtkind -> Ast.stmt gen_res Cr.gen
-
 val expr_gen : 
   ?isform:bool -> ?qvars:bool -> ?args:Ast.tvar list -> 
   ?fdefs:Ast.fd_info list -> 

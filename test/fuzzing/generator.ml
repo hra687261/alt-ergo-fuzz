@@ -1,4 +1,5 @@
 open Ast
+open Gen_stngs
 module Cr = Crowbar 
 
 type 'a gen_res = {
@@ -132,7 +133,7 @@ let binop_gen : 'a -> int -> binop ->
 
 let usymv_gen ty = 
   Cr.map 
-    [Cr.range nb_us_vars] 
+    [Cr.range !nb_us_vars] 
     ( fun pos -> 
         let v =
           get_u_tvar pos ty 
@@ -215,7 +216,7 @@ let qv_gen qvars ty =
   in
   if qvars then 
     [ Cr.map 
-        [Cr.bool; Cr.range nb_q_vars] 
+        [Cr.bool; Cr.range !nb_q_vars] 
         ( fun b pos -> 
             let g_res =
               match b with 
@@ -811,26 +812,15 @@ let axiom_gen ?(fdefs = []) ?(adts : adt list = [])
 let dk_gen =
   Cr.choose [Cr.const FD; Cr.const AxD]
 
-let get_gen fdefs dk =
-  match dk with 
-  | FD ->
-    fdef_gen ~fdefs 
-      ("udf_"^string_of_int (incr fid; !fid)) 
-      func_max_depth
-  | AxD ->
-    axiom_gen ~fdefs axiom_max_depth 
-  | GD ->
-    goal_gen ~fdefs query_max_depth 
-
 let stmt_gen 
     ?(fdefs = []) ?(adts : adt list = []) ?(name = "") kind =
   match kind with 
   | FD ->
-    fdef_gen ~fdefs ~adts name func_max_depth
+    fdef_gen ~fdefs ~adts name !func_max_depth
   | AxD ->
-    axiom_gen ~fdefs ~adts axiom_max_depth 
+    axiom_gen ~fdefs ~adts !axiom_max_depth 
   | GD ->
-    goal_gen ~fdefs ~adts query_max_depth 
+    goal_gen ~fdefs ~adts !query_max_depth 
 
 (********************************************************************)
 let mk_gen : 

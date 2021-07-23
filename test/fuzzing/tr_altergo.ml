@@ -31,6 +31,8 @@ let rec typ_to_ty typ =
     in 
     Ty.t_adt ~body name []
 
+let qid = ref 0
+
 (** Translates an expr to an Expr.t *)
 let rec translate_expr ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr = 
   match expr with 
