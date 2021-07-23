@@ -17,8 +17,13 @@ let () =
             let ae_cr = AE_CDCL.process_stmts stmtcs in
             let ae_tr = AE_Tableaux.process_stmts stmtcs in
             let cvc5 = C5S.process_stmts stmtcs in
-            cmp_answers_exn3 ae_cr ae_tr cvc5;
-            true
+            try  
+              cmp_answers_exn3 ae_cr ae_tr cvc5;
+              true
+            with
+            | exp ->
+              mknmarshall_bi !cnt exp stmtcs ae_cr ae_tr cvc5; 
+              false
           with
           | exp ->
             mknmarshall_bi_na !cnt exp stmtcs; 

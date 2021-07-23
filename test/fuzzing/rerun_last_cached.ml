@@ -25,21 +25,27 @@ let () =
   Format.printf 
     "\n######################################### %d@." 
     (List.length bis - 1);
-  if exp_str <> "" then (
-    Format.printf 
-      "Original exception: \nFatal error: exception %s\n%s@."
-      exp_str exp_bt_str;
+  if exp_str <> "" 
+  then (
+    Format.printf "\nException: %s\n%s@." exp_str exp_bt_str;
+    Format.printf "\nCaused by: \n%a@."
+      ( fun fmt stmts ->
+          List.iter (
+            fun Ast.{stmt;_} ->
+              Format.fprintf fmt "\n### %a@." Ast.print_stmt stmt;
+          ) stmts
+      ) stmtcs;
   );
-  Format.printf "Original answers: ";
+
+  Format.printf "\nOriginal answers:@.";
   Format.printf "%d %d %d@."
     (List.length ae_c) 
     (List.length ae_t) 
     (List.length cvc5);
   cmp_answers_pr3 ae_c ae_t cvc5;
 
+  Format.printf "\nRerunning answers:@.";
   let c5rn = C5S.process_stmts stmtcs in
   let ae_cr = AE_CDCL.process_stmts stmtcs in
   let ae_tr = AE_Tableaux.process_stmts stmtcs in
-
-  Format.printf "\nRerunning answers:@.";
   cmp_answers_pr3_exn ae_cr ae_tr c5rn

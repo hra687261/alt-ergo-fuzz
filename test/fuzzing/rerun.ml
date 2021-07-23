@@ -37,9 +37,8 @@ let () =
     (List.length cvc5);
   cmp_answers_pr3 ae_c ae_t cvc5;
 
+  Format.printf "\nRerunning answers:@.";
   let ae_cr = AE_CDCL.process_stmts stmtcs in
   let ae_tr = AE_Tableaux.process_stmts stmtcs in
   let c5rn = C5S.process_stmts stmtcs in
-
-  Format.printf "\nRerunning answers:@.";
   cmp_answers_pr3_exn ae_cr ae_tr c5rn
