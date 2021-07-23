@@ -21,7 +21,6 @@ let mk_empty_gen_res g_res =
 let dummy_gen_res = 
   mk_empty_gen_res Dummy
 
-
 let pr_gr pr fmt {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
   let pr_vs fmt e =
     Format.fprintf fmt "{";
@@ -168,12 +167,12 @@ let usymf_genl ty gen fuel =
         auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
       ] (
         fun a1 a2 a3 a4 a5 ->
-          let rargs, u_args, u_bvars, u_dt, u_us, c_funcs = 
+          let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
             List.fold_left (
-              fun (l, vs, bv, ud, uus, fcs) b -> 
-                if is_dummy b.g_res
-                then l, vs, bv, ud, uus, fcs
-                else 
+              fun ((l, vs, bv, ud, uus, fcs) as acc) b -> 
+                match b.g_res with 
+                | Dummy -> acc 
+                | _ ->
                   b.g_res :: l, 
                   VS.union b.u_args vs,
                   VS.union b.u_bvars bv,
@@ -181,9 +180,8 @@ let usymf_genl ty gen fuel =
                   tcm_union b.u_us uus,
                   SS.union b.c_funcs fcs
             ) ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty) 
-              [a1; a2; a3; a4; a5]
+              [a5; a4; a3; a2; a1]
           in
-          let args = List.rev rargs in 
           let atyp = 
             List.filter 
               (fun x -> x <> TDummy) 
@@ -261,13 +259,15 @@ let qv_gen qvars ty =
   else []
 
 let get_arg_gens ty args =
-  let l = List.filter (fun x -> ty = x.vty) args in
-  if List.length l > 0 then 
-    List.map 
-      ( fun x -> 
-          Cr.const (mk_empty_gen_res (Var x))
-      ) l
-  else []
+  List.fold_left (
+    fun acc x ->
+      if ty = x.vty
+      then 
+        Cr.const (
+          mk_empty_gen_res (Var x)
+        ) :: acc 
+      else acc
+  ) [] (List.rev args)
 
 let func_call_gen : 
   (int -> typ -> expr gen_res Cr.gen) ->
@@ -287,12 +287,12 @@ let func_call_gen :
       auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
     ] (
       fun a1 a2 a3 a4 a5 ->
-        let rargs, u_args, u_bvars, u_dt, u_us, c_funcs = 
+        let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
           List.fold_left (
             fun ((l, vs, bv, ud, uus, fcs) as acc) gr -> 
-              if is_dummy gr.g_res
-              then acc
-              else 
+              match gr.g_res with 
+              | Dummy -> acc 
+              | _ ->
                 ( gr.g_res :: l, 
                   VS.union gr.u_args vs, 
                   VS.union gr.u_bvars bv,  
@@ -301,9 +301,8 @@ let func_call_gen :
                   SS.union gr.c_funcs fcs)
           ) ( [], VS.empty, VS.empty, SS.empty, 
               TCM.empty, SS.add fname SS.empty)
-            [a1; a2; a3; a4; a5]
+            [a5; a4; a3; a2; a1]
         in
-        let args = List.rev rargs in
         { g_res = FunCall {
               fname; fk = UDF; 
               atyp = 
@@ -319,14 +318,16 @@ let func_call_gen :
           c_funcs}
     )
   in
+  let fdgs =
+    List.fold_left (
+      fun acc x ->
+        if ty = x.rtyp 
+        then acc 
+        else togen x :: acc 
+    ) [] (List.rev fdis)
+  in
 
-  let fcs = 
-    List.filter (fun x -> x.rtyp == ty) fdis
-  in
-  let fdgs = 
-    List.map togen fcs 
-  in
-  if fdgs == []
+  if fdgs = []
   then []
   else [Cr.choose fdgs]
 
@@ -452,27 +453,22 @@ let ite_gen gen fuel ty =
 
 let letin_gen : (?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) ->
   VS.t -> int -> typ -> expr gen_res Cr.gen =
-  fun gen bvars fuel ty -> 
+  fun gen bvars fuel ty ->
   let nv = mk_bound_var ty in
-  Cr.map 
+  Cr.map
     [ gen ~bvars (fuel - 1) ty;
       gen ~bvars:(VS.add nv bvars) (fuel - 1) ty]
     (
-      fun e b -> 
-        { g_res = 
-            if VS.mem nv b.u_bvars 
-            then b.g_res 
-            else LetIn (nv , e.g_res, b.g_res); 
-          u_args = 
-            VS.union e.u_args b.u_args; 
-          u_bvars = 
-            VS.union e.u_bvars b.u_bvars;
-          u_dt =
-            SS.union e.u_dt b.u_dt;
-          u_us = 
-            tcm_union e.u_us b.u_us;
-          c_funcs =
-            SS.union e.c_funcs b.c_funcs; 
+      fun e b ->
+        { g_res =
+            if VS.mem nv b.u_bvars
+            then b.g_res
+            else LetIn (nv , e.g_res, b.g_res);
+          u_args = VS.union e.u_args b.u_args;
+          u_bvars = VS.union e.u_bvars b.u_bvars;
+          u_dt = SS.union e.u_dt b.u_dt;
+          u_us = tcm_union e.u_us b.u_us;
+          c_funcs = SS.union e.c_funcs b.c_funcs;
         }
     )
 
@@ -489,22 +485,16 @@ let dest_gen id num =
             "v%d_%d_%d"
             x y z  
         in
-        let l1 = 
-          [t1; t2; t3; t4; t5]
-        in
-        let rl2, _ = 
+        let l, _ = 
           List.fold_left (
             fun (acc, accn) v ->
               if v = TDummy 
               then acc, accn
               else 
                 (aux id num accn, v) :: acc, accn + 1
-          ) ([],1) l1
+          ) ([],1) [t5; t4; t3; t2; t1]
         in
-        let l2 = 
-          List.rev rl2 
-        in 
-        dname, l2
+        dname, l
     )
 
 let adt_gen () =
@@ -549,7 +539,7 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
       pattern_gen (fuel - 1) p5
     ] (
       fun g p1 p2 p3 p4 p5 ->
-        let rpl, u_args, u_bvars, u_dt, u_us, c_funcs = 
+        let patts, u_args, u_bvars, u_dt, u_us, c_funcs = 
           List.fold_left (
             fun (rpl, ua, ub, ud, uus, cf)
               {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} -> 
@@ -561,9 +551,8 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
               SS.union c_funcs cf     
           ) ( [], g.u_args, g.u_bvars, 
               SS.add adtn g.u_dt, g.u_us, g.c_funcs)  
-            [p1; p2; p3; p4; p5]
+            [p5; p4; p3; p2; p1]
         in
-        let patts = List.rev rpl in 
         { g_res = PMatching {mtchdv = g.g_res; patts; valty};
           u_args; u_bvars; u_dt; u_us; c_funcs}
     )
@@ -591,9 +580,12 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
           let tmp = 
             List.filter 
               (fun (_, a) -> if a.g_res = Dummy then false else true)
-              [(n1, a1); (n2, a2); (n3, a3); (n4, a4); (n5, a5)]
+              [(n5, a5); (n4, a4); (n3, a3); (n2, a2); (n1, a1)]
           in
-          let rparams, u_args, u_bvars, u_dt, u_us, c_funcs = 
+          let n, {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
+            List.hd tmp 
+          in
+          let params, u_args, u_bvars, u_dt, u_us, c_funcs = 
             List.fold_left (
               fun (pl, ua, ub, ud, uus, cf) 
                 (n, {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}) -> 
@@ -603,10 +595,9 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
                 SS.union u_dt ud, 
                 tcm_union u_us uus,
                 SS.union c_funcs cf
-            ) ( [], VS.empty, VS.empty, SS.add adtn SS.empty, 
-                TCM.empty, SS.empty) tmp
+            ) ( [n, g_res], u_args, u_bvars, SS.add adtn u_dt, 
+                u_us, c_funcs) (List.tl tmp)
           in
-          let params = List.rev rparams in 
           let cty = tadt_typ in 
           let cname = dstrn in 
           { g_res = Cstr {cname; cty; params};
@@ -615,7 +606,7 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
     | _ -> assert false 
   in 
   let _, pls = adt in 
-  Cr.dynamic_bind (Cr.choose (List.map Cr.const pls))
+  Cr.dynamic_bind (Cr.choose (List.rev_map Cr.const pls))
     (aux (Tadt adt))
 
 (********************************************************************)
@@ -623,111 +614,100 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
     ?(fdefs: fd_info list = []) ?(adts : adt list = []) max_depth ty =
   ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
-    if fuel <= 0 
+    if fuel <= 0
     then
-      begin 
-        let gl =
-          usymv_gen ty ::
-          qv_gen qvars ty @
-          get_arg_gens ty args
-        in
-        Cr.choose (
-          match ty with 
-          | TFArray _ | Tadt _ -> gl
-          | _ -> cst_gen ty :: gl
+      let gl =
+        usymv_gen ty :: qv_gen qvars ty
+      in
+      let gl = List.rev_append gl (get_arg_gens ty args) in
+      let gl =
+        match ty with
+        | TFArray _ | Tadt _ -> gl
+        | _ -> cst_gen ty :: gl
+      in
+      Cr.choose gl
+    else
+      let gl =
+        usymv_gen ty ::
+        usymf_genl ty ag_aux fuel ::
+        ite_gen ag_aux fuel ty ::
+        letin_gen ag_aux bvars fuel ty ::
+        (qv_gen qvars ty)
+      in
+      let gl =
+        match ty with
+        | TFArray _ | Tadt _ -> gl
+        | _ -> cst_gen ty :: gl
+      in
+      let tmp =
+        ( match ty with
+          | Tint ->
+            List.rev_map
+              (fun bop -> binop_gen ty fuel bop ag_aux)
+              [ IAdd; ISub; IMul; IDiv; IMod(*; IPow*)]
+          | Treal ->
+            List.rev_map
+              (fun bop -> binop_gen ty fuel bop ag_aux)
+              [ RAdd; RSub; RMul; RDiv(*; RPow*)]
+          | Tbool ->
+            let l1 =
+              List.rev_map
+                (fun bop -> binop_gen ty fuel bop ag_aux)
+                [ And; Or; Xor; Imp; Iff]
+            in
+            let l2 =
+              List.rev_map
+                (fun bop -> binop_gen Tint fuel bop ag_aux)
+                [ Lt; Le; Gt; Ge; Eq; Neq]
+            in
+            let l3 =
+              List.rev_map 
+                (fun bop -> binop_gen Treal fuel bop ag_aux)
+                [ Lt; Le; Gt; Ge; Eq; Neq]
+            in 
+            let tmp = List.rev_append l2 l3 in 
+            List.rev_append l1 tmp
+          | TBitV len ->
+            get_bv_gens ag_aux fuel len
+          | TFArray {ti; tv} -> 
+            [ get_fa_update ag_aux fuel ti tv ]
+          | Tadt adt ->
+            let adt_gen =
+              adt_dstr_gen (ag_aux ~bvars) adt fuel
+            in
+            if snd adt = []
+            then []
+            else [adt_gen]
+          | _ -> assert false
         )
-      end
-    else 
-      Cr.choose (
-        let gl1 =
-          usymv_gen ty :: 
-          usymf_genl ty ag_aux fuel ::
-          ite_gen ag_aux fuel ty ::
-          letin_gen ag_aux bvars fuel ty ::
-          (qv_gen qvars ty)  
-        in
-        let gl2 =
-          match ty with 
-          | TFArray _ | Tadt _ -> gl1
-          | _ -> cst_gen ty :: gl1
-        in
-        let gl3 =
-          get_arg_gens ty args
-        in
-        let gl4 =
-          func_call_gen ag_aux fuel ty fdefs
-        in
-        let gl5 =  
-          if isform 
-          then []  
-          else [get_fa_access ag_aux fuel ty]
-        in
-        let gl6 =
-          ( match ty with 
-            | Tint -> 
-              List.map 
-                (fun bop -> binop_gen ty fuel bop ag_aux)
-                [ IAdd; ISub; IMul; IDiv; IMod(*; IPow*)]
-            | Treal ->
-              List.map 
-                (fun bop -> binop_gen ty fuel bop ag_aux)
-                [ RAdd; RSub; RMul; RDiv(*; RPow*)]
-            | Tbool ->
-              let l1 = 
-                List.map 
-                  (fun bop -> binop_gen ty fuel bop ag_aux)
-                  [ And; Or; Xor; Imp; Iff]
-              in
-              let l2 =   
-                List.map 
-                  (fun bop -> binop_gen Tint fuel bop ag_aux)
-                  [ Lt; Le; Gt; Ge; Eq; Neq] 
-              in
-              let l3 = 
-                List.map 
-                  (fun bop -> binop_gen Treal fuel bop ag_aux)
-                  [ Lt; Le; Gt; Ge; Eq; Neq]
-              in 
-              let tmp = List.rev_append l2 l3 in 
-              List.rev_append l1 tmp
-            | TBitV len ->
-              get_bv_gens ag_aux fuel len
-
-            | TFArray {ti; tv} -> 
-              [ 
-                get_fa_update ag_aux fuel ti tv
-              ]
-            | Tadt adt -> 
-              let adt_gen = 
-                adt_dstr_gen (ag_aux ~bvars) adt fuel
-              in
-              if snd adt = []
-              then []
-              else [adt_gen]
-
-            | _ -> assert false
-          )
-        in
-        let pm_gens = 
-          if adts = []
-          then []
-          else [
-            Cr.dynamic_bind 
-              (Cr.choose (List.map Cr.const adts))
-              (fun adt -> pm_gen (ag_aux ~bvars) adt fuel ty)]
-        in
-        let gl7 =
-          if pm_gens = []
-          then []
-          else [Cr.choose pm_gens]
-        in
-        let tmp = List.rev_append gl7 gl6 in
-        let tmp = List.rev_append gl5 tmp in
-        let tmp = List.rev_append gl4 tmp in
-        let tmp = List.rev_append gl3 tmp in
-        let tmp = List.rev_append gl2 tmp in
-        List.rev_append gl1 tmp
-      )
+      in
+      let gl = List.rev_append gl tmp in
+      let gl =
+        List.rev_append
+          (get_arg_gens ty args)
+          gl
+      in
+      let gl =
+        List.rev_append
+          (func_call_gen ag_aux fuel ty fdefs)
+          gl
+      in
+      let gl =
+        if isform 
+        then gl 
+        else get_fa_access ag_aux fuel ty :: gl
+      in
+      let gl =
+        if adts = []
+        then gl
+        else
+          Cr.dynamic_bind
+            (Cr.choose (List.rev_map Cr.const adts))
+            ( fun adt ->
+                pm_gen (ag_aux ~bvars) adt fuel ty
+            ) :: gl
+      in
+      Cr.choose gl
   in 
   ag_aux max_depth ty
 
@@ -752,24 +732,21 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
         mk_tvar "a4" t4 ARG,
         mk_tvar "a5" t5 ARG
       in 
-      let atyp = 
-        [a1; a2; a3; a4; a5]
-      in
       let gen =
-        expr_gen ~qvars:false ~args:atyp ~fdefs ~adts 
-          func_max_depth rtyp
+        expr_gen ~qvars:false ~args:[a1; a2; a3; a4; a5] 
+          ~fdefs ~adts func_max_depth rtyp
       in
 
       let ge =
         Cr.map [gen] ( 
           fun {g_res = body; u_args; u_bvars; u_dt; u_us; c_funcs} ->
             let atyp = 
-              List.map (
+              List.rev_map (
                 fun v -> 
                   if VS.mem v u_args
                   then v
                   else {vname = ""; vty = TDummy; vk = US; id = 0}
-              ) atyp
+              ) [a5; a4; a3; a2; a1]
             in
             { g_res = FuncDef {name; body; atyp; rtyp}; 
               u_args; u_bvars; u_dt; u_us; c_funcs}
@@ -781,29 +758,27 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
   Cr.dynamic_bind (ag ()) (fg ())
 
 let goal_gen ?(fdefs = []) ?(adts : adt list = []) 
-    query_max_depth =
+    name query_max_depth =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
     [expr_gen ~isform:true ~fdefs ~adts query_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
-          Goal {
-            name = "goal_" ^ (incr gid; string_of_int !gid);
-            body = quantify g_res}
+          Goal 
+            {name; body = quantify g_res}
         in 
         {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}
     )
 
-let axiom_gen ?(fdefs = []) ?(adts : adt list = []) 
+let axiom_gen ?(fdefs = []) ?(adts : adt list = []) name
     axiom_max_depth =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
     [expr_gen ~isform:true ~fdefs ~adts axiom_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
-          Axiom {
-            name = "ax_" ^ (incr axid; string_of_int !axid);
-            body = quantify g_res}
+          Axiom 
+            {name; body = quantify g_res}
         in 
         {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}
     )
@@ -818,9 +793,9 @@ let stmt_gen
   | FD ->
     fdef_gen ~fdefs ~adts name !func_max_depth
   | AxD ->
-    axiom_gen ~fdefs ~adts !axiom_max_depth 
+    axiom_gen ~fdefs ~adts name !axiom_max_depth 
   | GD ->
-    goal_gen ~fdefs ~adts !query_max_depth 
+    goal_gen ~fdefs ~adts name !query_max_depth 
 
 (********************************************************************)
 let mk_gen : 
@@ -828,7 +803,7 @@ let mk_gen :
   fun fdefs adts sk ->
   let name = 
     match sk with 
-    | GD -> "g_"^string_of_int(incr gid; !gid)
+    | GD -> "goal_"^string_of_int(incr gid; !gid)
     | AxD -> "ax_"^string_of_int(incr axid; !axid)  
     | FD -> "udf_"^string_of_int(incr fid; !fid) 
   in
@@ -837,11 +812,13 @@ let mk_gen :
   ] (fun gres -> gres) 
 
 let mk_fd_info fn (vs: tvar list) rtyp =
-  { params = 
-      begin match List.map (fun x -> x.vty) vs with 
-        | [v1; v2; v3; v4; v5] -> (v1, v2, v3, v4, v5)
+  { fn; rtyp; 
+    params = 
+      begin 
+        match List.rev_map (fun x -> x.vty) vs with 
+        | [v5; v4; v3; v2; v1] -> (v1, v2, v3, v4, v5)
         | _ -> assert false
-      end; fn; rtyp
+      end
   }
 
 let update_fdis : fd_info list -> stmt gen_res -> fd_info list =

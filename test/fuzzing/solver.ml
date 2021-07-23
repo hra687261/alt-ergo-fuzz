@@ -59,32 +59,30 @@ let solve_with_ae
     (module SAT: AEL.Sat_solver_sig.S)
     (module Tr: T with type t = AEL.Commands.sat_tdecl) stmtcs = 
   let module FE = AEL.Frontend.Make(SAT) in
-  let ral, _ = 
-    List.fold_left 
+  let ral, _ =
+    List.fold_left
       ( fun (al, (env, consistent, ex)) Ast.{stmt;_} ->
 
-          let tstmt = Tr.translate_stmt stmt in 
+          let tstmt = Tr.translate_stmt stmt in
 
-          let env, consistent, ex = 
-            FE.process_decl 
+          let env, consistent, ex =
+            FE.process_decl
               (fun _ _ -> ()) (*FE.print_status*)
-              (FE.init_all_used_context ()) 
-              (Stack.create ()) 
+              (FE.init_all_used_context ())
+              (Stack.create ())
               (env, consistent, ex) tstmt
           in
-
-          if Ast.is_goal stmt 
-          then 
-            if consistent 
+          match stmt with
+          | Ast.Goal _ ->
+            if consistent
             then Utils.Unknown :: al, (env, consistent, ex)
             else Utils.Unsat :: al, (env, consistent, ex)
-          else 
+          | _ ->
             al, (env, consistent, ex)
       )
       ([], (SAT.empty (), true, AEL.Explanation.empty)) 
       stmtcs
-  in 
-  List.rev ral 
+  in List.rev ral
 
 module AE_Tableaux: ST = 
 struct 

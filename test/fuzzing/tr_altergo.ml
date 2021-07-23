@@ -19,7 +19,8 @@ let rec typ_to_ty typ =
   | TDummy -> assert false
   (* we suppose that the algebraic data type is defined *)
   | Tadt (name, origb) -> 
-    let body = Some (
+    let body = 
+      Some (
         List.map (
           fun (x, l) ->
             x,
@@ -27,10 +28,12 @@ let rec typ_to_ty typ =
               fun (y, fldt) -> 
                 y, typ_to_ty fldt
             ) l
-        ) origb)
+        ) origb
+      )
     in 
     Ty.t_adt ~body name []
 
+(* quantifier Id to give each quantifier a unique name *)
 let qid = ref 0
 
 (** Translates an expr to an Expr.t *)
@@ -226,8 +229,8 @@ let rec translate_expr ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr =
     let bds, rb = get_bindings [v, e] b in 
 
     let binders, vars = 
-      List.fold_right (
-        fun (v, e) (bindings, vars) -> 
+      List.fold_left (
+        fun (bindings, vars) (v, e) -> 
           let sy = Sy.var (Var.of_string v.vname) in 
           let ty = typ_to_ty v.vty in
           let vars = VM.add v (sy, ty) vars in 
@@ -235,7 +238,7 @@ let rec translate_expr ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr =
             translate_expr ~vars ~toplevel ~stmtkind e
           in 
           (sy, expr) :: bindings, vars
-      ) bds ([], vars)
+      ) ([], vars) (List.rev bds)
     in 
     List.fold_left
       (fun acc (sy, e) ->
@@ -264,10 +267,8 @@ let rec translate_expr ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr =
             ) ([], vars) pattparams
           in
           let x = 
-            Typed.Constr { 
-              name = Hstring.make destrn; 
-              args
-            }
+            Typed.Constr 
+              {name = Hstring.make destrn; args}
           in
           let te =
             translate_expr ~vars ~toplevel ~stmtkind mbody
@@ -304,8 +305,7 @@ let translate_stmt stmt =
     let ff = Expr.purify_form ff in
     let ff = 
       if Ty.Svty.is_empty (Expr.free_type_vars ff) 
-      then 
-        ff
+      then ff
       else
         let id = Expr.id ff in
         Expr.mk_forall 
@@ -325,13 +325,13 @@ let translate_stmt stmt =
           match body with 
           | Forall {qvars; body; _} -> 
             let vars =
-              VS.fold
-                ( fun x vm -> 
-                    let ty = typ_to_ty x.vty in
-                    let hsv = Hstring.make x.vname in 
-                    let sy = Sy.Name (hsv, Sy.Other) in 
-                    VM.add x (sy,ty) vm)
-                qvars vars
+              VS.fold (
+                fun x vm -> 
+                  let ty = typ_to_ty x.vty in
+                  let hsv = Hstring.make x.vname in 
+                  let sy = Sy.Name (hsv, Sy.Other) in 
+                  VM.add x (sy,ty) vm
+              ) qvars vars
             in 
             rm_root_uqs body ~vars
           | _ -> body, vars

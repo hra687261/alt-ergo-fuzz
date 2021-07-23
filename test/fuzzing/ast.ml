@@ -47,8 +47,7 @@ let rec typ_tag typ =
 let typc_tag {atyp; rtyp} = 
   let tmp = List.rev atyp in
   let tmp = rtyp :: tmp in 
-  let tmp = List.map typ_tag tmp in 
-  let tmp = List.rev tmp in
+  let tmp = List.rev_map typ_tag tmp in 
   let tmp = String.concat ";" tmp in 
   Format.sprintf "[%s]" tmp 
 
@@ -111,16 +110,19 @@ and unop =
   | Extract of {l: int; r: int}
   | Access of {ty: typ * typ; fa: expr}
 
-and quant =
-  { qvars: VS.t; 
-    trgs: expr list; 
-    body: expr}
+and quant = { 
+  qvars: VS.t; 
+  trgs: expr list; 
+  body: expr
+}
 
-and fcall =
-  { fname: string; fk: fkind; 
-    atyp: typ list; 
-    rtyp: typ; 
-    args: expr list}
+and fcall = { 
+  fname: string;
+  fk: fkind;
+  atyp: typ list;
+  rtyp: typ;
+  args: expr list
+}
 
 (* tuple with the max of arguments a function can have*)
 type aty = typ * typ * typ * typ * typ 
@@ -171,12 +173,18 @@ module TCM = Map.Make(
   )
 
 let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
-  TCM.fold (
-    fun k v acc ->
-      match TCM.find_opt k acc with 
-      | Some x -> TCM.add k (SS.union x v) acc
-      | None -> TCM.add k v acc
-  ) t1 t2
+  if TCM.is_empty t1
+  then t2
+  else
+  if TCM.is_empty t2
+  then t1
+  else
+    TCM.fold (
+      fun k v acc ->
+        match TCM.find_opt k acc with
+        | Some x -> TCM.add k (SS.union x v) acc
+        | None -> TCM.add k v acc
+    ) t1 t2
 
 type stmt_c = {
   stmt : stmt; 
@@ -369,7 +377,6 @@ let rec print fmt expr =
             Format.fprintf fmt ")"
       ) params
 
-
   | PMatching {mtchdv; patts; _} ->
     Format.fprintf fmt "match %a with" print mtchdv;
     List.iter (
@@ -548,16 +555,6 @@ let int_to_bitv ?(wl = 0) n =
     rlst; 
   let bits = Buffer.contents b in
   {length; bits} 
-
-let is_dummy a = 
-  match a with 
-  | Dummy -> true 
-  | _ -> false
-
-let is_goal d = 
-  match d with 
-  | Goal _ -> true 
-  | _ -> false
 
 (* Uninterpreted variables *)
 
@@ -977,7 +974,7 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map (fun x -> (rpath, x)) 
+      List.rev_map (fun x -> (rpath, x)) 
         ( List.rev_append
             (get_vars x) (get_vars y))
 
@@ -997,7 +994,7 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map (fun x -> (rpath, x)) 
+      List.rev_map (fun x -> (rpath, x)) 
         ( let tmp = 
             List.rev_append 
               (get_vars cons)  
@@ -1017,7 +1014,7 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      ( List.map (fun x -> rpath, x) 
+      ( List.rev_map (fun x -> rpath, x) 
           ( List.rev_append 
               (get_vars e) (get_vars b)
           )) 
@@ -1027,7 +1024,7 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map (fun x -> (rpath, x)) 
+      List.rev_map (fun x -> (rpath, x)) 
         ( let tmp = 
             List.rev_append 
               (get_vars i) (get_vars v)
@@ -1044,7 +1041,7 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map (fun x -> (rpath, x)) ( 
+      List.rev_map (fun x -> (rpath, x)) ( 
         List.rev_append
           (get_vars fa) (get_vars x)
       )
@@ -1054,7 +1051,7 @@ let quantify expr =
         if path = [] then [] else
           List.rev (List.tl path) 
       in 
-      List.map (fun x -> (rpath, x)) 
+      List.rev_map (fun x -> (rpath, x)) 
         (get_vars x)
 
     | FunCall {args; rtyp = Tbool; _} -> 
@@ -1076,7 +1073,8 @@ let quantify expr =
         List.fold_left 
           ( fun acc x -> 
               let tmp = 
-                List.map (fun x -> (rpath, x))
+                List.rev_map 
+                  (fun x -> (rpath, x))
                   (get_vars x)
               in
               List.rev_append tmp acc
@@ -1097,7 +1095,7 @@ let quantify expr =
           List.rev (List.tl path) 
       in
       let vs = 
-        List.map 
+        List.rev_map 
           (fun x -> (rpath, x))
           (get_vars mtchdv) 
       in 
@@ -1105,7 +1103,7 @@ let quantify expr =
         List.fold_left 
           ( fun acc {mbody; _} -> 
               let tmp = 
-                List.map 
+                List.rev_map 
                   (fun x -> (rpath, x))
                   (get_vars mbody)
               in 
@@ -1122,7 +1120,7 @@ let quantify expr =
       List.fold_left ( 
         fun acc (_, a) -> 
           let l = 
-            List.map 
+            List.rev_map 
               (fun x -> (rpath, x))
               (get_vars a) 
           in 
