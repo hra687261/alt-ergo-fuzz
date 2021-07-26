@@ -1,10 +1,10 @@
 (executables
  (names 
-   afl_fuzzing rerun 
+   afl_fuzzing rerun extract_cache_nth extract_cache_last
    afl_fuzzing_cached rerun_all_cached rerun_one_cached rerun_last_cached
    translate_and_write issue_creation)
  (public_names
-   afl_fuzzing rerun 
+   afl_fuzzing rerun extract_cache_nth extract_cache_last
    afl_fuzzing_cached rerun_all_cached rerun_one_cached rerun_last_cached
    translate_and_write issue_creation)
  (libraries alt-ergo-lib crowbar lwt git-cohttp git-cohttp-unix)

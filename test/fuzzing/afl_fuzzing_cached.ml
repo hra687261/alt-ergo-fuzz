@@ -20,17 +20,17 @@ let () =
             let cvc5 = C5S.process_stmts stmtcs in
             try
               cmp_answers_exn3 ae_cr ae_tr cvc5;
-              l := !l @ [mk_bi_success !cnt ae_cr ae_tr cvc5 stmtcs];
+              l := !l @ [mk_bi_success !cnt stmtcs ae_cr ae_tr cvc5];
               true
             with
-            | exp ->
-              l := !l @ [mk_bi_empty !cnt exp stmtcs];
+            | exn ->
+              l := !l @ [mk_bi_empty !cnt exn stmtcs];
               mknmarshall_stmt_cache !l;
               l := [];
               false
           with
-          | exp ->
-            l := !l @ [mk_bi_empty !cnt exp stmtcs];
+          | exn ->
+            l := !l @ [mk_bi_empty !cnt exn stmtcs];
             mknmarshall_stmt_cache !l;
             l := [];
             false
