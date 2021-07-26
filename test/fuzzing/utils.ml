@@ -5,7 +5,7 @@ type answer =
 type bug_type =
   | Unsound
   (* When the response of Alt-Ergo is different from the other solvers*)
-  | InternalCrash (* Assert false *)
+  | InternalCrash (* Assert failure or something similar *)
   | Timeout
   | Other of string
 
@@ -13,32 +13,19 @@ exception Failure of bug_type
 
 type bug_info = { 
   id: int;
-  bty: string;
+  exn: exn option;
+  stmtcs: Ast.stmt_c list;
   ae_c: answer list;
   ae_t: answer list;
-  cvc5: answer list;
-  exp_str: string; 
-  exp_bt_str: string; 
-  stmtcs: Ast.stmt_c list
+  cvc5: answer list
 }
 
-let mk_bi_aux id ae_c ae_t cvc5 bty exp_str exp_bt_str stmtcs =
-  {id; ae_c; ae_t; cvc5; bty; exp_str; exp_bt_str; stmtcs}
+let mk_bi id exn stmtcs ae_c ae_t cvc5 =
+  {id; exn; stmtcs; ae_c; ae_t; cvc5}
 
-let mk_bi_success id ae_c ae_t cvc5 stmtcs =
-  mk_bi_aux id ae_c ae_t cvc5 "" "" "" stmtcs
+let mk_bi_success id stmtcs ae_c ae_t cvc5 =
+  mk_bi id None stmtcs ae_c ae_t cvc5
 
-let mk_bi id exp ae_c ae_t c5 stmtcs =
-  let exp_str = Printexc.to_string exp in 
-  let exp_bt_str = Printexc.get_backtrace () in 
-  let bty = 
-    match exp with 
-    | Failure Unsound -> "unsoundness"
-    | Failure InternalCrash -> "internalcrash"
-    | Failure Timeout -> "timeout"
-    | _ -> "other"
-  in 
-  mk_bi_aux id ae_c ae_t c5 bty exp_str exp_bt_str stmtcs 
 
 let mk_bi_empty id exp stmtcs =
   mk_bi id exp [] [] [] stmtcs
@@ -47,6 +34,14 @@ let answer_to_string = function
   | Sat -> "sat"
   | Unsat -> "unsat"
   | Unknown -> "unknown"
+
+let exn_to_string = function
+  | Failure Unsound -> "Failure(Unsound)"
+  | Failure InternalCrash -> "Failure(InternalCrash)"
+  | Failure Timeout -> "Failure(Timeout)"
+  | Failure (Other str) ->
+    Format.sprintf "Failure(Other(%s))" str
+  | exn -> Printexc.to_string_default exn
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
   let str =
@@ -76,31 +71,26 @@ let data_to_file data of_path =
 let mknmarshall_bi ?(verbose = false)
     ?(output_folder_path = "test/fuzzing/crash_output") 
     id exn stmtcs ae_c ae_t cvc5 = 
-  let exn_str = Printexc.to_string exn in 
-  let exn_bt_str = Printexc.get_backtrace () in 
-  let bty, sym = 
-    match exn with 
-    | Failure Unsound -> "unsoundness", "u"
-    | Failure InternalCrash -> "internalcrash", "i"
-    | Failure Timeout -> "timeout", "t"
-    | _ -> "other", "o"
-  in 
   let bi =
-    mk_bi_aux id ae_c ae_t cvc5 bty exn_str exn_bt_str stmtcs
+    mk_bi id (Some exn) stmtcs ae_c ae_t cvc5
   in
 
-  let of_path =
-    Format.sprintf
-      "%s/%s%d_%f.txt"
-      output_folder_path sym id (Unix.gettimeofday ())
-  in
+  let of_path = 
+    Format.sprintf (
+      match exn with 
+      | Failure Unsound -> "%s/u%d_%f.txt"
+      | Failure InternalCrash -> "%s/i%d_%f.txt"
+      | Failure Timeout -> "%s/t%d_%f.txt"
+      | _ -> "%s/o%d_%f.txt"
+    ) output_folder_path id (Unix.gettimeofday ())
+  in 
 
   data_to_file bi of_path;
 
   if verbose
   then (
-    Format.printf "\nException: %s\n%s@."
-      exn_str exn_bt_str;
+    Format.printf "\nException: %s@."
+      (exn_to_string exn);
     Format.printf "\nCaused by: \n%a@."
       ( fun fmt stmtcl ->
           List.iter (
