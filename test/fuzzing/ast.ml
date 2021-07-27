@@ -1,5 +1,3 @@
-open Gen_stngs 
-
 type typ = 
   | Tint | Treal | Tbool | TDummy
   | TBitV of int 
@@ -501,6 +499,8 @@ let mk_vname pref num =
 let mk_tvar_b vname vty vk id = 
   {vname; vty; vk; id}
 
+let v_id = ref 0
+
 let mk_tvar vname vty vk = 
   mk_tvar_b vname vty vk (incr v_id; !v_id)
 
@@ -608,6 +608,7 @@ let get_ufunc_expr num rtyp =
   {fn; params; rtyp}
 
 (* Bound variables *)
+let bid = ref 0
 
 let mk_bound_var ty = 
   mk_tvar 

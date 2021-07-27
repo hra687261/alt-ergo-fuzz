@@ -1,7 +1,15 @@
 open Ast
-open Gen_stngs
 module Cr = Crowbar 
 
+(************************************************************)
+let query_max_depth = ref 3
+let axiom_max_depth = ref 3
+let func_max_depth = ref 3
+
+let nb_us_vars = ref 5
+let nb_q_vars = ref 1
+
+(************************************************************)
 type 'a gen_res = {
   g_res : 'a;
   u_args : VS.t; 
@@ -477,9 +485,8 @@ let dest_gen id num =
     Format.sprintf "E%d_%d" id num
   in
   Cr.map 
-    [ typ_gen (); typ_gen (); typ_gen (); 
-      typ_gen (); typ_gen ()]
-    ( fun t1 t2 t3 t4 t5 ->
+    [ typ_gen (); typ_gen ()]
+    ( fun t1 t2 ->
         let aux x y z = 
           Format.sprintf 
             "v%d_%d_%d"
@@ -492,29 +499,27 @@ let dest_gen id num =
               then acc, accn
               else 
                 (aux id num accn, v) :: acc, accn + 1
-          ) ([],1) [t5; t4; t3; t2; t1]
+          ) ([],1) [t2; t1]
         in
         dname, l
     )
+
+let adt_id = ref 0
 
 let adt_gen () =
   let id = incr adt_id; !adt_id in
   Cr.map 
     [ dest_gen id 1;
-      dest_gen id 2;
-      dest_gen id 3;
-      dest_gen id 4;
-      dest_gen id 5]
-    ( fun d1 d2 d3 d4 d5 ->
-        Format.sprintf "adt_%d" id, 
-        [d1; d2; d3; d4; d5]
+      dest_gen id 2]
+    ( fun d1 d2 ->
+        Format.sprintf "adt_%d" id, [d1; d2]
     )
 
 let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
   let pattern_gen (fuel: int) (pty : patt_ty) : patt gen_res Cr.gen =
     let destrn, ppmsty = pty in 
     match ppmsty with 
-    | [_; _; _; _; _] as ipts -> 
+    | [_; _] as ipts -> 
       let pattparams = 
         List.map (
           fun (n, a) -> Some (mk_tvar n a BLI)
@@ -529,16 +534,13 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
     | _ -> assert false     
   in 
   match pattrns with 
-  | [p1; p2; p3; p4; p5] -> 
+  | [p1; p2] -> 
     Cr.map [
       expr_gen (fuel - 1) (Tadt (adtn, pattrns)); 
       pattern_gen (fuel - 1) p1;
-      pattern_gen (fuel - 1) p2;
-      pattern_gen (fuel - 1) p3;
-      pattern_gen (fuel - 1) p4;
-      pattern_gen (fuel - 1) p5
+      pattern_gen (fuel - 1) p2
     ] (
-      fun g p1 p2 p3 p4 p5 ->
+      fun g p1 p2 ->
         let patts, u_args, u_bvars, u_dt, u_us, c_funcs = 
           List.fold_left (
             fun (rpl, ua, ub, ud, uus, cf)
@@ -551,7 +553,7 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
               SS.union c_funcs cf     
           ) ( [], g.u_args, g.u_bvars, 
               SS.add adtn g.u_dt, g.u_us, g.c_funcs)  
-            [p5; p4; p3; p2; p1]
+            [p2; p1]
         in
         { g_res = PMatching {mtchdv = g.g_res; patts; valty};
           u_args; u_bvars; u_dt; u_us; c_funcs}
@@ -567,20 +569,16 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
     ((adtn, _) as adt: adt) (fuel: int) =
   let aux tadt_typ ((dstrn, pls): patt_ty) =
     match pls with 
-    | [(n1, t1); (n2, t2); (n3, t3); (n4, t4); (n5, t5)] -> 
+    | [(n1, t1); (n2, t2)] -> 
       Cr.map [ 
         app_expr_gen expr_gen (fuel - 1) t1;
-        app_expr_gen expr_gen (fuel - 1) t2;
-        app_expr_gen expr_gen (fuel - 1) t3; 
-        app_expr_gen expr_gen (fuel - 1) t4;
-        app_expr_gen expr_gen (fuel - 1) t5
+        app_expr_gen expr_gen (fuel - 1) t2
       ] (
-        fun 
-          a1 a2 a3 a4 a5 -> 
+        fun a1 a2 -> 
           let tmp = 
             List.filter 
               (fun (_, a) -> if a.g_res = Dummy then false else true)
-              [(n5, a5); (n4, a4); (n3, a3); (n2, a2); (n1, a1)]
+              [(n2, a2); (n1, a1)]
           in
           let n, {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
             List.hd tmp 
@@ -798,6 +796,8 @@ let stmt_gen
     goal_gen ~fdefs ~adts name !query_max_depth 
 
 (********************************************************************)
+let axid, gid, fid = ref 0, ref 0, ref 0
+
 let mk_gen : 
   fd_info list -> adt list -> stmtkind -> stmt gen_res Cr.gen =
   fun fdefs adts sk ->
