@@ -94,6 +94,7 @@ struct
     AEL.Options.set_disable_weaks true;
     fun stmtcs -> 
       SAT.clear_cache ();
+      Tr_altergo.reset_cnt ();
       solve_with_ae (module SAT) (module Tr_altergo) stmtcs
 
 end 
@@ -108,6 +109,7 @@ struct
     AEL.Options.set_disable_weaks true;
     fun stmtcs -> 
       SAT.clear_cache ();
+      Tr_altergo.reset_cnt ();
       solve_with_ae (module SAT) (module Tr_altergo) stmtcs
 
 end
