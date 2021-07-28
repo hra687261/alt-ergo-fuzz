@@ -10,10 +10,10 @@ let () =
     failwith
       "Expected one argument:\n./rerun.exe path_to_file_containing_marshalled_bug_info@.";
 
-  let file_name = Sys.argv.(1) in
-  Format.printf "Reading from the file: %s@." file_name;
+  let if_name = Sys.argv.(1) in
+  Format.printf "Reading from the file: %s@." if_name;
 
-  let ic = open_in file_name in
+  let ic = open_in if_name in
   let str = really_input_string ic (in_channel_length ic) in
   close_in ic;
 
@@ -51,4 +51,4 @@ let () =
     (List.length ae_tr) 
     (List.length c5rn);
   cmp_answers_pr3 ae_c ae_t cvc5;
-  cmp_answers_pr3_exn ae_cr ae_tr c5rn
+  cmp_answers_exn3 ae_cr ae_tr c5rn
