@@ -93,10 +93,19 @@ struct
     let module SAT = SC.Make(AEL.Theory.Main_Default) in
     AEL.Options.set_disable_weaks true;
     fun stmtcs -> 
-      SAT.clear_cache ();
-      Tr_altergo.reset_cnt ();
-      solve_with_ae (module SAT) (module Tr_altergo) stmtcs
-
+      try 
+        let res =
+          solve_with_ae (module SAT) (module Tr_altergo) stmtcs
+        in
+        SAT.clear_cache ();
+        Tr_altergo.reset_cnt ();
+        res
+      with 
+      | exn ->
+        SAT.clear_cache ();
+        Tr_altergo.reset_cnt ();
+        Printexc.raise_with_backtrace 
+          exn (Printexc.get_raw_backtrace ())
 end 
 
 module AE_CDCL: ST = 
@@ -108,8 +117,17 @@ struct
     let module SAT = SC.Make(AEL.Theory.Main_Default) in
     AEL.Options.set_disable_weaks true;
     fun stmtcs -> 
-      SAT.clear_cache ();
-      Tr_altergo.reset_cnt ();
-      solve_with_ae (module SAT) (module Tr_altergo) stmtcs
-
+      try
+        let res =
+          solve_with_ae (module SAT) (module Tr_altergo) stmtcs
+        in
+        SAT.clear_cache ();
+        Tr_altergo.reset_cnt ();
+        res
+      with
+      | exn ->
+        SAT.clear_cache ();
+        Tr_altergo.reset_cnt ();
+        Printexc.raise_with_backtrace
+          exn (Printexc.get_raw_backtrace ())
 end
