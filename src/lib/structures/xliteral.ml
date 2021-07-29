@@ -88,6 +88,8 @@ module type S = sig
   val uid : t -> int
   val elements : t -> elt list
 
+  val clear_labels : unit -> unit 
+
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t
 
@@ -321,4 +323,6 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
     | PR a, _    -> [a]
     | BT (_,l), _ | EQ_LIST l, _ -> l
 
+  let clear_labels () =
+    Labels.clear labels
 end

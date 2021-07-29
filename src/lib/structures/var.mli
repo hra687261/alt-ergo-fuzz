@@ -28,6 +28,8 @@ val print : Format.formatter -> t -> unit
 
 val to_string : t -> string
 
+val reset_cnt : unit -> unit
+
 module Map : Map.S with type key = t
 
 module Set : Set.S with type elt = t

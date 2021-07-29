@@ -58,11 +58,11 @@ let rec list_assoc x = function
   | [] -> raise Not_found
   | (y, v) :: l -> if equal x y then v else list_assoc x l
 
-let fresh_string =
-  let cpt = ref 0 in
-  fun () ->
-    incr cpt;
-    "!k" ^ (string_of_int !cpt)
+let fresh_str_cnt = ref 0
+
+let fresh_string () =
+  incr fresh_str_cnt;
+  "!k" ^ (string_of_int !fresh_str_cnt)
 
 let is_fresh_string s =
   try s.[0] == '!' && s.[1] == 'k'
@@ -75,6 +75,9 @@ let is_fresh_skolem s =
   with Invalid_argument s ->
     assert (String.compare s "index out of bounds" = 0);
     false
+
+let reset_cnt () = 
+  fresh_str_cnt := 0
 
 module Arg = struct type t'= t type t = t' let compare = compare end
 module Set : Set.S with type elt = t = Set.Make(Arg)

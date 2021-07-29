@@ -1162,6 +1162,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   let clear_cache () = 
     reset_refs ();
     Expr.clear_hc ();
+    Symbols.reset_cnt ();
+    Symbols.clear_labels ();
+    Var.reset_cnt ();
+    Hstring.reset_cnt ();
+    Uf.clear_labels ();
     Shostak.Combine.empty_cache ();
     Gc.major ()
 end
