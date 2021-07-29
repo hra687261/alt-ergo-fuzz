@@ -69,3 +69,5 @@ val is_normalized : t -> r -> bool
 
 val assign_next : t -> (r Xliteral.view * bool * Th_util.lit_origin) list * t
 val output_concrete_model : t -> unit
+
+val clear_labels : unit -> unit 

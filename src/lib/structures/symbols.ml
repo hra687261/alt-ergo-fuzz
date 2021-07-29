@@ -376,14 +376,13 @@ let print_verbose fmt s = Format.fprintf fmt "%s" (to_string_bis s)
 let print_clean fmt s = Format.fprintf fmt "%s" (to_string_clean s)
 let print fmt s = Format.fprintf fmt "%s" (to_string s)
 
+let fresh_sy_cnt = ref 0
 
-let fresh =
-  let cpt = ref 0 in
-  fun ?(is_var=false) s ->
-    incr cpt;
-    (* garder le suffixe "__" car cela influence l'ordre *)
-    let s = (Format.sprintf "!?__%s%i" s (!cpt)) in
-    if is_var then var @@ Var.of_string s else name s
+let fresh ?(is_var=false) s =
+  incr fresh_sy_cnt;
+  (* garder le suffixe "__" car cela influence l'ordre *)
+  let s = (Format.sprintf "!?__%s%i" s (!fresh_sy_cnt)) in
+  if is_var then var @@ Var.of_string s else name s
 
 let is_get f = equal f (Op Get)
 let is_set f = equal f (Op Set)
@@ -407,6 +406,10 @@ let labels = Labels.create 107
 let add_label lbl t = Labels.replace labels t lbl
 
 let label t = try Labels.find labels t with Not_found -> Hstring.empty
+
+let reset_cnt () = fresh_sy_cnt := 0
+
+let clear_labels () = Labels.clear labels
 
 module Set : Set.S with type elt = t =
   Set.Make (struct type t=s let compare=compare end)

@@ -1350,3 +1350,4 @@ let output_concrete_model ({ make; _ } as env) =
       Printer.print_fmt (get_fmt_mdl ()) ")";
     end
 
+let clear_labels () = LX.clear_labels ()

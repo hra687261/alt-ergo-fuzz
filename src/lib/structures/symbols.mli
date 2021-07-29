@@ -130,6 +130,10 @@ val label : t -> Hstring.t
 val print_bound : Format.formatter -> bound -> unit
 val string_of_bound : bound -> string
 
+val reset_cnt : unit -> unit 
+
+val clear_labels : unit -> unit
+
 module Set : Set.S with type elt = t
 
 module Map : sig

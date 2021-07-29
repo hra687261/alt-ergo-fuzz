@@ -25,12 +25,6 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
   let reset_refs () = Steps.reset_steps ()
 
-  let clear_cache () = 
-    reset_refs ();
-    Expr.clear_hc ();
-    Shostak.Combine.empty_cache ();
-    Gc.major ()
-
   type guards = {
     current_guard: E.t;
     stack_guard: E.t Stack.t;
@@ -1294,6 +1288,16 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         f fmt "\n%s}" p
       )
 
+  let clear_cache () = 
+    reset_refs ();
+    Expr.clear_hc ();
+    Symbols.reset_cnt ();
+    Symbols.clear_labels ();
+    Var.reset_cnt ();
+    Hstring.reset_cnt ();
+    Uf.clear_labels ();
+    Shostak.Combine.empty_cache ();
+    Gc.major ()
 end
 
 (*

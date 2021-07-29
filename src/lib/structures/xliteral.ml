@@ -35,6 +35,13 @@ type builtin = Symbols.builtin =
     LE | LT | (* arithmetic *)
     IsConstr of Hstring.t (* ADT tester *)
 
+let print_builtin fmt = function 
+  | LE -> Format.fprintf fmt "{LE}"
+  | LT -> Format.fprintf fmt "{LT}"
+  | IsConstr hs -> 
+    Format.fprintf fmt "{IsConstr %a}"
+      Hstring.print hs
+
 type 'a view =
   | Eq of 'a * 'a
   | Distinct of bool * 'a list
@@ -88,6 +95,8 @@ module type S = sig
   val uid : t -> int
   val elements : t -> elt list
 
+  val clear_labels : unit -> unit 
+
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t
 
@@ -131,7 +140,6 @@ let print_view ?(lbl="") pr_elt fmt vw =
       (if b then "false" else "true")
 
   | Distinct (_, _) -> assert false
-
 
 module Make (X : OrderedType) : S with type elt = X.t = struct
 
@@ -322,9 +330,49 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
     | PR a, _    -> [a]
     | BT (_,l), _ | EQ_LIST l, _ -> l
 
-  let pr_vrb ?(p = "") fmt  {neg; tpos; tneg; _} = 
-    Format.fprintf fmt 
-      "%s(atom, %b, %d, %d)" 
-      p neg tpos tneg
+  let print_atom_view 
+      (pr: Format.formatter -> elt -> unit) 
+      fmt (av : elt atom_view) = 
+    let prl fmt (al: elt list) =
+      match al with 
+      | h :: t -> 
+        Format.fprintf fmt "[%a" pr h;
+        List.iter (
+          fun a -> 
+            Format.fprintf fmt "; %a" pr a
+        ) t;
+        Format.fprintf fmt "]"  
+      | _ -> Format.fprintf fmt "[]"
 
+    in
+    match av with 
+    | EQ (a, b) -> 
+      Format.fprintf fmt 
+        "EQ (%a, %a)"
+        pr a pr b 
+    | BT (b, al) ->
+      Format.fprintf fmt 
+        "BT (%a, %a)"
+        print_builtin b prl al 
+    | PR a -> 
+      Format.fprintf fmt 
+        "PR (%a)"
+        pr a  
+    | EQ_LIST al ->
+      Format.fprintf fmt 
+        "PR (%a)"
+        prl al 
+
+  let print_atom fmt {value; uid} = 
+    Format.fprintf fmt "{%a; %d}" 
+      (print_atom_view X.print) value uid 
+
+  let pr_vrb ?(p = "") fmt  {at : atom; neg; tpos; tneg} = 
+    Format.fprintf fmt 
+      "%s(atom, %a, %b, %d, %d)" 
+      p print_atom at 
+      neg tpos tneg
+
+  let clear_labels () =
+    Labels.clear labels
 end
