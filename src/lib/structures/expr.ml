@@ -552,17 +552,16 @@ let type_info t = t.ty
    | Sy.Form _ | Sy.Lit _  -> false
    | _ -> true (* bool vars are terms *)
 *)
+let binder_cpt = ref 0 
 
-let mk_binders =
-  let cpt = ref 0 in
-  fun st ->
-    TSet.fold
-      (fun t sym ->
-         incr cpt;
-         match t with
-         | { f = (Sy.Var _) as v; ty; _ } -> SMap.add v (ty, !cpt) sym
-         | _ -> assert false
-      )st SMap.empty
+let mk_binders st =
+  TSet.fold
+    (fun t sym ->
+       incr binder_cpt;
+       match t with
+       | { f = (Sy.Var _) as v; ty; _ } -> SMap.add v (ty, !binder_cpt) sym
+       | _ -> assert false
+    )st SMap.empty
 
 
 let merge_vars acc b =
@@ -1306,16 +1305,15 @@ and find_particular_subst =
 
 let (cache : t Msbty.t Msbt.t TMap.t ref) = ref TMap.empty
 
-let apply_subst =
-  fun ((sbt, sbty) as s) f ->
-    let ch = !cache in
-    try TMap.find f ch |> Msbt.find sbt |> Msbty.find sbty
-    with Not_found ->
-      let nf = apply_subst_aux s f in
-      let c_sbt = try TMap.find f ch with Not_found -> Msbt.empty in
-      let c_sbty = try Msbt.find sbt c_sbt with Not_found -> Msbty.empty in
-      cache := TMap.add f (Msbt.add sbt (Msbty.add sbty nf c_sbty) c_sbt) ch;
-      nf
+let apply_subst ((sbt, sbty) as s) f =
+  let ch = !cache in
+  try TMap.find f ch |> Msbt.find sbt |> Msbty.find sbty
+  with Not_found ->
+    let nf = apply_subst_aux s f in
+    let c_sbt = try TMap.find f ch with Not_found -> Msbt.empty in
+    let c_sbty = try Msbt.find sbt c_sbt with Not_found -> Msbty.empty in
+    cache := TMap.add f (Msbt.add sbt (Msbty.add sbty nf c_sbty) c_sbt) ch;
+    nf
 
 let apply_subst s t =
   if Options.get_timers() then
@@ -2544,5 +2542,7 @@ let print_th_elt fmt t =
   Format.fprintf fmt "%s/%s: @[<hov>%a@]" t.th_name t.ax_name print t.ax_form
 
 let clear_hc () = 
+  binder_cpt := 0;
+  Labels.clear labels;
   cache := TMap.empty;
   HC.empty ()

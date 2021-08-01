@@ -77,6 +77,7 @@ let is_fresh_skolem s =
     false
 
 let reset_cnt () = 
+  S.empty ();
   fresh_str_cnt := 0
 
 module Arg = struct type t'= t type t = t' let compare = compare end

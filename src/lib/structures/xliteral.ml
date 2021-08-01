@@ -324,5 +324,6 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
     | BT (_,l), _ | EQ_LIST l, _ -> l
 
   let clear_labels () =
+    H.empty ();
     Labels.clear labels
 end

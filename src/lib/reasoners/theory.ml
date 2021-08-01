@@ -75,7 +75,11 @@ module type S = sig
 
   val get_assumed : t -> E.Set.t
 
+  val reset_cnt : unit -> unit
+
 end
+
+let assumed_cnt = ref 0
 
 module Main_Default : S = struct
 
@@ -216,15 +220,13 @@ module Main_Default : S = struct
       print_types_decls ~header types;
       print_logics ~header logics
 
-    let assumed =
-      let cpt = ref 0 in
-      fun l ->
+    let assumed l =
         if get_debug_cc () then begin
           print_dbg ~module_name:"Theory" ~function_name:"assumed"
             "Assumed facts (in this order):";
           print_declarations ~header:false l;
-          incr cpt;
-          print_dbg ~flushed:false ~header:false "goal g_%d :@ " !cpt;
+          incr assumed_cnt;
+          print_dbg ~flushed:false ~header:false "goal g_%d :@ " !assumed_cnt;
           List.iter
             (fun l ->
                print_dbg ~flushed:false ~header:false "(* call to assume *)@ ";
@@ -745,6 +747,8 @@ module Main_Default : S = struct
 
   let get_assumed env = env.assumed_set
 
+  let reset_cnt () = assumed_cnt := 0
+  
 end
 
 module Main_Empty : S = struct
@@ -780,4 +784,7 @@ module Main_Empty : S = struct
   let assume_th_elt e _ _ = e
   let theories_instances ~do_syntactic_matching:_ _ e _ _ _ = e, []
   let get_assumed env = env.assumed_set
+
+  let reset_cnt () = ()
+
 end
