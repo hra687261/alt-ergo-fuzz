@@ -374,5 +374,6 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
       neg tpos tneg
 
   let clear_labels () =
+    H.empty ();
     Labels.clear labels
 end

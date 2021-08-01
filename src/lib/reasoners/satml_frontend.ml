@@ -1016,7 +1016,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         unsat_rec env ~first_call:false
       with
       | Satml.Unsat lc -> raise (IUnsat (env, make_explanation lc))
-      | _ -> assert false
+      | _ -> assert false (*?*)
 
 
   (* copied from sat_solvers.ml *)
@@ -1291,6 +1291,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   let clear_cache () = 
     reset_refs ();
     Expr.clear_hc ();
+    Th.reset_cnt ();
     Symbols.reset_cnt ();
     Symbols.clear_labels ();
     Var.reset_cnt ();
@@ -1304,3 +1305,5 @@ end
 (*+ no dynamic loading of SAT solvers anymore +*)
 let () = Sat_solver.set_current (module Main : Sat_solver_sig.S)
 *)
+
+

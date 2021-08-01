@@ -60,6 +60,7 @@ module type S = sig
   val get_assumed : t -> Expr.Set.t
 
   val pr_brv : ?p:string -> Format.formatter -> t -> unit
+  val reset_cnt : unit -> unit
   
 end
 
