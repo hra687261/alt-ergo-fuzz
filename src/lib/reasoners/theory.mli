@@ -29,6 +29,7 @@
 module type S = sig
   type t
 
+  val pr_brv : ?p:string -> Format.formatter -> t -> unit
   val empty : unit -> t
 
   (* the first int is the decision level (dlvl) and the second one is the
@@ -59,9 +60,9 @@ module type S = sig
 
   val get_assumed : t -> Expr.Set.t
 
-  val pr_brv : ?p:string -> Format.formatter -> t -> unit
+
   val reset_cnt : unit -> unit
-  
+
 end
 
 module Main_Default : S

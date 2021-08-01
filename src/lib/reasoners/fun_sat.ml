@@ -268,7 +268,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         let pr_qd1 = 
           Pp.print_quadruplet_lb
             ( E.print_gform,
-              Pp.addpref Ex.print_bis,
+              pr_ex,
               Pp.pr_int, 
               Pp.pr_int
             )
@@ -356,7 +356,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         f fmt "\n%s%a;" p2 Th.print_model unit_tbox;
 
         f fmt "\n%sinst =" p1 ;
-        f fmt " %a;" (Inst.print_vrb ~p:p1) inst;
+        f fmt " %a;" (Inst.print_vrb ~p:p2) inst;
 
         f fmt "\n%sheuristics = ref" p1;
         f fmt " %a" (Heuristics.pr_vrb ~p:p2) !heuristics;
@@ -2170,4 +2170,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Uf.clear_labels ();
     Shostak.Combine.empty_cache ();
     Gc.major ()
+
+
+
 end

@@ -124,7 +124,7 @@ let pr_vrb ?(p = "") fmt
 
     let module MLP = Pp.MapPrinter(MapL) in 
     let pr_exm =
-      MLP.pr_lb LX.pr_vrb (Pp.addpref Ex.print)
+      MLP.pr LX.pr_vrb (Pp.addpref Ex.print)
     in
 
     let module MXP = Pp.MapPrinter(MapX) in
@@ -165,7 +165,7 @@ let pr_vrb ?(p = "") fmt
 
     f fmt "\n%sneqs =" p1;
     f fmt " %a;" 
-      (MXP.pr_lb print_x pr_exm ~p:p2) neqs;
+      (MXP.pr_lb print_x (Pp.addpref pr_exm) ~p:p2) neqs;
 
     f fmt "\n%sac_rs =" p1;
     f fmt " %a;" 

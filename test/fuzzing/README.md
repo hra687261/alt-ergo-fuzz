@@ -1,4 +1,22 @@
 
+add afl_fuzzing_stack
+
+optimize
+
+check out perf tips
+
+add more constant gens
+
+add push and pop
+
+change aty
+
+review floats
+
+remove unused bindings 
+
+change algebraic data types
+
 ## Compiling:
 ```
 make

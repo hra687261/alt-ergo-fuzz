@@ -134,7 +134,6 @@ type form_view =
   | Let of letin (* a binding of an expr *)
   | Not_a_form
 
-
 (** Comparison and hashing functions *)
 
 (* We keep true and false as repr * ordering is influenced by
@@ -249,119 +248,6 @@ let compare_quant
         let c = compare_sko_vty free_vty1 free_vty2 in
         if c <> 0 then c
         else compare_triggers f1 f2 trs1 trs2
-
-module Msbt : Map.S with type key = expr SMap.t =
-  Map.Make
-    (struct
-      type t = expr SMap.t
-      let compare a b = SMap.compare compare a b
-    end)
-
-module Msbty : Map.S with type key = Ty.t Ty.M.t =
-  Map.Make
-    (struct
-      type t = Ty.t Ty.M.t
-      let compare a b = Ty.M.compare Ty.compare a b
-    end)
-
-module TSet : Set.S with type elt = expr =
-  Set.Make (struct type t = expr let compare = compare end)
-
-module TMap : Map.S with type key = expr =
-  Map.Make (struct type t = expr let compare = compare end)
-
-module H = struct
-  type elt = t
-  type t = elt
-
-  let eq t1 t2 = try
-      Sy.equal t1.f t2.f
-      && List.for_all2 (==) t1.xs t2.xs
-      && Ty.equal t1.ty t2.ty
-      &&
-      Util.compare_algebraic t1.bind t2.bind
-        (function
-          | B_lemma q1, B_lemma q2
-          | B_skolem q1, B_skolem q2 -> compare_quant q1 q2
-          | B_let a, B_let b -> compare_let a b
-          | _, (B_none | B_lemma _ | B_skolem _ | B_let _) -> assert false
-        ) = 0
-    with Invalid_argument _ -> false
-
-  let equal = eq
-
-  let hash t =
-    abs @@
-    List.fold_left
-      (fun acc x-> acc * 23 + x.tag)
-      (7 * Hashtbl.hash t.bind + 5 * Sy.hash t.f + Ty.hash t.ty)
-      t.xs
-
-  let set_id tag x = {x with tag = tag}
-
-  let initial_size = 9001
-
-  let disable_weaks () = Options.get_disable_weaks ()
-end
-
-module Labels = Hashtbl.Make(H)
-module HC = Make(H)
-module Hsko = Hashtbl.Make(H)
-
-module F_Htbl : Hashtbl.S with type key = t =
-  Hashtbl.Make(struct
-    type t'=t
-    type t = t'
-    let hash = hash
-    let equal = equal
-  end)
-
-(** different views of an expression *)
-
-let lit_view t =
-  let { f; xs; ty; _ } = t in
-  if ty != Ty.Tbool then Not_a_lit {is_form = false}
-  else
-    match f with
-    | Sy.Form _  -> Not_a_lit {is_form = true}
-    | Sy.Lit lit ->
-      begin match lit, xs with
-        | (Sy.L_eq | Sy.L_neg_eq), ([] | [_]) -> assert false
-        | Sy.L_eq, [a;b] -> Eq (a, b)
-        | Sy.L_eq, l     -> Eql l
-        | Sy.L_neg_eq, l -> Distinct l
-        | Sy.L_built x, l -> Builtin(true, x, l)
-        | Sy.L_neg_built x, l -> Builtin(false, x, l)
-        | Sy.L_neg_pred, [a] -> Pred(a, true)
-        | Sy.L_neg_pred, _ -> assert false
-      end
-    | _ -> Pred(t, false)
-
-let form_view t =
-  let { f; xs; bind; _ } = t in
-  if t.ty != Ty.Tbool then Not_a_form
-  else
-    match f, xs, bind with
-    | Sy.Form (Sy.F_Unit _), [a;b], _ -> Unit (a, b)
-    | Sy.Form (Sy.F_Clause i), [a;b], _ -> Clause (a, b, i)
-    | Sy.Form Sy.F_Iff, [a;b], _ -> Iff(a, b)
-    | Sy.Form Sy.F_Xor, [a;b], _ -> Xor(a, b)
-    | Sy.Form Sy.F_Lemma, [], B_lemma lem -> Lemma lem
-    | Sy.Form Sy.F_Skolem, [], B_skolem sko -> Skolem sko
-    | Sy.Lit (Sy.L_eq | Sy.L_neg_eq | Sy.L_neg_pred |
-              Sy.L_built _ | Sy.L_neg_built _), _, _ ->
-      Literal t
-    | Sy.Let, [], B_let ({ is_bool = true; _ } as x) -> Let x
-
-    | _ -> Literal t
-
-let term_view t =
-  let { f; ty; _ } = t in
-  if ty != Ty.Tbool then Term t
-  else match f with
-    | Sy.Form _ -> Not_a_term {is_lit = false}
-    | Sy.Lit _  -> Not_a_term {is_lit = true}
-    | _ -> Term t (* bool term *)
 
 (** pretty printing *)
 
@@ -542,11 +428,9 @@ and print_triggers fmt trs =
       fprintf fmt "| %a@," print_list l;
     ) trs
 
-
 module Pp = Pp_utils
 
 let f = Format.fprintf
-
 
 let rec  print_list_bis fmt = print_list_sep_bis "," fmt
 
@@ -598,8 +482,8 @@ and print_bis :
       fprintf fmt
         "(let%a %a = %a in %a)"
         (fun fmt x -> ignore (fmt, x) (*
-           fprintf fmt
-             "(sko = %a)" print_bis x.let_sko*) ) x
+             fprintf fmt
+               "(sko = %a)" print_bis x.let_sko*) ) x
         Sy.print x.let_v print_bis x.let_e print_bis x.in_e
 
     (* Literals *)
@@ -725,11 +609,11 @@ let rec print_decl_kind :
     | Dpredicate e -> 
       f fmt 
         "Dpredicate \n%s(((\n%a\n%s)))"
-        p1 (print_vrb ~p:p2) e p1
+        p1 (print_vrb ~firstcall:true ~p:p2) e p1
     | Dfunction e -> 
       f fmt 
         "Dfunction \n%s(((\n%a\n%s)))"
-        p1 (print_vrb ~p:p2) e p1 
+        p1 (print_vrb ~firstcall:true ~p:p2) e p1 
   )
 
 and print_quantified :
@@ -746,7 +630,7 @@ and print_quantified :
       f fmt " %s;" name; 
 
       f fmt "\n%smain =" p1;
-      f fmt "\n%a;" (print_vrb ~p:p2) main ; 
+      f fmt "\n%a;" (print_vrb ~firstcall:true ~p:p2) main ; 
 
       f fmt "\n%stoplevel =" p1;
       f fmt " %b;" toplevel;
@@ -785,13 +669,13 @@ and print_letin :
     f fmt "\n%s%a;" p2 Sy.print let_v; 
 
     f fmt "\n%slet_e =" p1;
-    f fmt "\n%a;" (print_vrb ~p:p2) let_e ;  
+    f fmt "\n%a;" (print_vrb ~firstcall:true ~p:p2) let_e ;  
 
     f fmt "\n%sin_e =" p1;
-    f fmt "\n%a;" (print_vrb ~p:p2) in_e ; 
+    f fmt "\n%a;" (print_vrb ~firstcall:true ~p:p2) in_e ; 
 
     f fmt "\n%slet_sko =" p1;
-    f fmt "\n%a;" (print_vrb ~p:p2) let_sko; 
+    f fmt "\n%a;" (print_vrb ~firstcall:true ~p:p2) let_sko; 
 
     f fmt "\n%sis_bool =" p1;
     f fmt " %b;" is_bool; 
@@ -819,9 +703,10 @@ and print_bind_kind :
   )
 
 and print_vrb :
-  ?p:string -> Format.formatter -> expr -> unit =
-  fun ?(p = "") fmt { f = sy; xs; ty; bind; tag; vars; vty; 
-                      depth; nb_nodes; pure; neg} ->
+  ?firstcall:bool -> ?p:string -> Format.formatter -> expr -> unit =
+  fun ?(firstcall = false) ?(p = "") fmt 
+    { f = sy; xs; ty; bind; tag; vars; vty; 
+      depth; nb_nodes; pure; neg} ->
     (
       let p1 = p^"  " in
       let p2 = p1^"  " in
@@ -847,7 +732,7 @@ and print_vrb :
       f fmt " %d;" tag; 
 
       f fmt "\n%svars =" p1;
-      f fmt " %a;" (SMP.pr_lb ~p:p2 pr_sy pr_tyi) vars; 
+      f fmt " %a;" (SMP.pr pr_sy pr_tyi) vars; 
 
       f fmt "\n%svty =" p1;
       f fmt " %a;" (pr_svty ~p:p2) vty; 
@@ -863,7 +748,10 @@ and print_vrb :
 
       f fmt "\n%sneg =" p1;
       f fmt " %a;"
-        (Pp.print_opt_lb ~p:p2 (Pp.addpref print_bis))
+        (Pp.print_opt_lb ~p:p2 (
+            if firstcall
+            then (print_vrb ~firstcall:false) 
+            else Pp.addpref print_bis))
         neg;
 
       f fmt "\n%s}" p
@@ -955,6 +843,121 @@ let print_trg :
       f fmt "\n%s}" p
 
     )
+
+module Msbt : Map.S with type key = expr SMap.t =
+  Map.Make
+    (struct
+      type t = expr SMap.t
+      let compare a b = SMap.compare compare a b
+    end)
+
+module Msbty : Map.S with type key = Ty.t Ty.M.t =
+  Map.Make
+    (struct
+      type t = Ty.t Ty.M.t
+      let compare a b = Ty.M.compare Ty.compare a b
+    end)
+
+module TSet : Set.S with type elt = expr =
+  Set.Make (struct type t = expr let compare = compare end)
+
+module TMap : Map.S with type key = expr =
+  Map.Make (struct type t = expr let compare = compare end)
+
+module H = struct
+  type elt = t
+  type t = elt
+
+  let eq t1 t2 = try
+      Sy.equal t1.f t2.f
+      && List.for_all2 (==) t1.xs t2.xs
+      && Ty.equal t1.ty t2.ty
+      &&
+      Util.compare_algebraic t1.bind t2.bind
+        (function
+          | B_lemma q1, B_lemma q2
+          | B_skolem q1, B_skolem q2 -> compare_quant q1 q2
+          | B_let a, B_let b -> compare_let a b
+          | _, (B_none | B_lemma _ | B_skolem _ | B_let _) -> assert false
+        ) = 0
+    with Invalid_argument _ -> false
+
+  let equal = eq
+
+  let hash t =
+    abs @@
+    List.fold_left
+      (fun acc x-> acc * 23 + x.tag)
+      (7 * Hashtbl.hash t.bind + 5 * Sy.hash t.f + Ty.hash t.ty)
+      t.xs
+
+  let set_id tag x = {x with tag = tag}
+
+  let initial_size = 9001
+
+  let disable_weaks () = Options.get_disable_weaks ()
+
+  let pr_vrb = Pp_utils.addpref print_bis
+end
+
+module Labels = Hashtbl.Make(H)
+module HC = Make(H)
+module Hsko = Hashtbl.Make(H)
+
+module F_Htbl : Hashtbl.S with type key = t =
+  Hashtbl.Make(struct
+    type t'=t
+    type t = t'
+    let hash = hash
+    let equal = equal
+  end)
+
+(** different views of an expression *)
+
+let lit_view t =
+  let { f; xs; ty; _ } = t in
+  if ty != Ty.Tbool then Not_a_lit {is_form = false}
+  else
+    match f with
+    | Sy.Form _  -> Not_a_lit {is_form = true}
+    | Sy.Lit lit ->
+      begin match lit, xs with
+        | (Sy.L_eq | Sy.L_neg_eq), ([] | [_]) -> assert false
+        | Sy.L_eq, [a;b] -> Eq (a, b)
+        | Sy.L_eq, l     -> Eql l
+        | Sy.L_neg_eq, l -> Distinct l
+        | Sy.L_built x, l -> Builtin(true, x, l)
+        | Sy.L_neg_built x, l -> Builtin(false, x, l)
+        | Sy.L_neg_pred, [a] -> Pred(a, true)
+        | Sy.L_neg_pred, _ -> assert false
+      end
+    | _ -> Pred(t, false)
+
+let form_view t =
+  let { f; xs; bind; _ } = t in
+  if t.ty != Ty.Tbool then Not_a_form
+  else
+    match f, xs, bind with
+    | Sy.Form (Sy.F_Unit _), [a;b], _ -> Unit (a, b)
+    | Sy.Form (Sy.F_Clause i), [a;b], _ -> Clause (a, b, i)
+    | Sy.Form Sy.F_Iff, [a;b], _ -> Iff(a, b)
+    | Sy.Form Sy.F_Xor, [a;b], _ -> Xor(a, b)
+    | Sy.Form Sy.F_Lemma, [], B_lemma lem -> Lemma lem
+    | Sy.Form Sy.F_Skolem, [], B_skolem sko -> Skolem sko
+    | Sy.Lit (Sy.L_eq | Sy.L_neg_eq | Sy.L_neg_pred |
+              Sy.L_built _ | Sy.L_neg_built _), _, _ ->
+      Literal t
+    | Sy.Let, [], B_let ({ is_bool = true; _ } as x) -> Let x
+
+    | _ -> Literal t
+
+let term_view t =
+  let { f; ty; _ } = t in
+  if ty != Ty.Tbool then Term t
+  else match f with
+    | Sy.Form _ -> Not_a_term {is_lit = false}
+    | Sy.Lit _  -> Not_a_term {is_lit = true}
+    | _ -> Term t (* bool term *)
 
 (** Some auxiliary functions *)
 
@@ -3004,7 +3007,7 @@ let print_gform :
 
     f fmt "\n%sfrom_terms=" p1;
     f fmt " %a"
-      (Pp.print_list_lb ~p:p2 print_vrb)
+      (Pp.print_list_lb ~p:p2 (print_vrb ~firstcall:true))
       from_terms;
 
     f fmt "\n%smf=" p1;

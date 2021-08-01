@@ -4,7 +4,8 @@ module type T = Translater.T
 module type ST =
 sig 
   include T
-  val process_stmts : Ast.stmt_c list -> Utils.answer list
+  val process_stmts : 
+    ?debug:bool -> Ast.stmt_c list -> Utils.answer list
 end 
 
 module CVC5: ST = 
@@ -18,7 +19,8 @@ struct
         l :: get_lines ic
       with End_of_file -> []
     in
-    fun stmtcs ->
+    fun ?(debug = false) stmtcs ->
+      ignore debug;
       let filename = 
         Format.sprintf "tmp_%f.smt2"
           (Unix.gettimeofday ()) in
@@ -84,15 +86,51 @@ let solve_with_ae
       stmtcs
   in List.rev ral
 
+let set_debug debug = 
+  ignore debug
+  (*
+  AEL.Options.set_verbose b;
+  AEL.Options.set_debug b;
+  AEL.Options.set_debug_ac b; (**)
+  AEL.Options.set_debug_adt b; (**)
+  AEL.Options.set_debug_arith b;
+  AEL.Options.set_debug_arrays b;
+  AEL.Options.set_debug_bitv b;
+  AEL.Options.set_debug_cc b;
+  AEL.Options.set_debug_combine b;
+  AEL.Options.set_debug_constr b;
+  AEL.Options.set_debug_explanations b;
+  AEL.Options.set_debug_fm b;
+  (*AEL.Options.set_debug_fpa : int -> unit*)
+  AEL.Options.set_debug_gc b;
+  AEL.Options.set_debug_interpretation b;
+  AEL.Options.set_debug_ite b; 
+  (*AEL.Options.set_debug_matching : int -> unit*)
+  AEL.Options.set_debug_sat b;
+  AEL.Options.set_debug_split b;
+  AEL.Options.set_debug_sum b;
+  AEL.Options.set_debug_triggers b;
+  AEL.Options.set_debug_types b; 
+  AEL.Options.set_debug_typing b; 
+  AEL.Options.set_debug_uf b; 
+  AEL.Options.set_debug_unsat_core b; 
+  AEL.Options.set_debug_use b; 
+  AEL.Options.set_debug_warnings b 
+  *)
+
 module AE_Tableaux: ST = 
 struct 
   include Tr_altergo
 
   let process_stmts =
     let module SC = AEL.Fun_sat in
-    let module SAT = SC.Make(AEL.Theory.Main_Default) in
+    let module Th = AEL.Theory.Main_Default in
+    let module SAT = SC.Make(Th) in
     AEL.Options.set_disable_weaks true;
-    fun stmtcs -> 
+
+    fun ?(debug = false) stmtcs ->
+      set_debug debug;
+
       try 
         let res =
           solve_with_ae (module SAT) (module Tr_altergo) stmtcs
@@ -114,9 +152,13 @@ struct
 
   let process_stmts =
     let module SC = AEL.Satml_frontend in
-    let module SAT = SC.Make(AEL.Theory.Main_Default) in
+    let module Th = AEL.Theory.Main_Default in
+    let module SAT = SC.Make(Th) in
     AEL.Options.set_disable_weaks true;
-    fun stmtcs -> 
+
+    fun ?(debug = false) stmtcs -> 
+      set_debug debug;
+
       try
         let res =
           solve_with_ae (module SAT) (module Tr_altergo) stmtcs

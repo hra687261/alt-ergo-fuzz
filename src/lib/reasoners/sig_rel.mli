@@ -61,6 +61,8 @@ val print_facts : (Format.formatter -> 'a -> unit) ->
 module type RELATION = sig
   type t
 
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
+
   val empty : Expr.Set.t list -> t
 
   val assume : t ->
@@ -89,8 +91,6 @@ module type RELATION = sig
   val new_terms : t -> Expr.Set.t
 
   val assume_th_elt : t -> Expr.th_elt -> Explanation.t -> t
-
-  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
 
 end
 

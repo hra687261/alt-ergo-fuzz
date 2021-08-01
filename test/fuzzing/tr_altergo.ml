@@ -38,6 +38,7 @@ let ite_id = ref 0
 let reset_cnt () = 
   ite_id := 0
 
+(* from AltErgoParsers.Psmt2_to_alt_ergo *)
 let better_num_of_string s =
   begin match String.split_on_char '.' s with
     | [n] | [n;""] -> Num.num_of_string n
@@ -143,10 +144,12 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
 
   | Binop (Eq, x, y) ->
     Expr.mk_eq ~iff:true
-      (translate_expr ~vars ~stmtkind x) (translate_expr ~vars ~stmtkind y)
+      (translate_expr ~vars ~stmtkind x) 
+      (translate_expr ~vars ~stmtkind y)
   | Binop (Neq, x, y) ->
     Expr.mk_distinct ~iff:true 
-      [translate_expr ~vars ~stmtkind x; translate_expr ~vars ~stmtkind y]
+      [ translate_expr ~vars ~stmtkind x; 
+        translate_expr ~vars ~stmtkind y]
 
   | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 

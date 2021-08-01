@@ -556,10 +556,8 @@ module Atom : ATOM = struct
           f fmt "\n%svid =" p1;
           f fmt " %d;" vid;
 
-          f fmt "\n%spa =" p1;
-          f fmt "\n%s%a;" p2 Debug.atom pa;        
-          f fmt "\n%sna =" p1;
-          f fmt "\n%s%a;" p2 Debug.atom na;    
+          f fmt "\n%spa = %a;" p1 Debug.atom pa;        
+          f fmt "\n%sna = %a;" p1 Debug.atom na;    
 
           f fmt "\n%sweight =" p1;
           f fmt " %f;" weight;

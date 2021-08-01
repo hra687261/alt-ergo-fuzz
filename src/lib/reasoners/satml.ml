@@ -1881,13 +1881,13 @@ module Make (Th : Theory.S) : SAT_ML with type th = Th.t = struct
 
         let module FFP = Pp.MapPrinter(MFF) in 
         let print_fflmff = 
-          FFP.pr_lb ~ind:true (Pp.addpref FF.print) print_ffl
+          FFP.pr_lb ~ind:true FF.pr_vrb print_ffl
         in
         let print_imff = 
-          FFP.pr_lb (Pp.addpref FF.print) Pp.pr_int
+          FFP.pr_lb FF.pr_vrb Pp.pr_int
         in
         let print_sff = 
-          Pp.print_set_lb (module FF.Set) (Pp.addpref FF.print)
+          Pp.print_set_lb (module FF.Set) FF.pr_vrb
         in
         let print_sffv = 
           Vec.pr_vrb print_sff
@@ -2025,7 +2025,7 @@ module Make (Th : Theory.S) : SAT_ML with type th = Th.t = struct
         f fmt "\n%sff_lvl =" p1;
         f fmt " %a" (print_imff ~p:p2) ff_lvl;
         f fmt "\n%slvl_ff =" p1;
-        f fmt " %a" (UMIP.pr Pp.pr_int print_sff ) lvl_ff;
+        f fmt " %a" (UMIP.pr_lb Pp.pr_int print_sff ~p:p2) lvl_ff;
         (*
         f fmt " %a" (UMIP.pr_lb Pp.pr_int print_sff ~p:p2) lvl_ff;
         *)

@@ -11,6 +11,28 @@
 
 type t = {heap : int Vec.t; indices : int Vec.t }
 
+module Pp = Pp_utils
+
+let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt {heap; indices} -> 
+  (
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_iv = Vec.pr_vrb Pp.pr_int in
+
+    f fmt "\n%s{" p;
+
+    f fmt "\n%sheap = " p1;
+    f fmt "%a;" (print_iv ~p:p2) heap;
+
+    f fmt "\n%sindices =" p1;
+    f fmt "\n%a;" (print_iv ~p:p2) indices;
+
+    f fmt "\n%s}" p
+  )
+
 let dummy = -100
 
 let init sz =
@@ -130,25 +152,3 @@ let remove_min cmp ({heap=heap; indices=indices} as s) =
   Vec.pop s.heap;
   if Vec.size s.heap > 1 then percolate_down cmp s 0;
   x
-
-module Pp = Pp_utils
-
-let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
-  fun ?(p = "") fmt {heap; indices} -> 
-  (
-    let f = Format.fprintf in
-    let p1 = p^"  " in
-    let p2 = p1^"  " in
-
-    let print_iv = Vec.pr_vrb Pp.pr_int in
-
-    f fmt "\n%s{" p;
-
-    f fmt "\n%sheap =" p1;
-    f fmt "\n%a;" (print_iv ~p:p2) heap;
-
-    f fmt "\n%sindices =" p1;
-    f fmt "\n%a;" (print_iv ~p:p2) indices;
-
-    f fmt "\n%s}" p
-  )

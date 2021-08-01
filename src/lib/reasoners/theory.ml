@@ -48,6 +48,8 @@ let f = Format.fprintf
 module type S = sig
   type t
 
+  val pr_brv : ?p:string -> Format.formatter -> t -> unit
+
   val empty : unit -> t
 
   (* the first int is the decision level (dlvl) and the second one is the
@@ -78,7 +80,6 @@ module type S = sig
 
   val get_assumed : t -> E.Set.t
 
-  val pr_brv : ?p:string -> Format.formatter -> t -> unit
   val reset_cnt : unit -> unit
 
 end
@@ -225,33 +226,33 @@ module Main_Default : S = struct
       print_logics ~header logics
 
     let assumed l =
-        if get_debug_cc () then begin
-          print_dbg ~module_name:"Theory" ~function_name:"assumed"
-            "Assumed facts (in this order):";
-          print_declarations ~header:false l;
-          incr assumed_cnt;
-          print_dbg ~flushed:false ~header:false "goal g_%d :@ " !assumed_cnt;
-          List.iter
-            (fun l ->
-               print_dbg ~flushed:false ~header:false "(* call to assume *)@ ";
-               match List.rev l with
-               | [] -> assert false
-               | (a,dlvl,plvl)::l ->
-                 print_dbg ~flushed:false ~header:false
-                   "( (* %d , %d *) %a "
-                   dlvl plvl
-                   E.print a;
-                 List.iter
-                   (fun (a, dlvl, plvl) ->
-                      print_dbg ~flushed:false ~header:false
-                        " and@ (* %d , %d *) %a "
-                        dlvl plvl
-                        E.print a
-                   ) l;
-                 print_dbg ~flushed:false ~header:false ") ->@ "
-            ) (List.rev l);
-          print_dbg ~header:false "false";
-        end
+      if get_debug_cc () then begin
+        print_dbg ~module_name:"Theory" ~function_name:"assumed"
+          "Assumed facts (in this order):";
+        print_declarations ~header:false l;
+        incr assumed_cnt;
+        print_dbg ~flushed:false ~header:false "goal g_%d :@ " !assumed_cnt;
+        List.iter
+          (fun l ->
+             print_dbg ~flushed:false ~header:false "(* call to assume *)@ ";
+             match List.rev l with
+             | [] -> assert false
+             | (a,dlvl,plvl)::l ->
+               print_dbg ~flushed:false ~header:false
+                 "( (* %d , %d *) %a "
+                 dlvl plvl
+                 E.print a;
+               List.iter
+                 (fun (a, dlvl, plvl) ->
+                    print_dbg ~flushed:false ~header:false
+                      " and@ (* %d , %d *) %a "
+                      dlvl plvl
+                      E.print a
+                 ) l;
+               print_dbg ~flushed:false ~header:false ") ->@ "
+          ) (List.rev l);
+        print_dbg ~header:false "false";
+      end
 
     let theory_of k = match k with
       | Th_util.Th_arith  -> "Th_arith "
@@ -357,6 +358,88 @@ module Main_Default : S = struct
     gamma_finite : CC_X.t;
     choices : choice list
   }
+
+  let pr_brv : ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt { assumed_set; assumed; cs_pending_facts;
+                        terms; gamma; gamma_finite; choices} -> 
+      (
+        let p1 = p^"  " in 
+        let p2 = p1^"  " in 
+
+        let print_e = Pp.addpref E.print_bis in
+        let print_se = Pp.print_set_lb (module E.Set) print_e in
+
+        let print_eii = Pp.addpref (
+            Pp.print_triplet (
+              Pp.addpref E.print,
+              Pp.pr_int,
+              Pp.pr_int
+            ))
+        in
+        let print_eiil = 
+          Pp.print_list_lb print_eii
+        in
+        let print_eiill = 
+          Pp.print_list_lb print_eiil
+        in
+        let print_eexii = Pp.addpref (
+            Pp.print_quadruplet (
+              Pp.addpref E.print,
+              Pp.addpref Ex.print,
+              Pp.pr_int,
+              Pp.pr_int
+            ))
+        in
+        let print_eexiil = 
+          Pp.print_list_lb print_eexii
+        in
+        let print_eexiill = 
+          Pp.print_list_lb print_eexiil
+        in
+
+        let print_xv =
+          fun ?(p = "") ->
+            A.print_view ~lbl:p X.print 
+        in
+        let print_choice_sign ?(p = "") fmt e = 
+          match e with 
+          | CNeg -> 
+            f fmt "CNeg"
+          | CPos x -> 
+            f fmt "CPos";
+            f fmt "\n%a" (Ex.print_exp_vrb ~p) x
+        in
+        let print_q =
+          Pp.print_quadruplet_lb
+            ( print_xv, 
+              Pp.addpref Th_util.print_lit_origin,
+              print_choice_sign,
+              Pp.addpref Ex.print)
+        in
+        let print_ql = 
+          Pp.print_list_lb print_q 
+        in
+        f fmt "\n%s{" p;
+
+        f fmt "\n%sassumed_set =" p1;
+        f fmt " %a;" (print_se ~p:p2) assumed_set;
+        f fmt "\n%sassumed =" p1;
+        f fmt " %a;" (print_eiill ~p:p2) assumed;
+        f fmt "\n%scs_pending_facts =" p1;
+        f fmt " %a;" (print_eexiill ~p:p2) cs_pending_facts;
+
+
+        f fmt "\n%sterms =" p1;
+        f fmt " %a;" (print_se ~p:p2) terms;
+        f fmt "\n%sgamma =" p1;
+        f fmt " %a;" (CC_X.pr_vrb ~p:p2) gamma;
+        f fmt "\n%sgamma_finite =" p1;
+        f fmt " %a;" (CC_X.pr_vrb ~p:p2) gamma_finite;
+        f fmt "\n%schoices =" p1;
+        f fmt " %a;" (print_ql ~p:p2) choices;
+
+        f fmt "\n%s}" p
+      )
 
   let look_for_sat ?(bad_last=None) ch t base_env l ~for_model =
     let rec aux ch bad_last dl base_env li =
@@ -751,96 +834,32 @@ module Main_Default : S = struct
 
   let get_assumed env = env.assumed_set
 
-  let pr_brv : ?p:string -> Format.formatter -> t -> unit =
-    fun ?(p = "") fmt { assumed_set; assumed; cs_pending_facts;
-                        terms; gamma; gamma_finite; choices} -> 
-      (
-        let p1 = p^"  " in 
-        let p2 = p1^"  " in 
-
-        let print_e = Pp.addpref E.print_bis in
-        let print_se = Pp.print_set_lb (module E.Set) print_e in
-
-        let print_eii = Pp.addpref (
-          Pp.print_triplet (
-            Pp.addpref E.print,
-            Pp.pr_int,
-            Pp.pr_int
-          ))
-        in
-        let print_eiil = 
-          Pp.print_list_lb print_eii
-        in
-        let print_eiill = 
-          Pp.print_list_lb print_eiil
-        in
-        let print_eexii = Pp.addpref (
-          Pp.print_quadruplet (
-            Pp.addpref E.print,
-            Pp.addpref Ex.print,
-            Pp.pr_int,
-            Pp.pr_int
-          ))
-        in
-        let print_eexiil = 
-          Pp.print_list_lb print_eexii
-        in
-        let print_eexiill = 
-          Pp.print_list_lb print_eexiil
-        in
-
-        let print_xv =
-          fun ?(p = "") ->
-            A.print_view ~lbl:p X.print 
-        in
-        let print_choice_sign ?(p = "") fmt e = 
-          match e with 
-          | CNeg -> 
-            f fmt "CNeg"
-          | CPos x -> 
-            f fmt "CPos";
-            f fmt "\n%a" (Ex.print_exp_vrb ~p) x
-        in
-        let print_q =
-          Pp.print_quadruplet_lb
-            ( print_xv, 
-              Pp.addpref Th_util.print_lit_origin,
-              print_choice_sign,
-              Pp.addpref Ex.print)
-        in
-        let print_ql = 
-          Pp.print_list_lb print_q 
-        in
-        f fmt "\n%s{" p;
-
-        f fmt "\n%sassumed_set =" p1;
-        f fmt " %a;" (print_se ~p:p2) assumed_set;
-        f fmt "\n%sassumed =" p1;
-        f fmt " %a;" (print_eiill ~p:p2) assumed;
-        f fmt "\n%scs_pending_facts =" p1;
-        f fmt " %a;" (print_eexiill ~p:p2) cs_pending_facts;
-
-
-        f fmt "\n%sterms =" p1;
-        f fmt " %a;" (print_se ~p:p2) terms;
-        f fmt "\n%sgamma =" p1;
-        f fmt " %a;" (CC_X.pr_vrb ~p:p2) gamma;
-        f fmt "\n%sgamma_finite =" p1;
-        f fmt " %a;" (CC_X.pr_vrb ~p:p2) gamma_finite;
-        f fmt "\n%schoices =" p1;
-        f fmt " %a;" (print_ql ~p:p2) choices;
-
-        f fmt "\n%s}" p
-      )
-
   let reset_cnt () = assumed_cnt := 0
-  
+
 end
 
 module Main_Empty : S = struct
 
   type t =
     { assumed_set : E.Set.t }
+
+
+  let pr_brv : ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt {assumed_set} -> 
+    (
+      let p1 = p^"  " in 
+      let p2 = p1^"  " in 
+
+      let print_e = Pp.addpref E.print_bis in
+      let print_se = Pp.print_set_lb (module E.Set) print_e in
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%sassumed_set =" p1;
+      f fmt " %a;" (print_se ~p:p2) assumed_set;
+
+      f fmt "\n%s}" p
+    )
 
   let empty () = { assumed_set = E.Set.empty }
 
@@ -871,22 +890,6 @@ module Main_Empty : S = struct
   let theories_instances ~do_syntactic_matching:_ _ e _ _ _ = e, []
   let get_assumed env = env.assumed_set
 
-  let pr_brv : ?p:string -> Format.formatter -> t -> unit =
-    fun ?(p = "") fmt {assumed_set} -> 
-    (
-      let p1 = p^"  " in 
-      let p2 = p1^"  " in 
-
-      let print_e = Pp.addpref E.print_bis in
-      let print_se = Pp.print_set_lb (module E.Set) print_e in
-
-      f fmt "\n%s{" p;
-
-      f fmt "\n%sassumed_set =" p1;
-      f fmt " %a;" (print_se ~p:p2) assumed_set;
-
-      f fmt "\n%s}" p
-    )
   let reset_cnt () = ()
 
 end

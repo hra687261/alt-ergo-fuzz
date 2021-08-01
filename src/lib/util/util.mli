@@ -74,6 +74,8 @@ type matching_env =
     backward : inst_kind
   }
 
+val pr_menv: ?p:string -> Format.formatter -> matching_env -> unit
+
 (** Loops from 0 to [max] and returns
     [(f max elt ... (f 1 elt (f 0 elt init)))...)].
     Returns [init] if [max] < 0

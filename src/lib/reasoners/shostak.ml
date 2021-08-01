@@ -75,11 +75,26 @@ struct
 
   type r = {v : rview ; id : int}
 
+  let print_rview fmt rv = 
+    match rv with
+    | Term  e -> Expr.print_bis fmt e
+    | Ac    e -> AC.print fmt e
+    | X1    e -> X1.print fmt e
+    | X2    e -> X2.print fmt e
+    | X3    e -> X3.print fmt e
+    | X4    e -> X4.print fmt e
+    | X5    e -> X5.print fmt e
+    | X6    e -> X6.print fmt e
+    | X7    e -> X7.print fmt e
+
   (* begin: Hashconsing modules and functions *)
 
   module View = struct
 
     type elt = r
+
+    let pr_vrb ?(p = "") fmt ({v ; id}: elt) = 
+      Format.fprintf fmt "%s{%a; %d}" p print_rview v id
 
     let set_id tag r = { r with id=tag }
 
@@ -747,10 +762,10 @@ module Combine = struct
       | None -> let res = make t in H.add cache t res; res
       | Some res -> res 
     in
-      let empty () =
-        empty_cache ();
-        H.clear cache in
-      make, empty
+    let empty () =
+      empty_cache ();
+      H.clear cache in
+    make, empty
 end
 
 module Arith = X1

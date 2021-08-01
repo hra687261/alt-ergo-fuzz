@@ -38,6 +38,9 @@ module S =
     let set_id n v = {v with id = n}
     let initial_size = 9001
     let disable_weaks () = Options.get_disable_weaks ()
+
+    let pr_vrb ?(p = "") fmt ({content; id}: elt) = 
+      Format.fprintf fmt "%s{%s; %d}" p content id
   end)
 
 let make s = S.make {content = s; id = - 1}
@@ -58,11 +61,11 @@ let rec list_assoc x = function
   | [] -> raise Not_found
   | (y, v) :: l -> if equal x y then v else list_assoc x l
 
-let fresh_str_cnt = ref 0
+let fresh_str_cpt = ref 0
 
 let fresh_string () =
-  incr fresh_str_cnt;
-  "!k" ^ (string_of_int !fresh_str_cnt)
+  incr fresh_str_cpt;
+  "!k" ^ (string_of_int !fresh_str_cpt)
 
 let is_fresh_string s =
   try s.[0] == '!' && s.[1] == 'k'
@@ -78,7 +81,7 @@ let is_fresh_skolem s =
 
 let reset_cnt () = 
   S.empty ();
-  fresh_str_cnt := 0
+  fresh_str_cpt := 0
 
 module Arg = struct type t'= t type t = t' let compare = compare end
 module Set : Set.S with type elt = t = Set.Make(Arg)

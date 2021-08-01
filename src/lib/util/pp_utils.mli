@@ -34,7 +34,7 @@ val print_list_lb:
 val print_array: 
   (?p:string -> fmt -> 'a -> unit) -> 
   (fmt -> 'a array -> unit)
-val print_array_lb: 
+val print_array_lb: ?slb:bool ->
   (?p:string -> fmt -> 'a -> unit) -> 
   (?p:string -> fmt -> 'a array -> unit)
 
@@ -58,7 +58,7 @@ val print_stack_lb:
 val print_opt: 
   (?p:string -> fmt -> 'a -> unit) -> 
   (fmt -> 'a option -> unit)
-val print_opt_lb: 
+val print_opt_lb: ?slb:bool ->
   (?p:string -> fmt -> 'a -> unit) -> 
   (?p:string -> fmt -> 'a option -> unit)
 
@@ -117,7 +117,7 @@ val print_set:
   (?p:string -> fmt -> 'a -> unit) ->
   (fmt -> 't -> unit)
 
-val print_set_lb: 
+val print_set_lb: ?slb:bool ->
   (module Set.S with type elt = 'a and type t = 't) ->
   (?p:string -> fmt -> 'a -> unit) ->
   (?p:string -> fmt -> 't -> unit)

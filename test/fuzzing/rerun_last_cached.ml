@@ -22,7 +22,7 @@ let () =
     "\n######################################### %d@." 
     (List.length bil - 1);
   begin match exn with 
-    | None -> Format.printf "\nNo exception.@."
+    | None -> ()
     | Some exn ->
       Format.printf "\nException: %s@." (exn_to_string exn)
       (*;
@@ -54,7 +54,8 @@ let () =
       (List.length c5rn);
 
     try
-      cmp_answers_pr3_exn ae_cr ae_tr c5rn 
+      cmp_answers_exn3 ae_cr ae_tr c5rn; 
+      cmp_answers_pr3 ae_cr ae_tr c5rn
     with exp -> 
       cmp_answers_pr3 ae_cr ae_tr c5rn;
       Format.printf "\nException: %s@." (exn_to_string exp) 

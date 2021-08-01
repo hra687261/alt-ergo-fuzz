@@ -44,7 +44,9 @@ let exn_to_string = function
   | Failure Timeout -> "Failure(Timeout)"
   | Failure (Other str) ->
     Format.sprintf "Failure(Other(%s))" str
-  | exn -> Printexc.to_string_default exn
+  | AltErgoLib.Errors.Error x ->
+    Format.asprintf "AEL_Error(%a)" AltErgoLib.Errors.report x
+  | exp -> Printexc.to_string_default exp
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
   let str =

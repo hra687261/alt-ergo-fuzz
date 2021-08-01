@@ -112,11 +112,11 @@ let print_trigger_info :
 
     f fmt "\n%strigger_orig=" p1;
     f fmt " %a" 
-      (Expr.print_vrb ~p:p2) trigger_orig;  
+      (Expr.print_vrb ~firstcall:true ~p:p2) trigger_orig;  
 
     f fmt "\n%strigger_formula=" p1;
     f fmt " %a" 
-      (Expr.print_vrb ~p:p2) trigger_formula;  
+      (Expr.print_vrb ~firstcall:true ~p:p2) trigger_formula;  
 
     f fmt "\n%strigger_dep=" p1;
     f fmt "\n%s%a" 
@@ -124,7 +124,7 @@ let print_trigger_info :
 
     f fmt "\n%strigger_increm_guard=" p1;
     f fmt " %a" 
-      (Expr.print_vrb ~p:p2) trigger_increm_guard;  
+      (Expr.print_vrb ~firstcall:true ~p:p2) trigger_increm_guard;  
 
     f fmt "\n%s}" p
 
@@ -159,11 +159,11 @@ let print_gsubst :
 
     f fmt "\n%ss_term_orig=" p1;
     f fmt " %a" 
-      (Pp.print_list_lb ~p:p2 Expr.print_vrb) s_term_orig;
+      (Pp.print_list_lb ~p:p2 (Expr.print_vrb ~firstcall:true)) s_term_orig;
 
     f fmt "\n%ss_lem_orig=" p1;
     f fmt " %a" 
-      (Expr.print_vrb ~p:p2) s_lem_orig;
+      (Expr.print_vrb ~firstcall:true ~p:p2) s_lem_orig;
 
     f fmt "\n%s}" p
   )

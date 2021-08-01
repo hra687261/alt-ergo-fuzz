@@ -116,6 +116,25 @@ type matching_env =
     backward : inst_kind
   }
 
+let pr_menv ?(p = "") fmt 
+    { nb_triggers; triggers_var; no_ematching;
+      greedy; use_cs; backward} = 
+  let p1 = p^"  " in 
+  Format.fprintf fmt "%s{" p;
+  Format.fprintf fmt "\n%snb _triggers = %d;" p1 nb_triggers;
+  Format.fprintf fmt "\n%striggers_var = %b;" p1 triggers_var;
+  Format.fprintf fmt "\n%sno_ematching = %b;" p1 no_ematching; 
+  Format.fprintf fmt "\n%sgreedy = %b;" p1 greedy;
+  Format.fprintf fmt "\n%suse_cs = %b;" p1 use_cs;
+  Format.fprintf fmt "\n%sbackward = %a;" p1 
+    ( fun fmt x ->
+        match x with  
+        | Normal -> Format.fprintf fmt "Normal"
+        | Forward -> Format.fprintf fmt "Forward"
+        | Backward -> Format.fprintf fmt "Backward"
+    ) backward;
+  Format.fprintf fmt "\n%s}@." p
+
 let loop
     ~(f : int -> 'a -> 'b -> 'b)
     ~(max : int)

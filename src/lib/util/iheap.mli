@@ -19,6 +19,8 @@
 type t
 (** The type of heaps. *)
 
+val pr_vrb : ?p:string -> Format.formatter -> t -> unit
+
 val init : int -> t
 (** Create a heap with the given initial size. *)
 
@@ -53,5 +55,3 @@ val remove_min : (int -> int -> bool) -> t -> int
 val filter : t -> (int -> bool) -> (int -> int -> bool) -> unit
 (** Filter elements in the heap.
     TODO: document comparison function ! *)
-
-val pr_vrb : ?p:string -> Format.formatter -> t -> unit

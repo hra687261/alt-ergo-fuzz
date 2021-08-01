@@ -76,14 +76,18 @@ let print_array :
     f fmt "|]" 
   ) 
 
-let print_array_lb : 
+let print_array_lb : ?slb:bool ->
   (?p:string -> fmt -> 'a -> unit) ->
   (?p:string -> fmt -> 'a array -> unit) =
-  fun pr ?(p = "") fmt arr -> 
+  fun ?(slb = false) pr ?(p = "") fmt arr -> 
   (
     let p1 = p^indent in
     if Array.length arr = 0
-    then f fmt "[||]"
+    then (
+      if slb
+      then f fmt "%s[||]" p1
+      else f fmt "[||]"
+    ) 
     else ( 
       f fmt "\n%s[|" p;
       Array.iter (f fmt "\n%a;" (pr ~p:p1)) arr;
@@ -160,17 +164,27 @@ let print_opt :
       f fmt " %a" (pr ~p:"") x 
   )
 
-let print_opt_lb : 
+let print_opt_lb : ?slb:bool ->
   (?p:string -> fmt -> 'a -> unit) -> 
   (?p:string -> fmt -> 'a option -> unit) =
-  fun pr ?(p = "") fmt a -> 
+  fun ?(slb = false) pr ?(p = "") fmt a -> 
   (
+    let p1 = p^"  " in 
     match a with 
     | None -> 
-      f fmt "None"
+      if slb 
+      then f fmt "%sNone" p
+      else f fmt "None"
     | Some x ->
-      f fmt "Some";
-      f fmt "\n%a" (pr ~p:p) x 
+      if slb 
+      then (
+        f fmt "%sSome" p;
+        f fmt "\n%a" (pr ~p:p1) x
+      )
+      else (
+        f fmt "Some";
+        f fmt "\n%a" (pr ~p:p) x
+      )
   )
 
 
@@ -320,19 +334,23 @@ let print_set :
       f fmt "}"
     )
 
-let print_set_lb :
+let print_set_lb : ?slb:bool ->
   (module Set.S with type elt = 'a and type t = 't) ->
   (?p:string -> fmt -> 'a -> unit) -> 
   (?p:string -> fmt -> 't -> unit) = 
-  fun (type a t) 
+  fun (type a t) ?(slb = false)
     (module S: Set.S with type elt = a and type t = t)
     (pr: ?p:string -> fmt -> a -> unit) ?(p = "") fmt s -> 
     (
       let f = Format.fprintf in
       let p1 = p^indent in 
+
       if S.is_empty s 
-      then f fmt "{}"
-      else (
+      then (
+        if slb 
+        then f fmt "%s{}" p
+        else f fmt "{}"
+      ) else (
         f fmt "\n%s{" p;
         S.iter (
           fun e ->

@@ -573,80 +573,25 @@ let mk_theory acc l th_name extends _loc =
 let make acc d =
   match d.c with
   | TPush (loc,n) ->
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TPush ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
-
     {st_decl=Push n; st_loc=loc} :: acc
-
   | TPop (loc,n) -> 
-    Format.printf "[[[ make TPop ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     {st_decl=Pop n; st_loc=loc} :: acc
-
   | TTheory(loc, name, ext, l) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TTheory ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     mk_theory acc l name ext loc
-
   | TAxiom(loc, name, Util.Default, f) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TAxiom ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     mk_assume acc f name loc
-
   | TAxiom(_, _, Util.Propagator, _) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TAxiom ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     assert false
-
   | TRewriting(loc, _, lr) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TRewriting ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     {st_decl=RwtDef(List.map make_rule lr); st_loc=loc} :: acc
-
   | TGoal(loc, sort, n, f) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TGoal ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     mk_query acc n f loc sort
-
   | TPredicate_def(loc, n, _args, f) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TPredicate_def ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     mk_preddef acc f n loc
-
   | TFunction_def(loc, n, _args, _rety, f) -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TFunction_def ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
     mk_function acc f n loc
-
-  | TTypeDecl _ -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TTypeDecl ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
-    acc
-
-  | TLogic _ -> 
-    Format.printf
-      "----------------------------------------------------------@.";
-    Format.printf "[[[ make TTypeDecl ]]]@.";
-    Format.printf "%a\n@." Typed.print_atdecl d;
-    acc
+  | TTypeDecl _ -> acc
+  | TLogic _ -> acc
 
 
 let make_list l = List.fold_left make [] (List.rev l)

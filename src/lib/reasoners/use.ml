@@ -46,6 +46,27 @@ module MX = Shostak.MXH
 type t = (SE.t * SA.t) MX.t
 type r = X.r
 
+let pr_vrb : ?p:tag -> formatter -> (SE.t * SA.t) MX.t -> unit =
+  fun ?(p = "") fmt v -> 
+  (
+    let module Pp = Pp_utils in
+    let f = Format.fprintf in
+    let pr_e = Pp.addpref E.print_bis in
+    let pr_se = Pp.print_set_lb ~slb:true (module E.Set) pr_e in
+    let pr_ex = Pp.addpref Explanation.print in
+    let pr_eex = Pp.print_doublet_lb (pr_e, pr_ex) in
+    let pr_sa = Pp.print_set_lb ~slb:true (module SA) pr_eex in
+
+    let pr_dbl =
+      Pp.print_doublet_lb (pr_se, pr_sa)
+    in
+    let module MXP = Pp.MapPrinter(MX) in
+    let pr_mx =
+      MXP.pr_lb (Pp.addpref X.print) pr_dbl
+    in
+    f fmt "%a" (pr_mx ~p) v
+  )
+
 let inter_tpl (x1,y1) (x2,y2) =
   Options.exec_thread_yield ();
   SE.inter x1 x2, SA.inter y1 y2
@@ -125,25 +146,3 @@ let print g =
 let mem = MX.mem
 let add = MX.add
 let empty = MX.empty
-
-module Pp = Pp_utils
-
-let pr_vrb : ?p:tag -> formatter -> (SE.t * SA.t) MX.t -> unit =
-  fun ?(p = "") fmt v -> 
-  (
-    let f = Format.fprintf in
-    let pr_e = Pp.addpref E.print_bis in
-    let pr_se = Pp.print_set_lb (module E.Set) pr_e in
-    let pr_ex = Pp.addpref Explanation.print in
-    let pr_eex = Pp.print_doublet_lb (pr_e, pr_ex) in
-    let pr_sa = Pp.print_set_lb (module SA) pr_eex in
-
-    let pr_dbl =
-      Pp.print_doublet_lb (pr_se, pr_sa)
-    in
-    let module MXP = Pp.MapPrinter(MX) in
-    let pr_mx =
-      MXP.pr_lb (Pp.addpref X.print) pr_dbl
-    in
-    f fmt "%a" (pr_mx ~p) v
-  )

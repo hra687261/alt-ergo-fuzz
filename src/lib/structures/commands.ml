@@ -71,11 +71,11 @@ let print_aux_bis ?(p = "") fmt = function
   | Assume (name, e, b) ->
     f fmt "%sassume %s(%b): \n%a" p
       name b
-      (Expr.print_vrb ~p:(p^"  ")) e
+      (Expr.print_vrb ~firstcall:true ~p:(p^"  ")) e
   | PredDef (e, name) ->
     f fmt "%spred-def %s: \n%a" p
       name
-      (Expr.print_vrb ~p:(p^"  ")) e
+      (Expr.print_vrb ~firstcall:true ~p:(p^"  ")) e
   | RwtDef l ->
     f fmt "%srwrts: \n%a" p
       (Util.print_list_pp
@@ -86,7 +86,7 @@ let print_aux_bis ?(p = "") fmt = function
     f fmt "%squery %s(%a): \n%a" p
       name print_goal_sort
       sort
-      (Expr.print_vrb ~p:(p^"  ")) e
+      (Expr.print_vrb ~firstcall:true ~p:(p^"  ")) e
   | ThAssume t ->
     f fmt
       "%sth assume %a" p Expr.print_th_elt t
