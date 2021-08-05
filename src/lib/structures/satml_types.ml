@@ -655,6 +655,8 @@ module type FLAT_FORMULA = sig
     Atom.atom list list ->
     Atom.atom * Atom.atom list * bool -> Atom.atom list list
 
+  val reset_cpt : unit -> unit
+
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t
 
@@ -1229,6 +1231,9 @@ module Flat_Formula : FLAT_FORMULA = struct
 
       f fmt "\n%s}" p
     )
+  let reset_cpt () = 
+    cpt := 0
+
 end
 
 module Proxy_formula = struct
