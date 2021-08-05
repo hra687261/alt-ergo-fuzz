@@ -1966,5 +1966,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Hstring.reset_cnt ();
     Uf.clear_labels ();
     Shostak.Combine.empty_cache ();
+    Satml_types.Flat_Formula.reset_cpt ();
+    Ty.reinit_decls ();
     Gc.major ()
 end
