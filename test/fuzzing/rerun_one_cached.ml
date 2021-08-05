@@ -46,7 +46,7 @@ let () =
   cmp_answers_pr3 ae_c ae_t cvc5;
 
   try 
-    Format.printf "\nRerunning answers:@.";
+    Format.printf "Rerunning answers: ";
     let ae_cr = AE_CDCL.process_stmts stmtcs in
     let ae_tr = AE_Tableaux.process_stmts stmtcs in
     let c5rn = C5S.process_stmts stmtcs in

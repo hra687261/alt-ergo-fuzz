@@ -37,14 +37,14 @@ let () =
                 ) stmts
             ) stmtcs*)
       end;
-      Format.printf "Original answers:@.";
+      Format.printf "Original answers: ";
       Format.printf "%d %d %d@."
         (List.length ae_c) 
         (List.length ae_t) 
         (List.length cvc5);
       cmp_answers_pr3 ae_c ae_t cvc5;
 
-      Format.printf "\nRerunning answers:@.";
+      Format.printf "Rerunning answers: ";
       try
         let ae_cr = AE_CDCL.process_stmts stmtcs in
         let ae_tr = AE_Tableaux.process_stmts stmtcs in
