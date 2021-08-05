@@ -99,7 +99,9 @@ let rec translate_expr (a: expr) =
   | Cst (CstI i) -> 
     Atom (
       if i < 0 
-      then Format.sprintf "(- %i)" (-i)
+      then Format.sprintf "(- %s)" 
+          ( let istr = string_of_int i in
+            String.sub istr 1 (String.length istr - 1))
       else Format.sprintf "%i" i
     )
   | Cst (CstR r) -> 
