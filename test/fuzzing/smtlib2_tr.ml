@@ -105,54 +105,7 @@ let rec translate_expr (a: expr) =
       else Format.sprintf "%i" i
     )
   | Cst (CstR r) -> 
-    Atom (
-      if r = 0. then "0.0" else
-      if r < 0.
-      then Format.sprintf "(- %s)" 
-          ( Str.replace_first 
-              (Str.regexp "\\.$") ".0" 
-              (Float.to_string (-.r)))
-      else Format.sprintf "%s" 
-          ( Str.replace_first 
-              (Str.regexp "\\.$") ".0" 
-              (Float.to_string r)) 
-    )
-    (*
-      if r = 0.
-      then Atom "0.0"
-      else 
-      let fstr = Float.to_string (Float.abs r) in 
-      begin match Str.split (Str.regexp "e") fstr with 
-        | [f; p] ->
-          let q = Queue.create () in
-          Queue.push (Atom "*") q;
-          Queue.push (Atom f) q;
-
-          let pq = Queue.create () in 
-          Queue.push (Atom "^") pq;
-          Queue.push (Atom "10") pq;
-          Queue.push (
-            Atom (
-              if Float.of_string p < 0. 
-              then 
-                Format.sprintf "(- %s)" 
-                  (Str.replace_first (Str.regexp "-") "" p)
-              else Str.replace_first (Str.regexp "+") "" p
-            )
-          ) pq;
-
-          Queue.push (PExpr pq) q;
-          if r > 0.
-          then PExpr q 
-          else 
-            let r = Queue.create () in
-            Queue.push (Atom "-") r;
-            Queue.push (PExpr q) r;
-            PExpr r
-        | [_] -> Atom fstr
-        | _ -> assert false   
-      end 
-    *)
+    Atom (float_to_string2 r)
   | Cst (CstB true) -> Atom "true"
   | Cst (CstB false) -> Atom "false"
   | Cst (CstBv {bits; _}) -> 

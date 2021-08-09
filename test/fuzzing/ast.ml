@@ -141,7 +141,7 @@ type stmtkind = (* statement kind *)
   | AxD (* axiom statement *)
   | GD (* goal statement *)
 
-(* userfull declarations and functions *)
+(* userfull declarations *)
 
 module SS = Set.Make(String)
 
@@ -475,6 +475,68 @@ let print_stmtc fmt {stmt; tds; uss} =
   Format.fprintf fmt "  u_us = %a;@." 
     pr_tcm uss;
   Format.fprintf fmt "}@."
+
+(* Auxiliary functions *)
+
+(** Approximating a float with a rational number
+    Taken from src/parsers/native_lexer.mll
+*)
+let mk_num i f exp sign =
+  let n_zero = Num.Int 0 in
+  let n_ten = Num.Int 10 in
+  let decimal_number s =
+    let r = ref n_zero in
+    for i=0 to String.length s - 1 do
+      r := Num.add_num (Num.mult_num n_ten !r)
+          (Num.num_of_int (Char.code s.[i] - Char.code '0'))
+    done;
+    !r
+  in
+  let v =
+    match exp,sign with
+    | Some exp,Some "-" ->
+      Num.div_num (decimal_number (i^f))
+        (Num.power_num (Num.Int 10) (decimal_number exp))
+    | Some exp,_ ->
+      Num.mult_num (decimal_number (i^f))
+        (Num.power_num (Num.Int 10) (decimal_number exp))
+    | None,_ -> decimal_number (i^f)
+  in
+  let v =
+    Num.div_num v
+      (Num.power_num (Num.Int 10) (Num.num_of_int (String.length f)))
+  in
+  v 
+
+let float_to_num f = 
+  if f = 0. || Float.is_nan f || Float.is_infinite f 
+  then Num.num_of_int 0 
+  else if f < 0.
+  then 
+    match String.split_on_char '.' (Float.to_string (-. f)) with 
+    | [x; y] ->
+      Num.minus_num (mk_num x y None None)
+    | _ -> assert false  
+  else
+    match String.split_on_char '.' (Float.to_string f) with 
+    | [x; y] ->
+      mk_num x y None None
+    | _ -> assert false  
+
+let float_to_string2 f = 
+  if f = 0. || Float.is_nan f || Float.is_infinite f 
+  then "0.0" 
+  else if f < 0.
+  then 
+    Format.sprintf "(- %s)" ( 
+      Str.replace_first 
+        (Str.regexp "\\.$") ".0" 
+        (Float.to_string (-.f)))
+  else 
+    Format.sprintf "%s" ( 
+      Str.replace_first 
+        (Str.regexp "\\.$") ".0" 
+        (Float.to_string f)) 
 
 let rec typ_to_str ty =
   match ty with

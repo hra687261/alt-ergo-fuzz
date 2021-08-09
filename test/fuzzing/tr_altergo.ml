@@ -38,20 +38,6 @@ let ite_id = ref 0
 let reset_cnt () = 
   ite_id := 0
 
-(* from AltErgoParsers.Psmt2_to_alt_ergo *)
-let better_num_of_string s =
-  begin match String.split_on_char '.' s with
-    | [n] | [n;""] -> Num.num_of_string n
-    | [n; d] ->
-      let l = String.length d in
-      let n = if (String.length n) = 0 then Num.Int 0
-        else Num.num_of_string n in
-      let d = Num.num_of_string d in
-      let e = Num.power_num (Num.Int 10) (Num.Int l) in
-      Num.add_num n (Num.div_num d e)
-    | _ -> assert false
-  end
-
 (** Translates an expr to an Expr.t *)
 let name_tag = ref 0 
 
@@ -60,13 +46,12 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
   | Cst (CstI x) -> 
     Expr.int (Int.to_string x)
   | Cst (CstR x) -> 
-    Expr.real (
+    let rstr =
       Num.string_of_num (
-        better_num_of_string (
-          Float.to_string x
-        )
+        float_to_num x
       )
-    )
+    in 
+    Expr.real rstr
   | Cst (CstB true) ->
     Expr.vrai
   | Cst (CstB false) ->
@@ -97,8 +82,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       (typ_to_ty (TFArray {ti; tv}))
 
   | Binop (Concat n, x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     Expr.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
 
   | Unop (Extract {l; r}, b) -> 
@@ -119,13 +104,14 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     end
 
   | Binop (Imp, x, y) ->
-    Expr.mk_imp 
-      (translate_expr ~vars ~stmtkind x) 
-      (translate_expr ~vars ~stmtkind y) 0
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
+    Expr.mk_imp x' y' 0
+
   | Binop (Iff, x, y) ->
-    Expr.mk_eq ~iff:true 
-      (translate_expr ~vars ~stmtkind x) 
-      (translate_expr ~vars ~stmtkind y)
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
+    Expr.mk_eq ~iff:true x' y'
 
   | Binop ((Lt | Le | Gt | Ge) as op , x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
@@ -143,13 +129,14 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     Expr.mk_builtin ~is_pos:true sy [x''; y'']
 
   | Binop (Eq, x, y) ->
-    Expr.mk_eq ~iff:true
-      (translate_expr ~vars ~stmtkind x) 
-      (translate_expr ~vars ~stmtkind y)
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
+    Expr.mk_eq ~iff:true x' y'
+
   | Binop (Neq, x, y) ->
-    Expr.mk_distinct ~iff:true 
-      [ translate_expr ~vars ~stmtkind x; 
-        translate_expr ~vars ~stmtkind y]
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
+    Expr.mk_distinct ~iff:true [x'; y']
 
   | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
@@ -472,11 +459,24 @@ let print_binop fmt binop =
 
 let rec print_expr fmt expr = 
   match expr with 
-  | Cst (CstI x) ->
-    Format.fprintf fmt "%s" 
-      (Int.to_string x)
-  | Cst (CstR x) ->
-    Format.fprintf fmt "%s" (Float.to_string x)
+  | Cst (CstI i) ->
+    let istr = 
+      if i < 0 
+      then Format.sprintf "(- %s)" 
+          ( let istr = string_of_int i in
+            String.sub istr 1 (String.length istr - 1))
+      else Format.sprintf "%i" i
+    in 
+    Format.fprintf fmt "%s" istr
+
+  | Cst (CstR r) ->
+    let rstr = 
+      Num.string_of_num (
+        float_to_num r
+      )
+    in 
+    Format.fprintf fmt "%s" rstr
+
   | Cst (CstB x) ->
     Format.fprintf fmt "%b" x
   | Cst (CstBv x) ->

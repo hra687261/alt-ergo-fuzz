@@ -94,15 +94,26 @@ let cst_gen ty =
       [Cr.float] 
       ( fun x -> 
           let g_res = 
-            Cst (CstR (
-                if Float.is_nan x 
+            Cst (
+              CstR (
+                if Float.is_nan x  
                 then 0. 
                 else 
+                if x = Float.infinity 
+                then Float.max_float
+                else 
+                if x = Float.neg_infinity 
+                then  
+                  (*because min_float is equal to -. neg_flaot*)
+                  -. Float.max_float  
+                else
                   Float.of_string 
                     (Str.replace_first 
                        (Str.regexp "e.+") "" 
                        (Float.to_string x)
-                    )))
+                    )
+              )
+            )
           in 
           mk_empty_gen_res g_res)
   | Tbool -> 
