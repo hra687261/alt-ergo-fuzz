@@ -1,5 +1,6 @@
+#!/bin/bash
 
-i=0
+i=$1
 for f in test/fuzzing/crash_output/c_* 
 do 
   i=$(($i + 1))
