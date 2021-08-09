@@ -7,8 +7,10 @@ then
   exit 1
 fi
 
+> rc_tmp1
+> rc_tmp2
+
 ./_build/default/test/fuzzing/rerun_all_cached.exe $1 > rc_tmp1 2>&1
-truncate -s 0 rc_tmp2
 error="Fatal error: exception Failure(\"nth\")"
 i=0
 while true
