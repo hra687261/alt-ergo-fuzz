@@ -90,8 +90,11 @@ struct
 
   let process_stmts =
     let module SC = AEL.Fun_sat in
-    let module SAT = SC.Make(AEL.Theory.Main_Default) in
+    let module Th = AEL.Theory.Main_Default in
+    let module SAT = SC.Make(Th) in
     AEL.Options.set_disable_weaks true;
+    AEL.Options.set_use_fpa true;
+
     fun stmtcs -> 
       try 
         let res =
@@ -114,8 +117,11 @@ struct
 
   let process_stmts =
     let module SC = AEL.Satml_frontend in
-    let module SAT = SC.Make(AEL.Theory.Main_Default) in
+    let module Th = AEL.Theory.Main_Default in
+    let module SAT = SC.Make(Th) in
     AEL.Options.set_disable_weaks true;
+    AEL.Options.set_use_fpa true;
+
     fun stmtcs -> 
       try
         let res =

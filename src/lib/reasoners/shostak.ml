@@ -747,10 +747,11 @@ module Combine = struct
       | None -> let res = make t in H.add cache t res; res
       | Some res -> res 
     in
-      let empty () =
-        empty_cache ();
-        H.clear cache in
-      make, empty
+    let empty () =
+      empty_cache ();
+      H.clear cache 
+    in
+    make, empty
 end
 
 module Arith = X1

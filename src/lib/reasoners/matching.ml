@@ -56,6 +56,8 @@ module type S = sig
   val query :
     Util.matching_env -> t -> theory -> (trigger_info * gsubst list) list
 
+  val reinit_caches : unit -> unit
+
 end
 
 module type Arg = sig
@@ -265,6 +267,7 @@ module Make (X : Arg) : S with type theory = X.t = struct
               with Ty.TypeClash _ -> l
            ) s l
       ) env.fils lsbt_acc
+
 
 
   module T2 = struct
@@ -631,35 +634,35 @@ module Make (X : Arg) : S with type theory = X.t = struct
 
   module HE = Hashtbl.Make (E)
 
-  let triggers_of =
-    let trs_tbl = HEI.create 101 in
-    fun q mconf ->
-      match q.E.user_trs with
-      | _::_ as l -> l
-      | [] ->
-        try HEI.find trs_tbl (q.E.main, mconf)
-        with Not_found ->
-          let trs = E.make_triggers q.E.main q.E.binders q.E.kind mconf in
-          HEI.add trs_tbl (q.E.main, mconf) trs;
-          trs
+  let trs_tbl_of = HEI.create 101 
 
-  let backward_triggers =
-    let trs_tbl = HE.create 101 in
-    fun q ->
-      try HE.find trs_tbl q.E.main
+  let triggers_of q mconf =
+    match q.E.user_trs with
+    | _::_ as l -> l
+    | [] ->
+      try HEI.find trs_tbl_of (q.E.main, mconf)
       with Not_found ->
-        let trs = E.resolution_triggers ~is_back:true q in
-        HE.add trs_tbl q.E.main trs;
+        let trs = E.make_triggers q.E.main q.E.binders q.E.kind mconf in
+        HEI.add trs_tbl_of (q.E.main, mconf) trs;
         trs
 
-  let forward_triggers =
-    let trs_tbl = HE.create 101 in
-    fun q ->
-      try HE.find trs_tbl q.E.main
-      with Not_found ->
-        let trs = E.resolution_triggers ~is_back:false q in
-        HE.add trs_tbl q.E.main trs;
-        trs
+  let trs_tbl_bt = HE.create 101
+
+  let backward_triggers q =
+    try HE.find trs_tbl_bt q.E.main
+    with Not_found ->
+      let trs = E.resolution_triggers ~is_back:true q in
+      HE.add trs_tbl_bt q.E.main trs;
+      trs
+
+  let trs_tbl_ft = HE.create 101
+
+  let forward_triggers q =
+    try HE.find trs_tbl_ft q.E.main
+    with Not_found ->
+      let trs = E.resolution_triggers ~is_back:false q in
+      HE.add trs_tbl_ft q.E.main trs;
+      trs
 
   let add_triggers mconf env formulas =
     ME.fold
@@ -697,4 +700,9 @@ module Make (X : Arg) : S with type theory = X.t = struct
 
   let terms_info env = env.info, env.fils
 
+  let reinit_caches () =
+    HEI.clear trs_tbl_of;
+    HE.clear trs_tbl_bt;
+    HE.clear trs_tbl_ft;
+    reset_cache_refs ()
 end

@@ -82,8 +82,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       (typ_to_ty (TFArray {ti; tv}))
 
   | Binop (Concat n, x, y) ->
-    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
-    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
+    let x' = translate_expr ~vars ~stmtkind x in 
+    let y' = translate_expr ~vars ~stmtkind y in 
     Expr.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
 
   | Unop (Extract {l; r}, b) -> 
@@ -93,8 +93,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     Expr.mk_term (Sy.Op Sy.Extract) [b'; l'; r'] (Ty.Tbitv (r-l))
 
   | Binop (((And | Or | Xor) as op), x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     begin 
       match op with 
       | And -> Expr.mk_and x' y' false 0 
@@ -470,10 +470,7 @@ let rec print_expr fmt expr =
     Format.fprintf fmt "%s" istr
 
   | Cst (CstR r) ->
-    let rstr = 
-      Num.string_of_num (
-        float_to_num r
-      )
+    let rstr = float_to_string2 r
     in 
     Format.fprintf fmt "%s" rstr
 

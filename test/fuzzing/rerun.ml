@@ -50,5 +50,5 @@ let () =
     (List.length ae_cr) 
     (List.length ae_tr) 
     (List.length c5rn);
-  cmp_answers_pr3 ae_c ae_t cvc5;
+  cmp_answers_pr3 ae_cr ae_tr c5rn;
   cmp_answers_exn3 ae_cr ae_tr c5rn

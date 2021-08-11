@@ -27,8 +27,8 @@ let mk_bi_success id stmtcs ae_c ae_t cvc5 =
   mk_bi id None stmtcs ae_c ae_t cvc5
 
 
-let mk_bi_empty id exp stmtcs =
-  mk_bi id exp [] [] [] stmtcs
+let mk_bi_empty id exn stmtcs =
+  mk_bi id exn [] [] [] stmtcs
 
 let answer_to_string = function 
   | Sat -> "sat"
@@ -41,6 +41,8 @@ let exn_to_string = function
   | Failure Timeout -> "Failure(Timeout)"
   | Failure (Other str) ->
     Format.sprintf "Failure(Other(%s))" str
+  | AltErgoLib.Errors.Error x ->
+    Format.asprintf "AEL_Error(%a)" AltErgoLib.Errors.report x
   | exn -> Printexc.to_string_default exn
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =

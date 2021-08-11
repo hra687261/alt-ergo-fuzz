@@ -277,6 +277,28 @@ let qv_gen qvars ty =
     ]
   else []
 
+let get_bv_gens bvars ty = 
+  let bvgl = 
+    VS.fold (
+      fun ({vty; _} as bv) acc -> 
+        if vty = ty 
+        then 
+          Cr.const (
+            { g_res = Var bv; 
+              u_args = VS.empty;
+              u_bvars = VS.add bv VS.empty; 
+              u_dt = SS.empty;
+              u_us = TCM.empty;
+              c_funcs = SS.empty
+            }
+          ) :: acc
+        else acc
+    ) bvars []
+  in 
+  match bvgl with 
+  | [] -> []
+  | _ -> [Cr.choose bvgl]
+
 let get_arg_gens ty args =
   List.fold_left (
     fun acc x ->
@@ -311,13 +333,14 @@ let func_call_gen :
             fun ((l, vs, bv, ud, uus, fcs) as acc) gr -> 
               match gr.g_res with 
               | Dummy -> acc 
-              | _ ->
-                ( gr.g_res :: l, 
+              | _ -> ( 
+                  gr.g_res :: l, 
                   VS.union gr.u_args vs, 
                   VS.union gr.u_bvars bv,  
                   SS.union gr.u_dt ud,  
                   tcm_union gr.u_us uus,
-                  SS.union gr.c_funcs fcs)
+                  SS.union gr.c_funcs fcs
+                )
           ) ( [], VS.empty, VS.empty, SS.empty, 
               TCM.empty, SS.add fname SS.empty)
             [a5; a4; a3; a2; a1]
@@ -403,7 +426,7 @@ let get_fa_update gen fuel ti tv =
               (SS.union i.c_funcs v.c_funcs); }
     )
 
-let get_bv_gens gen fuel len =
+let get_bvec_gens gen fuel len =
   [ (* Extract *)
     Cr.dynamic_bind 
       ( Cr.map 
@@ -479,16 +502,52 @@ let letin_gen : (?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) ->
       gen ~bvars:(VS.add nv bvars) (fuel - 1) ty]
     (
       fun e b ->
-        { g_res =
-            if VS.mem nv b.u_bvars
-            then b.g_res
-            else LetIn (nv , e.g_res, b.g_res);
-          u_args = VS.union e.u_args b.u_args;
-          u_bvars = VS.union e.u_bvars b.u_bvars;
-          u_dt = SS.union e.u_dt b.u_dt;
-          u_us = tcm_union e.u_us b.u_us;
-          c_funcs = SS.union e.c_funcs b.c_funcs;
-        }
+        (*
+        let pr_tvar fmt {vname; vty; vk; id} = 
+                          Format.fprintf fmt "{";
+                          Format.fprintf fmt "vname = %s; " vname;
+                          Format.fprintf fmt "vty = %a; " print_typ vty;
+                          Format.fprintf fmt "vk = %s; " 
+                          begin match vk with 
+                          | EQ -> "EQ"
+                          | UQ -> "UQ"
+                          | US -> "US"
+                          | ARG -> "ARG"
+                          | BLI -> "BLI"
+                          end;
+                          Format.fprintf fmt "id = %d" id;
+                          Format.fprintf fmt "}"
+                          in 
+                          Format.printf "\n%a@." pr_tvar nv;
+                          Format.printf "{@.";
+                          VS.iter (
+                          fun bv -> 
+                          Format.printf "  %a;@." pr_tvar bv
+                          ) b.u_bvars;
+                          Format.printf "}@.";
+
+                          Format.printf "%b\n@." (VS.mem nv b.u_bvars);
+                          Format.printf "%a\n@." (
+                          fun fmt e -> 
+                          Format.fprintf fmt "%a" print e
+                          ) (LetIn (nv , e.g_res, b.g_res));
+                        *)
+
+
+        if VS.mem nv b.u_bvars
+        then 
+          { g_res = LetIn (nv , e.g_res, b.g_res);
+            u_args = VS.union e.u_args b.u_args;
+            u_bvars = VS.union e.u_bvars b.u_bvars;
+            u_dt = SS.union e.u_dt b.u_dt;
+            u_us = tcm_union e.u_us b.u_us;
+            c_funcs = SS.union e.c_funcs b.c_funcs;
+          }
+        else 
+          { g_res = b.g_res; u_args = b.u_args;
+            u_bvars = b.u_bvars; u_dt = b.u_dt;
+            u_us = b.u_us; c_funcs = b.c_funcs;
+          }
     )
 
 let dest_gen id num =
@@ -634,6 +693,7 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
         | TFArray _ | Tadt _ -> gl
         | _ -> cst_gen ty :: gl
       in
+      let gl = List.rev_append (get_bv_gens bvars ty) gl in
       Cr.choose gl
     else
       let gl =
@@ -643,6 +703,7 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
         letin_gen ag_aux bvars fuel ty ::
         (qv_gen qvars ty)
       in
+      let gl = List.rev_append (get_bv_gens bvars ty) gl in
       let gl =
         match ty with
         | TFArray _ | Tadt _ -> gl
@@ -677,7 +738,7 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
             let tmp = List.rev_append l2 l3 in 
             List.rev_append l1 tmp
           | TBitV len ->
-            get_bv_gens ag_aux fuel len
+            get_bvec_gens ag_aux fuel len
           | TFArray {ti; tv} -> 
             [ get_fa_update ag_aux fuel ti tv ]
           | Tadt adt ->
