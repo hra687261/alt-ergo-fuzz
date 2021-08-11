@@ -40,6 +40,8 @@ module type S = sig
   val parse_files : filename:string -> preludes:string list -> parsed Seq.t
   (** Parse a file (and some preludes). *)
 
+  val print_parsed : Format.formatter -> parsed -> unit
+  
   type env
   (** Global typing environment *)
 

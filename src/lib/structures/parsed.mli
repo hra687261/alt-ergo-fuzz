@@ -127,3 +127,5 @@ type decl =
   | Pop of Loc.t * int
 
 type file = decl list
+
+val print_decl : Format.formatter -> decl -> unit
