@@ -228,3 +228,5 @@ let pr_vrb ?(p = "") fmt {r1: Rel1.t; r2: Rel2.t; r3: Rel3.t; r4: Rel4.t;
   f fmt "\n%a" (Rel7.pr_vrb ~p:p2) r7;
 
   f fmt "\n%s}" p
+let reset_em_cache () = 
+  IntervalCalculus.reset_em_cache ()

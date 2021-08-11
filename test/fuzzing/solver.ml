@@ -127,10 +127,10 @@ struct
     let module Th = AEL.Theory.Main_Default in
     let module SAT = SC.Make(Th) in
     AEL.Options.set_disable_weaks true;
+    AEL.Options.set_use_fpa true;
 
     fun ?(debug = false) stmtcs ->
       set_debug debug;
-
       try 
         let res =
           solve_with_ae (module SAT) (module Tr_altergo) stmtcs
@@ -155,10 +155,10 @@ struct
     let module Th = AEL.Theory.Main_Default in
     let module SAT = SC.Make(Th) in
     AEL.Options.set_disable_weaks true;
+    AEL.Options.set_use_fpa true;
 
     fun ?(debug = false) stmtcs -> 
       set_debug debug;
-
       try
         let res =
           solve_with_ae (module SAT) (module Tr_altergo) stmtcs

@@ -764,7 +764,8 @@ module Combine = struct
     in
     let empty () =
       empty_cache ();
-      H.clear cache in
+      H.clear cache 
+    in
     make, empty
 end
 

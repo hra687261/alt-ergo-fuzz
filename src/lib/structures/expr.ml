@@ -27,7 +27,6 @@
 (******************************************************************************)
 
 open Format
-open Hconsing
 open Options
 
 module Sy = Symbols
@@ -901,7 +900,7 @@ module H = struct
 end
 
 module Labels = Hashtbl.Make(H)
-module HC = Make(H)
+module HC = Hconsing.Make(H)
 module Hsko = Hashtbl.Make(H)
 
 module F_Htbl : Hashtbl.S with type key = t =

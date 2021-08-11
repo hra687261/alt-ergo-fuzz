@@ -1299,6 +1299,8 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Shostak.Combine.empty_cache ();
     Satml_types.Flat_Formula.reset_cpt ();
     Ty.reinit_decls ();
+    Relation.reset_em_cache ();
+    Inst.reset_em_cache ();
     Gc.major ()
 end
 

@@ -71,6 +71,9 @@ module type S = sig
     t -> Matching_types.info Expr.Map.t * Expr.t list Expr.Map.t Symbols.Map.t
   
   val print_vrb : ?p:string -> Format.formatter -> t -> unit
+
+  val reset_em_cache : unit -> unit
+
 end
 
 module Make (X : Theory.S) : S with type tbox = X.t
