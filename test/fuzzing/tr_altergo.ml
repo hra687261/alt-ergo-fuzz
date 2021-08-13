@@ -3,8 +3,9 @@
 open AltErgoLib
 open Ast
 
+module E = Expr
 module Sy = Symbols 
-module ES = Expr.Set
+module ES = E.Set
 
 type t = Commands.sat_tdecl
 
@@ -38,36 +39,101 @@ let ite_id = ref 0
 let reset_cnt () = 
   ite_id := 0
 
-(** Translates an expr to an Expr.t *)
+(** Translates an expr to an E.t *)
 let name_tag = ref 0 
+
+(* From AltErgoLib.Cnf *)
+let make_adequate_app s l ty =
+  let open Fpa_rounding in
+  match s with
+  | Sy.Name (hs, Sy.Other) when Options.get_use_fpa() ->
+    let s, l  =
+      match Hstring.view hs, l with
+      | "float", [_;_;_;_] -> Sy.Op Sy.Float, l
+      | "float32", [_;_;] -> Sy.Op Sy.Float,(E.int "24")::(E.int "149")::l
+      | "float32d", [_] ->
+        Sy.Op Sy.Float,
+        (E.int "24")::
+        (E.int "149")::
+        _NearestTiesToEven__rounding_mode :: l
+
+      | "float64", [_;_;] -> Sy.Op Sy.Float,(E.int "53")::(E.int "1074")::l
+      | "float64d", [_] ->
+        Sy.Op Sy.Float,
+        (E.int "53")::
+        (E.int "1074")::
+        _NearestTiesToEven__rounding_mode :: l
+
+      | "integer_round", [_;_] -> Sy.Op Sy.Integer_round, l
+
+      | "fixed", [_;_;_;_] -> Sy.Op Sy.Fixed, l
+      | "sqrt_real", [_] -> Sy.Op Sy.Sqrt_real, l
+      | "sqrt_real_default", [_] -> Sy.Op Sy.Sqrt_real_default, l
+      | "sqrt_real_excess", [_] -> Sy.Op Sy.Sqrt_real_excess, l
+      | "abs_int", [_] ->  Sy.Op Sy.Abs_int, l
+      | "abs_real", [_] ->  Sy.Op Sy.Abs_real, l
+      | "real_of_int", [_] -> Sy.Op Sy.Real_of_int, l
+      | "int_floor", [_] -> Sy.Op Sy.Int_floor, l
+      | "int_ceil", [_] -> Sy.Op Sy.Int_ceil, l
+      | "max_real", [_;_] -> Sy.Op Sy.Max_real, l
+      | "max_int", [_;_] -> Sy.Op Sy.Max_int, l
+      | "min_real", [_;_] -> Sy.Op Sy.Min_real, l
+      | "min_int", [_;_] -> Sy.Op Sy.Min_int, l
+      | "integer_log2", [_] -> Sy.Op Sy.Integer_log2, l
+
+      (* should not happend thanks to well typedness *)
+      | ("float"
+        | "float32"
+        | "float32d"
+        | "float64"
+        | "float64d"
+        | "integer_round"
+        | "fixed"
+        | "sqrt_real"
+        | "abs_int"
+        | "abs_real"
+        | "real_of_int"
+        | "int_floor"
+        | "int_ceil"
+        | "max_real"
+        | "max_int"
+        | "min_real"
+        | "min_int"
+        | "integer_log2"
+        | "power_of"), _ ->
+        assert false
+      | _ -> s, l
+    in
+    E.mk_term s l ty
+  | _ -> E.mk_term s l ty
 
 let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr = 
   match expr with 
   | Cst (CstI x) -> 
-    Expr.int (Int.to_string x)
+    E.int (Int.to_string x)
   | Cst (CstR x) -> 
     let rstr =
       Num.string_of_num (
         float_to_num x
       )
     in 
-    Expr.real rstr
+    E.real rstr
   | Cst (CstB true) ->
-    Expr.vrai
+    E.vrai
   | Cst (CstB false) ->
-    Expr.faux
+    E.faux
 
   | Cst (CstBv b) ->
-    Expr.bitv b.bits (Ty.Tbitv b.length)
+    E.bitv b.bits (Ty.Tbitv b.length)
 
   | Unop (Neg, x) -> translate_expr ~vars ~stmtkind x
   | Unop (Not, x) -> 
-    Expr.neg (translate_expr ~vars ~stmtkind x)
+    E.neg (translate_expr ~vars ~stmtkind x)
 
   | Unop (Access { ty = _, tv; fa}, i) -> 
     let fa' = translate_expr fa ~vars ~stmtkind in
     let i' = translate_expr i ~vars ~stmtkind in
-    Expr.mk_term 
+    E.mk_term 
       (Sy.Op Sy.Get) 
       [fa'; i'] 
       (typ_to_ty tv)
@@ -76,7 +142,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     let fa' = translate_expr fa ~vars ~stmtkind in
     let i' = translate_expr i ~vars ~stmtkind in
     let v' = translate_expr v ~vars ~stmtkind in
-    Expr.mk_term 
+    E.mk_term 
       (Sy.Op Sy.Set) 
       [fa'; i'; v'] 
       (typ_to_ty (TFArray {ti; tv}))
@@ -84,34 +150,34 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
   | Binop (Concat n, x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
+    E.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
 
   | Unop (Extract {l; r}, b) -> 
-    let l' = Expr.int (Int.to_string l) in 
-    let r' = Expr.int (Int.to_string r) in 
+    let l' = E.int (Int.to_string l) in 
+    let r' = E.int (Int.to_string r) in 
     let b' = translate_expr ~vars ~stmtkind b in 
-    Expr.mk_term (Sy.Op Sy.Extract) [b'; l'; r'] (Ty.Tbitv (r-l))
+    E.mk_term (Sy.Op Sy.Extract) [b'; l'; r'] (Ty.Tbitv (r-l))
 
   | Binop (((And | Or | Xor) as op), x, y) ->
     let x' = translate_expr ~name_base ~vars ~stmtkind x in 
     let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     begin 
       match op with 
-      | And -> Expr.mk_and x' y' false 0 
-      | Or -> Expr.mk_or x' y' false 0
-      | Xor -> Expr.mk_xor x' y' 0
+      | And -> E.mk_and x' y' false 0 
+      | Or -> E.mk_or x' y' false 0
+      | Xor -> E.mk_xor x' y' 0
       | _-> assert false 
     end
 
   | Binop (Imp, x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_imp x' y' 0
+    E.mk_imp x' y' 0
 
   | Binop (Iff, x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_eq ~iff:true x' y'
+    E.mk_eq ~iff:true x' y'
 
   | Binop ((Lt | Le | Gt | Ge) as op , x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
@@ -126,22 +192,22 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
         | _ -> assert false 
       end
     in 
-    Expr.mk_builtin ~is_pos:true sy [x''; y'']
+    E.mk_builtin ~is_pos:true sy [x''; y'']
 
   | Binop (Eq, x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_eq ~iff:true x' y'
+    E.mk_eq ~iff:true x' y'
 
   | Binop (Neq, x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_distinct ~iff:true [x'; y']
+    E.mk_distinct ~iff:true [x'; y']
 
   | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_term
+    E.mk_term
       begin
         match op with 
         | IAdd -> (Sy.Op Sy.Plus)
@@ -157,7 +223,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
   | Binop (((RAdd | RSub | RMul | RDiv | RPow) as op), x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
-    Expr.mk_term
+    E.mk_term
       begin
         match op with 
         | RAdd -> (Sy.Op Sy.Plus)
@@ -170,19 +236,23 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       [x'; y'] Ty.Treal
 
   | FunCall {fname; rtyp; args; _} ->
-    Expr.mk_term 
-      (Sy.Name (Hstring.make fname, Sy.Other)) 
-      (List.map (translate_expr ~vars ~stmtkind) args)
-      (typ_to_ty rtyp)
+    let s = 
+      Sy.Name (Hstring.make fname, Sy.Other) 
+    in
+    let l =
+      List.map (translate_expr ~vars ~stmtkind) args
+    in
+    let ty = typ_to_ty rtyp in 
+    make_adequate_app s l ty
 
   | Var {vname; vty; vk = US; _} -> 
-    Expr.mk_term 
+    E.mk_term 
       (Sy.Name (Hstring.make vname, Sy.Other)) 
       [] (typ_to_ty vty)
 
   | Var ({vk = (ARG | EQ | UQ | BLI); _ } as v) -> 
     let sy, ty = VM.find v vars in 
-    Expr.mk_term sy [] ty
+    E.mk_term sy [] ty
 
   | Exists {qvars = vs; body; _} 
   | Forall {qvars = vs; body; _} ->
@@ -200,14 +270,14 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     let qve = 
       List.fold_left 
         ( fun acc (sy, ty) ->
-            let e = Expr.mk_term sy [] ty in
+            let e = E.mk_term sy [] ty in
             ES.add e acc
         ) ES.empty qvars
     in 
 
-    let binders = Expr.mk_binders qve in 
+    let binders = E.mk_binders qve in 
     let triggers = [] (* ??? *) in
-    let qbody = Expr.purify_form @@
+    let qbody = E.purify_form @@
       translate_expr ~vars ~stmtkind body
     in
     let name =
@@ -222,8 +292,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     *)
     begin 
       match expr with 
-      | Forall _ -> Expr.mk_forall
-      | Exists _ -> Expr.mk_exists
+      | Forall _ -> E.mk_forall
+      | Exists _ -> E.mk_exists
       | _ -> assert false 
     end
       name
@@ -237,11 +307,11 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
 
   | ITE {cond; cons; alt; _} ->
     let cond' = 
-      translate_expr ~vars ~stmtkind:Expr.Daxiom cond 
+      translate_expr ~vars ~stmtkind:E.Daxiom cond 
     in 
     let cons' = translate_expr ~vars ~stmtkind cons in 
     let alt' = translate_expr ~vars ~stmtkind alt in 
-    Expr.mk_ite cond' cons' alt' (incr ite_id; !ite_id)
+    E.mk_ite cond' cons' alt' (incr ite_id; !ite_id)
 
   | LetIn (v, e, b) ->
     let rec get_bindings acc expr = 
@@ -265,7 +335,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     in 
     List.fold_left
       (fun acc (sy, e) ->
-         Expr.mk_let sy e acc 0
+         E.mk_let sy e acc 0
       )
       (translate_expr ~vars ~stmtkind rb) 
       binders
@@ -299,7 +369,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
           x, te
         ) (List.rev patts)
     in 
-    Expr.mk_match e pats
+    E.mk_match e pats
 
   | Cstr {cname; cty; params} ->
     let sy = 
@@ -311,7 +381,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
           translate_expr ~vars ~stmtkind a
       ) (List.rev params)
     in
-    Expr.mk_term sy exprs (typ_to_ty cty)
+    E.mk_term sy exprs (typ_to_ty cty)
 
   | Dummy -> assert false 
 
@@ -322,18 +392,18 @@ let translate_stmt stmt =
   | Axiom {name; body} ->
     let ff = 
       translate_expr ~name_base:name ~toplevel:true 
-        ~stmtkind:Expr.Daxiom body
+        ~stmtkind:E.Daxiom body
     in 
-    assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
-    let ff = Expr.purify_form ff in
+    assert (Sy.Map.is_empty (E.free_vars ff Sy.Map.empty));
+    let ff = E.purify_form ff in
     let ff = 
-      if Ty.Svty.is_empty (Expr.free_type_vars ff) 
+      if Ty.Svty.is_empty (E.free_type_vars ff) 
       then ff
       else
-        let id = Expr.id ff in
-        Expr.mk_forall 
+        let id = E.id ff in
+        E.mk_forall 
           name Loc.dummy Symbols.Map.empty [] ff 
-          id ~toplevel:true ~decl_kind:Expr.Daxiom
+          id ~toplevel:true ~decl_kind:E.Daxiom
     in 
     Commands.{ 
       st_loc = Loc.dummy;
@@ -358,18 +428,18 @@ let translate_stmt stmt =
           | _ -> body, vars
         in
         let body, vars = rm_root_uqs body in 
-        translate_expr ~vars ~toplevel:true ~stmtkind:Expr.Dgoal 
+        translate_expr ~vars ~toplevel:true ~stmtkind:E.Dgoal 
           (Unop (Not, body))
       end
     in 
-    assert (Sy.Map.is_empty (Expr.free_vars ff Sy.Map.empty));
-    let ff = Expr.purify_form ff in
+    assert (Sy.Map.is_empty (E.free_vars ff Sy.Map.empty));
+    let ff = E.purify_form ff in
     let ff = 
-      if Ty.Svty.is_empty (Expr.free_type_vars ff) 
+      if Ty.Svty.is_empty (E.free_type_vars ff) 
       then ff
       else
-        let id = Expr.id ff in
-        Expr.mk_forall "" Loc.dummy Symbols.Map.empty [] ff id ~toplevel:true ~decl_kind:Expr.Dgoal
+        let id = E.id ff in
+        E.mk_forall "" Loc.dummy Symbols.Map.empty [] ff id ~toplevel:true ~decl_kind:E.Dgoal
     in
     Commands.{ 
       st_loc = Loc.dummy;
@@ -392,7 +462,7 @@ let translate_stmt stmt =
             let var = Var.of_string v.vname in 
             let vsy = Sy.Var var in
             let ty = typ_to_ty v.vty in 
-            let exp = Expr.mk_term vsy [] ty in
+            let exp = E.mk_term vsy [] ty in
             VM.add v (vsy, ty) vs, 
             ES.add exp es,
             exp :: exps
@@ -402,13 +472,13 @@ let translate_stmt stmt =
     in
 
     let xs = List.rev xs_ in 
-    let fsign = Expr.mk_term fsy xs fty in 
+    let fsign = E.mk_term fsy xs fty in 
 
     let stmtkind, mk_func = 
       begin 
         match fdef.rtyp with 
-        | Tbool -> Expr.Dpredicate fsign, mk_preddef
-        | _ -> Expr.Dfunction fsign, mk_assume
+        | Tbool -> E.Dpredicate fsign, mk_preddef
+        | _ -> E.Dfunction fsign, mk_assume
       end
     in 
 
@@ -416,22 +486,22 @@ let translate_stmt stmt =
       translate_expr ~vars ~toplevel:true ~stmtkind fdef.body
     in 
 
-    let lem = Expr.mk_eq ~iff:true fsign fbody in
-    let binders = Expr.mk_binders es in
+    let lem = E.mk_eq ~iff:true fsign fbody in
+    let binders = E.mk_binders es in
 
     let ret = 
-      Expr.mk_forall 
+      E.mk_forall 
         fdef.name Loc.dummy binders [] lem (-42) 
         ~toplevel:true ~decl_kind:stmtkind
     in
-    assert (Sy.Map.is_empty (Expr.free_vars ret Sy.Map.empty));
-    let ff = Expr.purify_form ret in
+    assert (Sy.Map.is_empty (E.free_vars ret Sy.Map.empty));
+    let ff = E.purify_form ret in
     let ret = 
-      if Ty.Svty.is_empty (Expr.free_type_vars ff) 
+      if Ty.Svty.is_empty (E.free_type_vars ff) 
       then ff
       else
-        let id = Expr.id ff in
-        Expr.mk_forall fdef.name Loc.dummy binders [] ff id ~toplevel:true ~decl_kind:stmtkind
+        let id = E.id ff in
+        E.mk_forall fdef.name Loc.dummy binders [] ff id ~toplevel:true ~decl_kind:stmtkind
     in
 
     Commands.{
