@@ -29,6 +29,8 @@ let register_legacy () =
       let l = Parsers.parse_problem ~filename ~preludes in
       Lists.to_seq l
 
+    let print_parsed = Parsed.print_decl 
+
     (* Typechecking *)
 
     include Typechecker
