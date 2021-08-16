@@ -2,14 +2,13 @@
 type answer = 
   | Sat | Unsat | Unknown
 
-type bug_type =
-  | Unsound
-  (* When the response of Alt-Ergo is different from the other solvers*)
-  | InternalCrash (* Assert failure or something similar *)
-  | Timeout
-  | Other of string
+(* When the response of Alt-Ergo is different from the other solvers*)
+exception Unsoundness
+(* Assert failure or something similar *)
+exception InternalCrash
+exception Timeout
+exception Other of string
 
-exception Failure of bug_type
 
 type bug_info = { 
   id: int;
@@ -39,13 +38,13 @@ let answer_to_string = function
   | Unknown -> "unknown"
 
 let exn_to_string = function
-  | Failure Unsound -> "Failure(Unsound)"
-  | Failure InternalCrash -> "Failure(InternalCrash)"
-  | Failure Timeout -> "Failure(Timeout)"
-  | Failure (Other str) ->
-    Format.sprintf "Failure(Other(%s))" str
+  | Unsoundness -> "Failure [Unsoundness]"
+  | InternalCrash -> "Failure [Internal Crash]"
+  | Timeout -> "Failure [Timeout]"
+  | Other str ->
+    Format.sprintf "Failure [Other(%s)]" str
   | AltErgoLib.Errors.Error x ->
-    Format.asprintf "AEL_Error(%a)" AltErgoLib.Errors.report x
+    Format.asprintf "Failure [AEL_Error(%a)]" AltErgoLib.Errors.report x
   | exn -> Printexc.to_string_default exn
 
 let sh_printf ?(firstcall = false) ?(filename = "debug.txt") content =
@@ -83,9 +82,9 @@ let mknmarshall_bi ?(verbose = false)
   let of_path = 
     Format.sprintf (
       match exn with 
-      | Failure Unsound -> "%s/u%d_%f.txt"
-      | Failure InternalCrash -> "%s/i%d_%f.txt"
-      | Failure Timeout -> "%s/t%d_%f.txt"
+      | Unsoundness -> "%s/u%d_%f.txt"
+      | InternalCrash -> "%s/i%d_%f.txt"
+      | Timeout -> "%s/t%d_%f.txt"
       | _ -> "%s/o%d_%f.txt"
     ) output_folder_path id (Unix.gettimeofday ())
   in 
@@ -132,7 +131,7 @@ let timeout_limit = ref 5
 
 let run_with_timeout timeout proc stmts =
   let old_handler = Sys.signal Sys.sigalrm
-      (Sys.Signal_handle (fun _ -> raise (Failure Timeout))) in
+      (Sys.Signal_handle (fun _ -> raise Timeout)) in
   let finish () =
     ignore (Unix.alarm 0);
     ignore (Sys.signal Sys.sigalrm old_handler) in
@@ -141,7 +140,7 @@ let run_with_timeout timeout proc stmts =
     let res = proc stmts in
     finish (); res
   with
-  | Failure Timeout -> finish (); raise (Failure Timeout)
+  | Timeout -> finish (); raise Timeout
   | exn -> finish (); raise exn
 
 let cmp_answers_exn2 l1 l2 =
@@ -149,7 +148,7 @@ let cmp_answers_exn2 l1 l2 =
     fun x y ->
       match x, y with
       | Sat, Unsat
-      | Unsat, Sat -> raise (Failure Unsound)
+      | Unsat, Sat -> raise Unsoundness
       | _ -> ()
   ) l1 l2
 
@@ -160,7 +159,7 @@ let cmp_answers_exn3 l1 l2 l3 =
       begin match h1, h2, h3 with
         | Unsat, Unsat, Sat
         | Unknown, Unsat, Sat
-        | Unsat, Unknown, Sat -> raise (Failure Unsound)
+        | Unsat, Unknown, Sat -> raise Unsoundness
         | _ -> aux t1 t2 t3
       end
     | [], [], [] -> ()

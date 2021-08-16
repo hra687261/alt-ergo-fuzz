@@ -47,10 +47,10 @@ struct
           | "unknown" -> Utils.Unknown
           | "cvc5 interrupted by timeout." -> 
             Format.printf "\nCVC5.process_stmts <1> %s@." x;
-            raise (Utils.Failure Utils.Timeout)
+            raise Utils.Timeout
           | _ -> 
             Format.printf "\nCVC5.process_stmts <2> %s@." x;
-            raise (Utils.Failure (Utils.Other x))
+            raise (Utils.Other x)
       ) lines
 
 end
