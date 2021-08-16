@@ -25,13 +25,13 @@ let () =
             with
             | exn ->
               l := !l @ [mk_bi_empty !cnt exn stmtcs];
-              mknmarshall_stmt_cache !l;
+              mknmarshall_stmt_cache exn !l;
               l := [];
               false
           with
           | exn ->
             l := !l @ [mk_bi_empty !cnt exn stmtcs];
-            mknmarshall_stmt_cache !l;
+            mknmarshall_stmt_cache exn !l;
             l := [];
             false
         )

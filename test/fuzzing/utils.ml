@@ -115,15 +115,19 @@ let mknmarshall_bi_na ?(verbose = false)
     ~verbose ~output_folder_path
     exn stmtcs [] [] []
 
-let mknmarshall_stmt_cache 
+let mknmarshall_stmt_cache exn
     ?(crash_output_folder_path = "test/fuzzing/crash_output") 
     (bis: stmt_cache) =
 
   let of_path = 
-    Format.sprintf
-      "%s/c_%f.txt"
-      crash_output_folder_path (Unix.gettimeofday ())
-  in
+    Format.sprintf (
+      match exn with 
+      | Unsoundness -> "%s/cu_%f.txt"
+      | InternalCrash -> "%s/ci_%f.txt"
+      | Timeout -> "%s/ct_%f.txt"
+      | _ -> "%s/co_%f.txt"
+    ) crash_output_folder_path (Unix.gettimeofday ())
+  in 
 
   data_to_file bis of_path
 
