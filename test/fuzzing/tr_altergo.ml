@@ -107,6 +107,16 @@ let make_adequate_app s l ty =
     E.mk_term s l ty
   | _ -> E.mk_term s l ty
 
+(* From AltErgoLib.Cnf *)
+let concat_chainable p_op p_ty t acc =
+  match E.term_view t with
+  | Term {E.f; xs; ty; _} ->
+    if Symbols.equal p_op f && Ty.equal p_ty ty then
+      List.rev_append (List.rev xs) acc
+    else
+      t :: acc
+  | _ -> t :: acc
+
 let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr = 
   match expr with 
   | Cst (CstI x) -> 
@@ -204,13 +214,32 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     let y' = translate_expr ~vars ~stmtkind y in 
     E.mk_distinct ~iff:true [x'; y']
 
-  | Binop (((IAdd | ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
+  | Binop (IAdd, x, y) ->
+    let y' = translate_expr ~vars ~stmtkind y in
+    let x' = translate_expr ~vars ~stmtkind x in
+    let s = Sy.Op Sy.Plus in 
+    let ty = Ty.Tint in
+    let args = concat_chainable s ty y' [] in
+    let args = concat_chainable s ty x' args in
+    let args = List.fast_sort E.compare args in
+    E.mk_term s args ty
+
+  | Binop (RAdd, x, y) ->
+    let y' = translate_expr ~vars ~stmtkind y in
+    let x' = translate_expr ~vars ~stmtkind x in
+    let s = Sy.Op Sy.Plus in 
+    let ty = Ty.Treal in
+    let args = concat_chainable s ty y' [] in
+    let args = concat_chainable s ty x' args in
+    let args = List.fast_sort E.compare args in
+    E.mk_term s args ty
+
+  | Binop (((ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
     E.mk_term
       begin
         match op with 
-        | IAdd -> (Sy.Op Sy.Plus)
         | ISub -> (Sy.Op Sy.Minus)
         | IMul -> (Sy.Op Sy.Mult)
         | IDiv -> (Sy.Op Sy.Div)
@@ -220,13 +249,12 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       end
       [x'; y'] Ty.Tint
 
-  | Binop (((RAdd | RSub | RMul | RDiv | RPow) as op), x, y) ->
+  | Binop (((RSub | RMul | RDiv | RPow) as op), x, y) ->
     let x' = translate_expr ~vars ~stmtkind x in 
     let y' = translate_expr ~vars ~stmtkind y in 
     E.mk_term
       begin
         match op with 
-        | RAdd -> (Sy.Op Sy.Plus)
         | RSub -> (Sy.Op Sy.Minus)
         | RMul -> (Sy.Op Sy.Mult)
         | RDiv -> (Sy.Op Sy.Div)
