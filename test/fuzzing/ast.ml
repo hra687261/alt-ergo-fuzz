@@ -122,9 +122,6 @@ and fcall = {
   args: expr list
 }
 
-(* tuple with the max of arguments a function can have*)
-type aty = typ * typ * typ * typ * typ 
-
 type stmt =
   | Axiom of {name: string; body: expr} 
   | Goal of {name: string; body: expr}
@@ -134,7 +131,7 @@ and fdef =
     atyp: tvar list; rtyp : typ}
 
 type fd_info = 
-  {fn: string; params: aty; rtyp: typ}
+  {fn: string; params: typ list; rtyp: typ}
 
 type stmtkind = (* statement kind *) 
   | FD (* function statement *)
@@ -210,6 +207,21 @@ let rec print_typ fmt typ =
   | TDummy -> Format.fprintf fmt "dummy"
   | Tadt (n, _) -> Format.fprintf fmt "%s" n
 
+let pr_tvar fmt {vname; vty; vk; id} = 
+  Format.fprintf fmt "{";
+  Format.fprintf fmt "vname = %s; " vname;
+  Format.fprintf fmt "vty = %a; " print_typ vty;
+  Format.fprintf fmt "vk = %s; " 
+    begin match vk with 
+      | EQ -> "EQ"
+      | UQ -> "UQ"
+      | US -> "US"
+      | ARG -> "ARG"
+      | BLI -> "BLI"
+    end;
+  Format.fprintf fmt "id = %d" id;
+  Format.fprintf fmt "}"
+
 let print_patt_ty fmt (dn, prms: patt_ty) =
   Format.fprintf fmt "| %s%a" dn
     ( fun fmt l ->
@@ -250,13 +262,13 @@ let print_typc fmt typc =
   | F {atyp; rtyp; _} ->
     print_ftyp fmt {atyp; rtyp}
 
-let pr_fdi fmt {fn; params = p1, p2, p3, p4, p5; rtyp} =
+let pr_fdi fmt {fn; params; rtyp} =
   Format.fprintf fmt "{";
   Format.fprintf fmt "\n  fn = %s;" fn;
   Format.fprintf fmt "\n  params (";
   List.iter (
     Format.fprintf fmt " %a," print_typ;
-  ) [p1; p2; p3; p4; p5];
+  ) params;
   Format.fprintf fmt ")";
   Format.fprintf fmt "\n  rtyp = %a" print_typ rtyp;
   Format.fprintf fmt "\n}"
@@ -296,8 +308,8 @@ let rec print fmt expr =
   | Cst (CstBv x) ->
     Format.fprintf fmt "%a" print_bitv x 
 
-  | Var {vname; _} ->
-    Format.fprintf fmt "%s" vname
+  | Var ({vname; _} as v) ->
+    Format.fprintf fmt "%s(%a)" vname pr_tvar v
 
   | Unop (Neg, expr) ->
     Format.fprintf fmt "- (%a)" print expr 
@@ -646,11 +658,6 @@ let get_args num =
   | 5 -> [Tint; Treal; Tbool; Tint; Treal]
   | _ -> assert false 
 
-let mk_aty l = 
-  match l with 
-  | [a; b; c; d; e] -> a, b, c, d, e
-  | _ -> assert false
-
 let get_ufunc_expr num rtyp = 
   let fn =
     match rtyp with 
@@ -664,8 +671,7 @@ let get_ufunc_expr num rtyp =
     | Tadt (adtn, _) -> "uf_"^adtn^"_"^string_of_int num 
     | TDummy -> assert false
   in
-  let params =
-    mk_aty (get_args num)
+  let params = get_args num
   in
   {fn; params; rtyp}
 
