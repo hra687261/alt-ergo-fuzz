@@ -4,10 +4,12 @@ type typ =
   | TFArray of {ti: typ; tv: typ}
   | Tadt of adt
 and adt =
-  string * patt_ty list
-and patt_ty = string * (string * typ) list
+  string * rcrd_ty list
+and rcrd_ty = string * (string * typ) list
 
-type typedecl = adt
+type typedecl = 
+  | Adt_decl of adt
+  | Record_decl of rcrd_ty
 
 type ftyp = {atyp: typ list; rtyp: typ}
 
@@ -145,8 +147,14 @@ module SS = Set.Make(String)
 module TDS = Set.Make(
   struct
     type t = typedecl
-    let compare (n1, _) (n2, _) = compare n1 n2 
-  end 
+    let compare td1 td2 =
+      let get_name td =
+        match td with
+        | Adt_decl (n, _) -> n
+        | Record_decl (n, _) -> n
+      in
+      compare (get_name td1) (get_name td2)
+  end
   )
 
 module VM = Map.Make(
@@ -222,7 +230,7 @@ let pr_tvar fmt {vname; vty; vk; id} =
   Format.fprintf fmt "id = %d" id;
   Format.fprintf fmt "}"
 
-let print_patt_ty fmt (dn, prms: patt_ty) =
+let print_patt_ty fmt (dn, prms: rcrd_ty) =
   Format.fprintf fmt "| %s%a" dn
     ( fun fmt l ->
         match l with 
@@ -242,7 +250,7 @@ let print_adt fmt (adt: adt) =
   List.iter (
     fun (dn, prms) ->
       Format.fprintf fmt "%a\n" print_patt_ty (dn, prms)
-  ) (dstrs: patt_ty list)
+  ) (dstrs: rcrd_ty list)
 
 let print_ftyp fmt ({atyp; rtyp}: ftyp) =
   match atyp with 
@@ -458,7 +466,7 @@ let print_stmtc fmt {stmt; tds; uss} =
   let pr_tds fmt e = 
     Format.fprintf fmt "{";
     TDS.iter (
-      fun (n, _) ->
+      fun (Adt_decl (n, _) | Record_decl (n, _)) -> 
         Format.fprintf fmt "%s; " n
     ) e;
     Format.fprintf fmt "}"

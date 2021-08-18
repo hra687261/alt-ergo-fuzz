@@ -69,29 +69,31 @@ let rec translate_sort (s: sort) =
 
   | TDummy -> assert false
 
-let translate_typedecl (adtn, patterns) =
-  let tr_pattern 
-      (ptrn, prms: string * (string * sort) list) =
-    let q = Queue.create () in
-    Queue.push (Atom ptrn) q;
-    List.iter (
-      fun (n, so) -> 
-        let tmpq = Queue.create () in
-        Queue.push (Atom n) tmpq;
-        Queue.push (translate_sort so) tmpq;
-        Queue.push (PExpr tmpq) q
-    ) prms;
-    PExpr q
-  in 
+let tr_rcrd (ptrn, prms: rcrd_ty) =
+  let q = Queue.create () in
+  Queue.push (Atom ptrn) q;
+  List.iter (
+    fun (n, so) -> 
+      let tmpq = Queue.create () in
+      Queue.push (Atom n) tmpq;
+      Queue.push (translate_sort so) tmpq;
+      Queue.push (PExpr tmpq) q
+  ) prms;
+  PExpr q
+
+let translate_typedecl tdecl =
   let q = Queue.create () in
   Queue.push (Atom "declare-datatype") q;
-  Queue.push (Atom adtn) q;
-
-  let pq = Queue.create () in
-  List.iter (
-    fun patt -> Queue.push (tr_pattern patt) pq
-  ) patterns;
-  Queue.push (PExpr pq) q;
+  begin match tdecl with
+    | Adt_decl (adtn, patterns) ->
+      Queue.push (Atom adtn) q;
+      let pq = Queue.create () in
+      List.iter (
+        fun patt -> Queue.push (tr_rcrd patt) pq
+      ) patterns;
+      Queue.push (PExpr pq) q
+    | Record_decl _ -> assert false
+  end;
   PExpr q
 
 let rec translate_expr (a: expr) = 

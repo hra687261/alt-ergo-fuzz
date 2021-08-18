@@ -17,11 +17,11 @@ val pr_gr : (Format.formatter -> 'a -> unit) ->
 val expr_gen : 
   ?isform:bool -> ?qvars:bool -> ?args:Ast.tvar list -> 
   ?fdefs:Ast.fd_info list -> 
-  ?adts:Ast.adt list -> 
+  ?tydecls:Ast.typedecl list -> 
   int -> Ast.typ -> Ast.expr gen_res Cr.gen
 
 val stmt_gen : 
-  ?fdefs:Ast.fd_info list -> ?adts:Ast.adt list -> 
+  ?fdefs:Ast.fd_info list -> ?tydecls:Ast.typedecl list -> 
   ?name:string -> Ast.stmtkind -> Ast.stmt gen_res Cr.gen
 
 val gen_stmts : Ast.stmt_c list Cr.gen
