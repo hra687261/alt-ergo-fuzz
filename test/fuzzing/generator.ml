@@ -18,6 +18,60 @@ type 'a gen_res = {
   u_us : SS.t TCM.t;
   c_funcs : SS.t}
 
+let aux_gen_list (gens: 'a Cr.gen list) gf =
+  match gens with 
+  | [g1] -> 
+    Cr.map [g1] (
+      fun g1 -> 
+        gf [g1]
+    )
+  | [g1; g2] -> 
+    Cr.map [g1; g2] (
+      fun g1 g2 -> 
+        gf [g1; g2]
+    )
+  | [g1; g2; g3] -> 
+    Cr.map [g1; g2; g3] (
+      fun g1 g2 g3 -> 
+        gf [g1; g2; g3]
+    )
+  | [g1; g2; g3; g4] -> 
+    Cr.map [g1; g2; g3; g4] (
+      fun g1 g2 g3 g4 -> 
+        gf [g1; g2; g3; g4]
+    )
+  | [g1; g2; g3; g4; g5] -> 
+    Cr.map [g1; g2; g3; g4; g5] (
+      fun g1 g2 g3 g4 g5 -> 
+        gf [g1; g2; g3; g4; g5]
+    )
+  | [g1; g2; g3; g4; g5; g6] -> 
+    Cr.map [g1; g2; g3; g4; g5; g6] (
+      fun g1 g2 g3 g4 g5 g6 -> 
+        gf [g1; g2; g3; g4; g5; g6]
+    )
+  | [g1; g2; g3; g4; g5; g6; g7] -> 
+    Cr.map [g1; g2; g3; g4; g5; g6; g7] (
+      fun g1 g2 g3 g4 g5 g6 g7 -> 
+        gf [g1; g2; g3; g4; g5; g6; g7]
+    )
+  | [g1; g2; g3; g4; g5; g6; g7; g8] -> 
+    Cr.map [g1; g2; g3; g4; g5; g6; g7; g8] (
+      fun g1 g2 g3 g4 g5 g6 g7 g8 -> 
+        gf [g1; g2; g3; g4; g5; g6; g7; g8]
+    )
+  | [g1; g2; g3; g4; g5; g6; g7; g8; g9] -> 
+    Cr.map [g1; g2; g3; g4; g5; g6; g7; g8; g9] (
+      fun g1 g2 g3 g4 g5 g6 g7 g8 g9 -> 
+        gf [g1; g2; g3; g4; g5; g6; g7; g8; g9]
+    )
+  | [g1; g2; g3; g4; g5; g6; g7; g8; g9; g10] -> 
+    Cr.map [g1; g2; g3; g4; g5; g6; g7; g8; g9; g10] (
+      fun g1 g2 g3 g4 g5 g6 g7 g8 g9 g10 -> 
+        gf [g1; g2; g3; g4; g5; g6; g7; g8; g9; g10]
+    )
+  | _ -> assert false
+
 let mk_empty_gen_res g_res =
   { g_res; 
     u_args = VS.empty;
@@ -26,8 +80,7 @@ let mk_empty_gen_res g_res =
     u_us = TCM.empty;
     c_funcs = SS.empty}
 
-let dummy_gen_res = 
-  mk_empty_gen_res Dummy
+let dummy_gen_res = mk_empty_gen_res Dummy
 
 let pr_gr pr fmt {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
   let pr_vs fmt e =
@@ -175,55 +228,56 @@ let usymf_genl ty gen fuel =
       (fun n -> get_ufunc_expr n ty)
   in
   let g2 =
-    fun {fn = fname; params = (p1, p2, p3, p4, p5); rtyp} ->
+    fun {fn = fname; params; rtyp} ->
       let auxg ty =
         match ty with
         | TDummy -> Cr.const dummy_gen_res
         | Tbool -> cst_gen Tbool
         | _ -> gen (fuel - 1) ty
       in 
-      Cr.map [
-        auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
-      ] (
-        fun a1 a2 a3 a4 a5 ->
-          let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
-            List.fold_left (
-              fun ((l, vs, bv, ud, uus, fcs) as acc) b -> 
-                match b.g_res with 
-                | Dummy -> acc 
-                | _ ->
-                  b.g_res :: l, 
-                  VS.union b.u_args vs,
-                  VS.union b.u_bvars bv,
-                  SS.union b.u_dt ud,
-                  tcm_union b.u_us uus,
-                  SS.union b.c_funcs fcs
-            ) ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty) 
-              [a5; a4; a3; a2; a1]
-          in
-          let atyp = 
-            List.filter 
-              (fun x -> x <> TDummy) 
-              [p1; p2; p3; p4; p5]
-          in 
-          let fc = 
-            {fname; fk = USF; atyp; rtyp; args} 
-          in
-          let typc = 
-            F {tag = typc_tag {atyp; rtyp}; atyp; rtyp}
-          in
-          { g_res = FunCall fc; 
-            u_args;
-            u_bvars;
-            u_dt;  
-            u_us = 
-              TCM.add typc ( 
-                match TCM.find_opt typc u_us with
-                | Some s -> SS.add fname s
-                | None -> SS.add fname SS.empty
-              ) u_us; 
-            c_funcs}
-      )
+      let egl, atyp =
+        List.fold_left (
+          fun (accel, acctyl) typ ->
+            match typ with
+            | TDummy -> (accel, acctyl)
+            | _ -> auxg typ :: accel, typ :: acctyl
+        ) ([] ,[]) (List.rev params)
+      in
+      let gf = fun rgl ->
+        let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
+          List.fold_left (
+            fun ((l, vs, bv, ud, uus, fcs) as acc) b ->
+              match b.g_res with
+              | Dummy -> acc
+              | _ ->
+                b.g_res :: l,
+                VS.union b.u_args vs,
+                VS.union b.u_bvars bv,
+                SS.union b.u_dt ud,
+                tcm_union b.u_us uus,
+                SS.union b.c_funcs fcs
+          ) ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty)
+            (List.rev rgl)
+        in
+        let fc = 
+          {fname; fk = USF; atyp; rtyp; args}
+        in
+        let typc = 
+          F {tag = typc_tag {atyp; rtyp}; atyp; rtyp}
+        in
+        { g_res = FunCall fc;
+          u_args;
+          u_bvars;
+          u_dt;
+          u_us = 
+            TCM.add typc ( 
+              match TCM.find_opt typc u_us with
+              | Some s -> SS.add fname s
+              | None -> SS.add fname SS.empty
+            ) u_us;
+          c_funcs}
+      in 
+      aux_gen_list egl gf
   in
   Cr.dynamic_bind g1 g2
 
@@ -314,20 +368,18 @@ let func_call_gen :
   (int -> typ -> expr gen_res Cr.gen) ->
   int -> typ -> fd_info list -> expr gen_res Cr.gen list =
   fun gen fuel ty fdis ->
-  let togen f = 
-    let fname, rtyp, (p1, p2, p3, p4, p5) =
-      f.fn , f.rtyp, f.params
-    in 
-    let auxg ty =
-      match ty with
-      | TDummy -> Cr.const dummy_gen_res
-      | Tbool -> cst_gen Tbool
-      | _ -> gen (fuel - 1) ty
-    in 
-    Cr.map [
-      auxg p1; auxg p2; auxg p3; auxg p4; auxg p5
-    ] (
-      fun a1 a2 a3 a4 a5 ->
+  let togen {fn = fname; params; rtyp} = 
+    let egl, atyp =
+      List.fold_left (
+        fun (accel, acctyl) typ ->
+          match typ with 
+          | TDummy -> (accel, acctyl)
+          | Tbool -> cst_gen Tbool :: accel, Tbool :: acctyl
+          | _ ->  gen (fuel - 1) ty :: accel, typ :: acctyl
+      ) ([] ,[]) (List.rev params)
+    in
+    let gf = 
+      fun egl ->
         let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
           List.fold_left (
             fun ((l, vs, bv, ud, uus, fcs) as acc) gr -> 
@@ -343,14 +395,11 @@ let func_call_gen :
                 )
           ) ( [], VS.empty, VS.empty, SS.empty, 
               TCM.empty, SS.add fname SS.empty)
-            [a5; a4; a3; a2; a1]
+            (List.rev egl)
         in
         { g_res = FunCall {
               fname; fk = UDF; 
-              atyp = 
-                List.filter 
-                  (fun x -> x <> TDummy) 
-                  [p1; p2; p3; p4; p5];
+              atyp;
               rtyp; 
               args}; 
           u_args; 
@@ -358,7 +407,8 @@ let func_call_gen :
           u_dt;
           u_us;
           c_funcs}
-    )
+    in
+    aux_gen_list egl gf
   in
   let fdgs =
     List.fold_left (
@@ -497,58 +547,26 @@ let letin_gen : (?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) ->
   VS.t -> int -> typ -> expr gen_res Cr.gen =
   fun gen bvars fuel ty ->
   let nv = mk_bound_var ty in
-  Cr.map
-    [ gen ~bvars (fuel - 1) ty;
-      gen ~bvars:(VS.add nv bvars) (fuel - 1) ty]
-    (
-      fun e b ->
-        (*
-        let pr_tvar fmt {vname; vty; vk; id} = 
-                          Format.fprintf fmt "{";
-                          Format.fprintf fmt "vname = %s; " vname;
-                          Format.fprintf fmt "vty = %a; " print_typ vty;
-                          Format.fprintf fmt "vk = %s; " 
-                          begin match vk with 
-                          | EQ -> "EQ"
-                          | UQ -> "UQ"
-                          | US -> "US"
-                          | ARG -> "ARG"
-                          | BLI -> "BLI"
-                          end;
-                          Format.fprintf fmt "id = %d" id;
-                          Format.fprintf fmt "}"
-                          in 
-                          Format.printf "\n%a@." pr_tvar nv;
-                          Format.printf "{@.";
-                          VS.iter (
-                          fun bv -> 
-                          Format.printf "  %a;@." pr_tvar bv
-                          ) b.u_bvars;
-                          Format.printf "}@.";
-
-                          Format.printf "%b\n@." (VS.mem nv b.u_bvars);
-                          Format.printf "%a\n@." (
-                          fun fmt e -> 
-                          Format.fprintf fmt "%a" print e
-                          ) (LetIn (nv , e.g_res, b.g_res));
-                        *)
-
-
-        if VS.mem nv b.u_bvars
-        then 
-          { g_res = LetIn (nv , e.g_res, b.g_res);
-            u_args = VS.union e.u_args b.u_args;
-            u_bvars = VS.union e.u_bvars b.u_bvars;
-            u_dt = SS.union e.u_dt b.u_dt;
-            u_us = tcm_union e.u_us b.u_us;
-            c_funcs = SS.union e.c_funcs b.c_funcs;
-          }
-        else 
-          { g_res = b.g_res; u_args = b.u_args;
-            u_bvars = b.u_bvars; u_dt = b.u_dt;
-            u_us = b.u_us; c_funcs = b.c_funcs;
-          }
-    )
+  Cr.map [ 
+    gen ~bvars (fuel - 1) ty;
+    gen ~bvars:(VS.add nv bvars) (fuel - 1) ty
+  ] (
+    fun e b ->
+      if VS.mem nv b.u_bvars
+      then
+        { g_res = LetIn (nv , e.g_res, b.g_res);
+          u_args = VS.union e.u_args b.u_args;
+          u_bvars = VS.union e.u_bvars b.u_bvars;
+          u_dt = SS.union e.u_dt b.u_dt;
+          u_us = tcm_union e.u_us b.u_us;
+          c_funcs = SS.union e.c_funcs b.c_funcs;
+        }
+      else
+        { g_res = b.g_res; u_args = b.u_args;
+          u_bvars = b.u_bvars; u_dt = b.u_dt;
+          u_us = b.u_us; c_funcs = b.c_funcs;
+        }
+  )
 
 let dest_gen id num =
   let dname = 
@@ -886,11 +904,7 @@ let mk_gen :
 let mk_fd_info fn (vs: tvar list) rtyp =
   { fn; rtyp; 
     params = 
-      begin 
-        match List.rev_map (fun x -> x.vty) vs with 
-        | [v5; v4; v3; v2; v1] -> (v1, v2, v3, v4, v5)
-        | _ -> assert false
-      end
+      List.rev_map (fun x -> x.vty) (List.rev vs)
   }
 
 let update_fdis : fd_info list -> stmt gen_res -> fd_info list =
