@@ -604,7 +604,7 @@ let adt_gen () =
     )
 
 let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
-  let pattern_gen (fuel: int) (pty : patt_ty) : patt gen_res Cr.gen =
+  let pattern_gen (fuel: int) (pty : rcrd_ty) : patt gen_res Cr.gen =
     let destrn, ppmsty = pty in 
     match ppmsty with 
     | [_; _] as ipts -> 
@@ -655,7 +655,7 @@ let app_expr_gen expr_gen fuel typ =
 
 let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen) 
     ((adtn, _) as adt: adt) (fuel: int) =
-  let aux tadt_typ ((dstrn, pls): patt_ty) =
+  let aux tadt_typ ((dstrn, pls): rcrd_ty) =
     match pls with 
     | [(n1, t1); (n2, t2)] -> 
       Cr.map [ 
@@ -697,7 +697,8 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
 
 (********************************************************************)
 let expr_gen ?(isform = false) ?(qvars = true) ?(args = []) 
-    ?(fdefs: fd_info list = []) ?(adts : adt list = []) max_depth ty =
+    ?(fdefs: fd_info list = []) ?(tydecls : typedecl list = []) 
+    max_depth ty =
   ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
     if fuel <= 0
@@ -786,13 +787,15 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
         else get_fa_access ag_aux fuel ty :: gl
       in
       let gl =
-        if adts = []
+        if tydecls = []
         then gl
         else
           Cr.dynamic_bind
-            (Cr.choose (List.rev_map Cr.const adts))
-            ( fun adt ->
-                pm_gen (ag_aux ~bvars) adt fuel ty
+            (Cr.choose (List.rev_map Cr.const tydecls))
+            ( fun td ->
+                match td with 
+                | Adt_decl adt -> pm_gen (ag_aux ~bvars) adt fuel ty
+                | Record_decl _ -> assert false
             ) :: gl
       in
       Cr.choose gl
@@ -800,7 +803,7 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
   ag_aux max_depth ty
 
 (********************************************************************)
-let fdef_gen ?(fdefs = []) ?(adts : adt list = []) 
+let fdef_gen ?(fdefs = []) ?(tydecls : typedecl list = []) 
     name func_max_depth = 
   let ag () = 
     Cr.map [
@@ -822,7 +825,7 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
       in 
       let gen =
         expr_gen ~qvars:false ~args:[a1; a2; a3; a4; a5] 
-          ~fdefs ~adts func_max_depth rtyp
+          ~fdefs ~tydecls func_max_depth rtyp
       in
 
       let ge =
@@ -845,11 +848,11 @@ let fdef_gen ?(fdefs = []) ?(adts : adt list = [])
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.dynamic_bind (ag ()) (fg ())
 
-let goal_gen ?(fdefs = []) ?(adts : adt list = []) 
+let goal_gen ?(fdefs = []) ?(tydecls : typedecl list = []) 
     name query_max_depth =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
-    [expr_gen ~isform:true ~fdefs ~adts query_max_depth Tbool]
+    [expr_gen ~isform:true ~fdefs ~tydecls query_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Goal 
@@ -858,11 +861,11 @@ let goal_gen ?(fdefs = []) ?(adts : adt list = [])
         {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}
     )
 
-let axiom_gen ?(fdefs = []) ?(adts : adt list = []) name
+let axiom_gen ?(fdefs = []) ?(tydecls : typedecl list = []) name
     axiom_max_depth =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
-    [expr_gen ~isform:true ~fdefs ~adts axiom_max_depth Tbool]
+    [expr_gen ~isform:true ~fdefs ~tydecls axiom_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Axiom 
@@ -876,21 +879,21 @@ let dk_gen =
   Cr.choose [Cr.const FD; Cr.const AxD]
 
 let stmt_gen 
-    ?(fdefs = []) ?(adts : adt list = []) ?(name = "") kind =
+    ?(fdefs = []) ?(tydecls: typedecl list = []) ?(name = "") kind =
   match kind with 
   | FD ->
-    fdef_gen ~fdefs ~adts name !func_max_depth
+    fdef_gen ~fdefs ~tydecls name !func_max_depth
   | AxD ->
-    axiom_gen ~fdefs ~adts name !axiom_max_depth 
+    axiom_gen ~fdefs ~tydecls name !axiom_max_depth 
   | GD ->
-    goal_gen ~fdefs ~adts name !query_max_depth 
+    goal_gen ~fdefs ~tydecls name !query_max_depth 
 
 (********************************************************************)
 let axid, gid, fid = ref 0, ref 0, ref 0
 
 let mk_gen : 
-  fd_info list -> adt list -> stmtkind -> stmt gen_res Cr.gen =
-  fun fdefs adts sk ->
+  fd_info list -> typedecl list -> stmtkind -> stmt gen_res Cr.gen =
+  fun fdefs tydecls sk ->
   let name = 
     match sk with 
     | GD -> "goal_"^string_of_int(incr gid; !gid)
@@ -898,7 +901,7 @@ let mk_gen :
     | FD -> "udf_"^string_of_int(incr fid; !fid) 
   in
   Cr.map [
-    stmt_gen ~fdefs ~adts ~name sk
+    stmt_gen ~fdefs ~tydecls ~name sk
   ] (fun gres -> gres) 
 
 let mk_fd_info fn (vs: tvar list) rtyp =
@@ -935,7 +938,10 @@ let rec iter :
           SS.fold (
             fun str acc -> 
               let nt = 
-                List.find (fun (n, _) -> n = str) adtl
+                List.find (
+                  fun (Adt_decl (n, _) | Record_decl (n, _)) -> 
+                    n = str
+                ) adtl
               in 
               TDS.add nt acc 
           ) u_dt TDS.empty 
@@ -961,7 +967,10 @@ and liter :
         SS.fold (
           fun str acc -> 
             let nt = 
-              List.find (fun (n, _) -> n = str) adtl
+              List.find (
+                fun (Adt_decl (n, _) | Record_decl (n, _)) -> 
+                  n = str
+              ) adtl
             in 
             TDS.add nt acc 
         ) u_dt TDS.empty 
@@ -1019,6 +1028,6 @@ let gen_stmts =
       (fun adt1 adt2 e1 e2 -> (adt1, adt2), (e1, e2))
   ) (
     fun ((adt1, adt2), (e1, e2)) -> 
-      iter [] [adt1; adt2] SS.empty 
+      iter [] [Adt_decl adt1; Adt_decl adt2] SS.empty 
         [e1; e2; GD] []
   )

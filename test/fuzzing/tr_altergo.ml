@@ -739,37 +739,47 @@ let print_tvar_list fmt atyp =
     ) t
   | [] -> assert false
 
-let print_typedecl fmt (tyd: typedecl) = 
-  let pr_aux = 
-    fun fmt prl ->
-      match prl with 
-      | [] -> ()
-      | (n, typ) :: t -> 
+let print_rcrd_b fmt (rcrd_b: (string * typ) list) = 
+  match rcrd_b with 
+  | [] -> assert false
+  | (n, typ) :: t -> 
+    Format.fprintf fmt 
+      "{%s: %a"
+      n print_typ typ;
+    List.iter (
+      fun (n, typ) -> 
         Format.fprintf fmt 
-          "of {%s: %a"
+          "; %s: %a"
           n print_typ typ;
-        List.iter (
-          fun (n, typ) -> 
-            Format.fprintf fmt 
-              "; %s: %a"
-              n print_typ typ;
-        ) t;
-        Format.fprintf fmt "}"
+    ) t;
+    Format.fprintf fmt "}"
+
+let print_adt fmt (ptrns: rcrd_ty list) =
+  let pr_aux fmt =
+    function 
+    | (n, []) -> 
+      Format.fprintf fmt "%s" n
+    | (n, rcrd) ->
+      Format.fprintf fmt "%s of %a" 
+        n print_rcrd_b rcrd
   in
-  let tyn, ptrns = tyd in 
-  Format.fprintf fmt "type %s = %a@." tyn
-    ( fun fmt ptrns ->
-        match ptrns with 
-        | (pn, prl) :: t ->
-          Format.fprintf fmt "\n  %s %a" 
-            pn pr_aux prl;
-          List.iter (
-            fun (pn, prl) -> 
-              Format.fprintf fmt "\n  | %s %a" 
-                pn pr_aux prl
-          ) t
-        | _ -> assert false
-    ) ptrns
+  match ptrns with 
+  | p :: t ->
+    Format.fprintf fmt "\n  %a" pr_aux p; 
+    List.iter (
+      fun p -> 
+        Format.fprintf fmt "\n  | %a" pr_aux p
+    ) t
+  | _ -> assert false
+
+let print_typedecl fmt (tyd: typedecl) = 
+  match tyd with 
+  | Adt_decl (n, adt) ->
+    Format.fprintf fmt "type %s = %a@." 
+      n print_adt adt
+  | Record_decl (n, rcrd) ->
+    Format.fprintf fmt "type %s = %a@." 
+      n print_rcrd_b rcrd
 
 let print_typedecls fmt (tydecls: TDS.t) = 
   TDS.iter (
