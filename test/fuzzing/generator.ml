@@ -787,16 +787,21 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
         else get_fa_access ag_aux fuel ty :: gl
       in
       let gl =
-        if tydecls = []
+        let adts_gens = 
+          List.fold_left (
+            fun acc typ -> 
+              match typ with 
+              | Adt_decl adt -> Cr.const adt :: acc
+              | _ -> acc
+          ) [] tydecls
+        in
+        if adts_gens = []
         then gl
         else
-          Cr.dynamic_bind
-            (Cr.choose (List.rev_map Cr.const tydecls))
-            ( fun td ->
-                match td with 
-                | Adt_decl adt -> pm_gen (ag_aux ~bvars) adt fuel ty
-                | Record_decl _ -> assert false
-            ) :: gl
+          Cr.dynamic_bind (Cr.choose adts_gens) ( 
+            fun td -> 
+              pm_gen (ag_aux ~bvars) td fuel ty
+          ) :: gl
       in
       Cr.choose gl
   in 
