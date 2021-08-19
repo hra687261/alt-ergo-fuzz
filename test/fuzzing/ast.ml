@@ -54,8 +54,7 @@ let typc_tag {atyp; rtyp} =
 let typ_compare t1 t2 =
   compare (typ_tag t1) (typ_tag t2)
 
-let get_tctag t = 
-  match t with A {tag; _} | F {tag; _} -> tag
+let get_tctag (A {tag; _} | F {tag; _}) = tag
 
 let typc_compare a b =
   compare (get_tctag a) (get_tctag b) 

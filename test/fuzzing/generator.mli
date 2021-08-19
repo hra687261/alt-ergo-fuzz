@@ -24,4 +24,5 @@ val stmt_gen :
   ?fdefs:Ast.fd_info list -> ?tydecls:Ast.typedecl list -> 
   ?name:string -> Ast.stmtkind -> Ast.stmt gen_res Cr.gen
 
-val gen_stmts : Ast.stmt_c list Cr.gen
+val gen_stmts : 
+  ?nb_tds:int -> ?nb_dks:int -> unit -> Ast.stmt_c list Cr.gen

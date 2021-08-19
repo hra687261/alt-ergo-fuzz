@@ -7,7 +7,7 @@ let cnt = ref 0
 let () =
   let l = ref [] in 
   Cr.add_test ~name:"ae" 
-    [Generator.gen_stmts] 
+    [Generator.gen_stmts ()] 
     ( fun stmtcs -> 
         Cr.check (
           try
