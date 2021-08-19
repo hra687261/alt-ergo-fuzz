@@ -48,11 +48,7 @@ test/fuzzing/output/*
 test/fuzzing/crash_output/*
 test/fuzzing/trfiles/*
 test/fuzzing/output/sync_dir/*
-
-!test/fuzzing/output/.keep
-!test/fuzzing/crash_output/.keep
-test/fuzzing/trfiles/.keep
-!test/fuzzing/output/sync_dir/.keep
+test/fuzzing/fuzz_output/*
 
 debug.txt
 _.*
@@ -67,3 +63,5 @@ spacetime-*
 *.ctf
 
 .vscode
+ids.txt
+**/.keep
