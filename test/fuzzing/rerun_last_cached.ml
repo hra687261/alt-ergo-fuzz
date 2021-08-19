@@ -1,9 +1,5 @@
 open Utils
 
-module AE_CDCL = Solver.AE_CDCL
-module AE_Tableaux = Solver.AE_Tableaux
-module C5S = Solver.CVC5
-
 let () =
   if not (Array.length Sys.argv = 2)
   then
@@ -44,20 +40,21 @@ let () =
 
   Format.printf "\nRerunning answers:@.";
   try
-    let ae_cr = AE_CDCL.process_stmts stmtcs in
-    let ae_tr = AE_Tableaux.process_stmts stmtcs in
-    let c5rn = C5S.process_stmts stmtcs in
+    Solvers.call_cvc5 stmtcs;
+    let ae_cr = Solvers.run_with_ae_c stmtcs in
+    let ae_tr = Solvers.run_with_ae_t stmtcs in
+    let c5_r = Solvers.get_cvc5_response () in
 
     Format.printf "%d %d %d@."
       (List.length ae_cr) 
       (List.length ae_tr) 
-      (List.length c5rn);
+      (List.length c5_r);
 
     try
-      cmp_answers_exn3 ae_cr ae_tr c5rn; 
-      cmp_answers_pr3 ae_cr ae_tr c5rn
+      cmp_answers_exn3 ae_cr ae_tr c5_r; 
+      cmp_answers_pr3 ae_cr ae_tr c5_r
     with exp -> 
-      cmp_answers_pr3 ae_cr ae_tr c5rn;
+      cmp_answers_pr3 ae_cr ae_tr c5_r;
       Format.printf "\nException: %s@." (exn_to_string exp) 
   with exp -> 
     Format.printf "\nException: %s@." (exn_to_string exp) 

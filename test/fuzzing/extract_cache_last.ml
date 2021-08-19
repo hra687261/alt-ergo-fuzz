@@ -1,9 +1,5 @@
 open Utils
 
-module AE_CDCL = Solver.AE_CDCL
-module AE_Tableaux = Solver.AE_Tableaux
-module C5S = Solver.CVC5
-
 let () =
   if not (Array.length Sys.argv = 3)
   then
