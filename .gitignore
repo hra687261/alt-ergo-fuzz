@@ -64,4 +64,4 @@ spacetime-*
 
 .vscode
 ids.txt
-**/.keep
+!**/.keep
