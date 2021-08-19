@@ -72,6 +72,15 @@ let aux_gen_list (gens: 'a Cr.gen list) gf =
     )
   | _ -> assert false
 
+let aux_join (l, vs, bv, ud, uus, fcs) 
+    {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
+  g_res :: l,
+  VS.union u_args vs,
+  VS.union u_bvars bv,
+  SS.union u_dt ud,
+  tcm_union u_us uus,
+  SS.union c_funcs fcs
+
 let mk_empty_gen_res g_res =
   { g_res; 
     u_args = VS.empty;
@@ -245,18 +254,18 @@ let usymf_genl ty gen fuel =
       in
       let gf = fun rgl ->
         let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
-          List.fold_left (
-            fun ((l, vs, bv, ud, uus, fcs) as acc) b ->
-              match b.g_res with
-              | Dummy -> acc
-              | _ ->
-                b.g_res :: l,
-                VS.union b.u_args vs,
-                VS.union b.u_bvars bv,
-                SS.union b.u_dt ud,
-                tcm_union b.u_us uus,
-                SS.union b.c_funcs fcs
-          ) ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty)
+          List.fold_left ( aux_join ) (* (
+                                         fun ((l, vs, bv, ud, uus, fcs) as acc) b ->
+                                         match b.g_res with
+                                         | Dummy -> acc
+                                         | _ ->
+                                         b.g_res :: l,
+                                         VS.union b.u_args vs,
+                                         VS.union b.u_bvars bv,
+                                         SS.union b.u_dt ud,
+                                         tcm_union b.u_us uus,
+                                         SS.union b.c_funcs fcs
+                                         ) *) ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty)
             (List.rev rgl)
         in
         let fc = 
@@ -381,20 +390,20 @@ let func_call_gen :
     let gf = 
       fun egl ->
         let args, u_args, u_bvars, u_dt, u_us, c_funcs = 
-          List.fold_left (
-            fun ((l, vs, bv, ud, uus, fcs) as acc) gr -> 
-              match gr.g_res with 
-              | Dummy -> acc 
-              | _ -> ( 
-                  gr.g_res :: l, 
-                  VS.union gr.u_args vs, 
-                  VS.union gr.u_bvars bv,  
-                  SS.union gr.u_dt ud,  
-                  tcm_union gr.u_us uus,
-                  SS.union gr.c_funcs fcs
-                )
-          ) ( [], VS.empty, VS.empty, SS.empty, 
-              TCM.empty, SS.add fname SS.empty)
+          List.fold_left aux_join (* (
+                                     fun ((l, vs, bv, ud, uus, fcs) as acc) gr -> 
+                                     match gr.g_res with 
+                                     | Dummy -> acc 
+                                     | _ -> ( 
+                                     gr.g_res :: l, 
+                                     VS.union gr.u_args vs, 
+                                     VS.union gr.u_bvars bv,  
+                                     SS.union gr.u_dt ud,  
+                                     tcm_union gr.u_us uus,
+                                     SS.union gr.c_funcs fcs
+                                     )
+                                     ) *) ( [], VS.empty, VS.empty, SS.empty, 
+                                            TCM.empty, SS.add fname SS.empty)
             (List.rev egl)
         in
         { g_res = FunCall {
@@ -630,17 +639,17 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
     ] (
       fun g p1 p2 ->
         let patts, u_args, u_bvars, u_dt, u_us, c_funcs = 
-          List.fold_left (
-            fun (rpl, ua, ub, ud, uus, cf)
-              {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} -> 
-              g_res :: rpl, 
-              VS.union u_args ua, 
-              VS.union u_bvars ub, 
-              SS.union u_dt ud, 
-              tcm_union u_us uus,
-              SS.union c_funcs cf     
-          ) ( [], g.u_args, g.u_bvars, 
-              SS.add adtn g.u_dt, g.u_us, g.c_funcs)  
+          List.fold_left aux_join (* (
+                                     fun (rpl, ua, ub, ud, uus, cf)
+                                     {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} -> 
+                                     g_res :: rpl, 
+                                     VS.union u_args ua, 
+                                     VS.union u_bvars ub, 
+                                     SS.union u_dt ud, 
+                                     tcm_union u_us uus,
+                                     SS.union c_funcs cf     
+                                     ) *) ( [], g.u_args, g.u_bvars, 
+                                            SS.add adtn g.u_dt, g.u_us, g.c_funcs)  
             [p2; p1]
         in
         { g_res = PMatching {mtchdv = g.g_res; patts; valty};
@@ -665,7 +674,7 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
         fun a1 a2 -> 
           let tmp = 
             List.filter 
-              (fun (_, a) -> if a.g_res = Dummy then false else true)
+              (fun (_, a) -> not (a.g_res = Dummy))
               [(n2, a2); (n1, a1)]
           in
           let n, {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
@@ -808,9 +817,9 @@ let expr_gen ?(isform = false) ?(qvars = true) ?(args = [])
   ag_aux max_depth ty
 
 (********************************************************************)
-let fdef_gen ?(fdefs = []) ?(tydecls : typedecl list = []) 
+(* let fdef_gen ?(fdefs = []) ?(tydecls : typedecl list = []) 
     name func_max_depth = 
-  let ag () = 
+   let ag () = 
     Cr.map [
       typ_gen (); typ_gen (); typ_gen ();
       typ_gen (); typ_gen (); typ_gen ();
@@ -818,8 +827,8 @@ let fdef_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
       fun t1 t2 t3 t4 t5 rtyp ->
         (t1, t2, t3, t4, t5), rtyp
     )
-  in
-  let fg () = 
+   in
+   let fg () = 
     fun ((t1, t2, t3, t4, t5), rtyp) ->
       let a1, a2, a3, a4, a5 = 
         mk_tvar "a1" t1 ARG,
@@ -842,7 +851,54 @@ let fdef_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
                   if VS.mem v u_args
                   then v
                   else {vname = ""; vty = TDummy; vk = US; id = 0}
-              ) [a5; a4; a3; a2; a1]
+                         ) [a5; a4; a3; a2; a1]
+                         in
+                         { g_res = FuncDef {name; body; atyp; rtyp}; 
+                         u_args; u_bvars; u_dt; u_us; c_funcs}
+                         )
+                         in 
+                         ge
+                         in
+                         Cr.with_printer (pr_gr print_stmt) @@
+                         Cr.dynamic_bind (ag ()) (fg ()) *)
+
+let fdef_gen ?(nbp = 5) ?(fdefs = []) ?(tydecls : typedecl list = []) 
+    name func_max_depth = 
+  let tgens = List.init (nbp + 1) (fun _ -> typ_gen ()) in 
+  let ftyg = 
+    aux_gen_list tgens (
+      fun l -> 
+        let rl = List.rev l in 
+        let rhd, rtl = List.hd rl, List.tl rl in  
+        List.rev rtl, rhd
+    )
+  in
+
+  let fg = 
+    fun (ptl, rtyp) ->
+      let _, rargs = 
+        List.fold_left (
+          fun (n, al) a ->
+            n + 1, mk_tvar ("a"^string_of_int n) a ARG :: al        
+        ) (1, []) ptl
+      in
+      let args = List.rev rargs in 
+
+      let gen =
+        expr_gen ~qvars:false ~args ~fdefs 
+          ~tydecls func_max_depth rtyp
+      in
+
+      let ge =
+        Cr.map [gen] ( 
+          fun {g_res = body; u_args; u_bvars; u_dt; u_us; c_funcs} ->
+            let atyp = 
+              List.fold_left (
+                fun vacc v -> 
+                  if VS.mem v u_args
+                  then v :: vacc
+                  else vacc
+              ) [] rargs
             in
             { g_res = FuncDef {name; body; atyp; rtyp}; 
               u_args; u_bvars; u_dt; u_us; c_funcs}
@@ -851,7 +907,7 @@ let fdef_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
       ge
   in
   Cr.with_printer (pr_gr print_stmt) @@
-  Cr.dynamic_bind (ag ()) (fg ())
+  Cr.dynamic_bind ftyg fg 
 
 let goal_gen ?(fdefs = []) ?(tydecls : typedecl list = []) 
     name query_max_depth =
@@ -882,6 +938,7 @@ let axiom_gen ?(fdefs = []) ?(tydecls : typedecl list = []) name
 (********************************************************************)
 let dk_gen =
   Cr.choose [Cr.const FD; Cr.const AxD]
+(* Cr.choose [Cr.const FD; Cr.const AxD; Cr.const GD] *)
 
 let stmt_gen 
     ?(fdefs = []) ?(tydecls: typedecl list = []) ?(name = "") kind =
@@ -1010,20 +1067,10 @@ and liter :
 
 (********************************************************************)
 
-(*
-(* the more stmts are generated the slower the fuzzing will be *)
-let gen_stmts = 
-  Cr.dynamic_bind (
-    Cr.map 
-      [dk_gen; dk_gen; dk_gen; dk_gen; dk_gen] 
-      (fun e1 e2 e3 e4 e5 -> e1, e2, e3, e4, e5)
-  ) @@ (
-    fun (e1, e2, e3, e4, e5) -> 
-      iter [] SS.empty [e1; e2; e3; e4; e5; GD] []
-  )
-*)
 
-let gen_stmts = 
+
+let gen_stmts ?(nb_tds = 2) ?(nb_dks = 4) () =
+  ignore (nb_tds, nb_dks); 
   Cr.dynamic_bind (
     Cr.map 
       [ adt_gen ();
@@ -1036,3 +1083,22 @@ let gen_stmts =
       iter [] [Adt_decl adt1; Adt_decl adt2] SS.empty 
         [e1; e2; GD] []
   )
+
+(* Doesn't work for some reason *)  
+(* let gen_stmts ?(nb_tds = 2) ?(nb_dks = 4) () = 
+  let tdgs = 
+    aux_gen_list 
+      (List.init nb_tds (fun _ -> adt_gen ())) 
+      (List.map (fun x -> Adt_decl x))
+  in 
+  let dks = 
+    aux_gen_list 
+      (List.init nb_dks (fun _ -> dk_gen)) 
+      List.rev
+  in 
+  Cr.dynamic_bind (
+    Cr.map [tdgs; dks] (
+      fun l1 l2 -> 
+        iter [] l1 SS.empty (List.rev_append l2 [GD]) []
+    )
+  ) Fun.id *)

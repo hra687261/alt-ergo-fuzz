@@ -10,6 +10,6 @@ do
   opf=$(echo "$i" | awk -F'[/.]' '{print $1 "/" $2 "/trfiles/" $4 "." $5}')
   opfae="${opf}.ae"
   opfsl2="${opf}.smt2"
-  ./_build/default/test/fuzzing/translate_and_write.exe ae $i $opfae 
-  ./_build/default/test/fuzzing/translate_and_write.exe sl2 $i $opfsl2 
+  ./_build/default/test/fuzzing/translate_and_write.exe $i $opfae ae 
+  ./_build/default/test/fuzzing/translate_and_write.exe $i $opfsl2 sl2
 done
