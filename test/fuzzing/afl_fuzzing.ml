@@ -17,7 +17,6 @@ let () =
             let cvc5 = Solvers.get_cvc5_response () in
 
             try  
-              cmp_answers_pr3 ae_cr ae_tr cvc5;
               cmp_answers_exn3 ae_cr ae_tr cvc5;
               true
             with
