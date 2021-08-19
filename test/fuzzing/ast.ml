@@ -316,8 +316,8 @@ let rec print fmt expr =
   | Cst (CstBv x) ->
     Format.fprintf fmt "%a" print_bitv x 
 
-  | Var ({vname; _} as v) ->
-    Format.fprintf fmt "%s(%a)" vname pr_tvar v
+  | Var {vname; _} ->
+    Format.fprintf fmt "%s" vname
 
   | Unop (Neg, expr) ->
     Format.fprintf fmt "- (%a)" print expr 
