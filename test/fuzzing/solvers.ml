@@ -54,32 +54,57 @@ let get_cvc5_response () =
 
 let solve_with_ae 
     (module SAT: AEL.Sat_solver_sig.S)
-    (module Tr: T with type t = AEL.Commands.sat_tdecl) stmtcs = 
+    (module Tr: T with type t = AEL.Commands.sat_tdecl) = 
+
   let module FE = AEL.Frontend.Make(SAT) in
-  let ral, _ =
-    List.fold_left
-      ( fun (al, (env, consistent, ex)) Ast.{stmt;_} ->
-
-          let tstmt = Tr.translate_stmt stmt in
-
+  let solve ctx tstmts goal_name =
+    let ctx = FE.choose_used_context ctx ~goal_name in
+    let st = Stack.create () in
+    let resp, _ =
+      List.fold_left (
+        fun (resp, (env, consistent, ex)) tstmt ->
           let env, consistent, ex =
             FE.process_decl
               (fun _ _ -> ()) (*FE.print_status*)
-              (FE.init_all_used_context ())
-              (Stack.create ())
+              ctx st
               (env, consistent, ex) tstmt
           in
-          match stmt with
-          | Ast.Goal _ ->
+          match resp, tstmt.st_decl with
+          | None, AEL.Commands.Query _ ->
             if consistent
-            then Utils.Unknown :: al, (env, consistent, ex)
-            else Utils.Unsat :: al, (env, consistent, ex)
+            then Some Utils.Unknown, (env, consistent, ex)
+            else Some Utils.Unsat, (env, consistent, ex)
+          | None, _ ->
+            resp, (env, consistent, ex)
           | _ ->
-            al, (env, consistent, ex)
-      )
-      ([], (SAT.empty (), true, AEL.Explanation.empty)) 
-      stmtcs
-  in List.rev ral
+            Format.fprintf Format.err_formatter
+              "\nSolve is expected to get one goal at a time@.";
+            assert false
+      ) (None, (SAT.empty (), true, AEL.Explanation.empty)) 
+        tstmts
+    in
+    Option.get resp
+  in
+  let ctx =
+    FE.init_all_used_context ()
+  in 
+
+  fun stmtcs ->
+    let resps, _ =
+      List.fold_left (
+        fun (resps , tstmts) Ast.{stmt; _} ->
+          let tstmt = Tr.translate_stmt stmt in 
+          match stmt with
+          | Ast.Goal {name; _} ->
+            let resp =
+              solve ctx (List.rev_append tstmts [tstmt]) name
+            in
+            resp :: resps, []
+          | _ ->
+            resps, tstmt :: tstmts
+      ) ([], []) stmtcs
+    in
+    resps
 
 (* Alt-Ergo Tableaux *)
 
