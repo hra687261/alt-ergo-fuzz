@@ -104,7 +104,7 @@ let solve_with_ae
             resps, tstmt :: tstmts
       ) ([], []) stmtcs
     in
-    resps
+    List.rev resps
 
 (* Alt-Ergo Tableaux *)
 
