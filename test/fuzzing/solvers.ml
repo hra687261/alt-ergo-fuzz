@@ -6,20 +6,15 @@ module AEL = AltErgoLib
 let c5_ic : in_channel option ref = ref None  
 
 let call_cvc5 ?(timeout = 10000) stmtcs =
-  let filename = 
-    Format.sprintf "tmp_%f.smt2"
-      (Unix.gettimeofday ()) in
-
-  let oc = open_out filename in
-  let fmt = Format.formatter_of_out_channel oc in
-  Format.fprintf fmt "%a" Smtlib2_tr.print_stmts stmtcs;
-  close_out oc;
-
+  let data = 
+    Format.asprintf "%a" Smtlib2_tr.print_stmts stmtcs
+  in
   let ic = 
-    Unix.open_process_in 
-      ( Format.sprintf 
-          "cvc5 --incremental --tlimit=%d %s 2>&1; rm %s" 
-          timeout filename filename)
+    Unix.open_process_in ( 
+      Format.sprintf 
+        "echo \"\n%s\n\" | cvc5 --incremental --lang smt2 --tlimit=%d" 
+        data timeout
+    )
   in
   c5_ic := Some ic
 
