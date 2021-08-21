@@ -757,7 +757,7 @@ let expr_gen ?(isform = false) ?(uqvars = true)
             gen_bool_binop fuel ag_aux
           | TBitV len when Foptions.get_u_btv () ->
             get_bvec_gens ag_aux fuel len
-          | TFArray {ti; tv} ->
+          | TFArray {ti; tv} when Foptions.get_u_fa () -> 
             [ get_fa_update ag_aux fuel ti tv ]
           | Tadt adt when Foptions.get_u_adts () ->
             let adt_gen =
@@ -781,9 +781,9 @@ let expr_gen ?(isform = false) ?(uqvars = true)
           gl
       in
       let gl =
-        if isform 
-        then gl 
-        else get_fa_access ag_aux fuel ty :: gl
+        if Foptions.get_u_fa () 
+        then get_fa_access ag_aux fuel ty :: gl 
+        else gl
       in
       let gl =
         if (Foptions.get_u_adts ()) then 
