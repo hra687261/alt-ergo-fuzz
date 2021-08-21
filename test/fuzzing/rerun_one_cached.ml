@@ -15,7 +15,8 @@ let () =
   let bil: stmt_cache =
     Marshal.from_string str 0
   in
-
+  
+  if num >= List.length bil then exit 123;
   let {ae_c; ae_t; cvc5; stmtcs; exn; _} = List.nth bil num in  
 
   Format.printf 

@@ -11,12 +11,12 @@ fi
 > rc_tmp2
 
 ./_build/default/test/fuzzing/rerun_all_cached.exe $1 > rc_tmp1 2>&1
-error="Fatal error: exception Failure(\"nth\")"
 i=0
 while true
 do
   tmp=$(./_build/default/test/fuzzing/rerun_one_cached.exe $1 $i 2>&1)
-  if [[ $tmp == $error ]]
+  resp=$? 
+  if [[ $resp -eq 123 ]]
   then 
     exit 1
   else 

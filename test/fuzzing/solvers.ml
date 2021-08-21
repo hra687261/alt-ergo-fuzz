@@ -52,8 +52,8 @@ let set_debug debug =
   (*
   AEL.Options.set_verbose debug;
   AEL.Options.set_debug debug;
-  AEL.Options.set_debug_ac debug; (**)
-  AEL.Options.set_debug_adt debug; (**)
+  AEL.Options.set_debug_ac debug;
+  AEL.Options.set_debug_adt debug;
   AEL.Options.set_debug_arith debug;
   AEL.Options.set_debug_arrays debug;
   AEL.Options.set_debug_bitv debug;
@@ -65,18 +65,18 @@ let set_debug debug =
   (*AEL.Options.set_debug_fpa : int -> unit*)
   AEL.Options.set_debug_gc debug;
   AEL.Options.set_debug_interpretation debug;
-  AEL.Options.set_debug_ite debug; 
+  AEL.Options.set_debug_ite debug;
   (*AEL.Options.set_debug_matching : int -> unit*)
   AEL.Options.set_debug_sat debug;
   AEL.Options.set_debug_split debug;
   AEL.Options.set_debug_sum debug;
   AEL.Options.set_debug_triggers debug;
-  AEL.Options.set_debug_types debug; 
-  AEL.Options.set_debug_typing debug; 
-  AEL.Options.set_debug_uf debug; 
-  AEL.Options.set_debug_unsat_core debug; 
-  AEL.Options.set_debug_use debug; 
-  AEL.Options.set_debug_warnings debug 
+  AEL.Options.set_debug_types debug;
+  AEL.Options.set_debug_typing debug;
+  AEL.Options.set_debug_uf debug;
+  AEL.Options.set_debug_unsat_core debug;
+  AEL.Options.set_debug_use debug;
+  AEL.Options.set_debug_warnings debug
   *)
 
 let solve_with_ae 
