@@ -284,7 +284,7 @@ let qv_gen uqvars ty =
   let aux pref pos = 
     mk_var (mk_vname pref pos)
   in
-  if uqvars && !nb_q_vars > 0 then 
+  if uqvars && !nb_q_vars > 0 && Foptions.get_u_qvrs () then 
     [ Cr.map 
         [Cr.bool; Cr.range !nb_q_vars] 
         ( fun b pos -> 
