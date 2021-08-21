@@ -138,60 +138,60 @@ let typ_gen () =
     Cr.const Tbool;
   ]
 
-let cst_gen ty = 
+let cst_gen ty =
   let rec pow x y =
     if y<=0 then 1
     else x * pow x (y-1)
   in
-  match ty with 
-  | Tint -> 
-    Cr.map 
-      [Cr.int] 
+  match ty with
+  | Tint ->
+    Cr.map
+      [Cr.int]
       ( fun x ->
-          let g_res = Cst (CstI x) in 
+          let g_res = Cst (CstI x) in
           mk_empty_gen_res g_res
       )
-  | Treal -> 
-    Cr.map 
-      [Cr.float] 
-      ( fun x -> 
-          let g_res = 
+  | Treal ->
+    Cr.map
+      [Cr.float]
+      ( fun x ->
+          let g_res =
             Cst (
               CstR (
-                if Float.is_nan x  
-                then 0. 
-                else 
-                if x = Float.infinity 
-                then Float.max_float
-                else 
-                if x = Float.neg_infinity 
-                then  
-                  (*because min_float is equal to -. neg_flaot*)
-                  -. Float.max_float  
+                if Float.is_nan x
+                then 0.
                 else
-                  Float.of_string 
-                    (Str.replace_first 
-                       (Str.regexp "e.+") "" 
+                if x = Float.infinity
+                then Float.max_float
+                else
+                if x = Float.neg_infinity
+                then
+                  (*because min_float is equal to -. neg_flaot*)
+                  -. Float.max_float
+                else
+                  Float.of_string
+                    (Str.replace_first
+                       (Str.regexp "e.+") ""
                        (Float.to_string x)
                     )
               )
             )
-          in 
+          in
           mk_empty_gen_res g_res)
-  | Tbool -> 
-    Cr.map 
-      [Cr.bool] 
-      (fun x -> 
+  | Tbool ->
+    Cr.map
+      [Cr.bool]
+      (fun x ->
          let g_res =
-           Cst (CstB x) in 
+           Cst (CstB x) in
          mk_empty_gen_res g_res)
-  | TBitV n -> 
-    Cr.map 
-      [Cr.range ((pow 2 n)-1)] 
-      (fun x -> 
+  | TBitV n when Foptions.get_u_btv () ->
+    Cr.map
+      [Cr.range ((pow 2 n)-1)]
+      (fun x ->
          let g_res =
-           Cst (CstBv (int_to_bitv ~wl:n x)) 
-         in 
+           Cst (CstBv (int_to_bitv ~wl:n x))
+         in
          mk_empty_gen_res g_res)
   | _ -> assert false
 
@@ -284,7 +284,7 @@ let qv_gen uqvars ty =
   let aux pref pos = 
     mk_var (mk_vname pref pos)
   in
-  if uqvars then 
+  if uqvars && !nb_q_vars > 0 then 
     [ Cr.map 
         [Cr.bool; Cr.range !nb_q_vars] 
         ( fun b pos -> 
@@ -730,11 +730,14 @@ let expr_gen ?(isform = false) ?(uqvars = true)
         (qv_gen uqvars ty)
       in
       let gl =
-        if (Foptions.get_u_li ()) then
+        if (Foptions.get_u_li ())
+        then
           letin_gen ag_aux bvars fuel ty :: gl
-        else gl in 
+        else gl
+      in 
       let gl = 
-        if (Foptions.get_u_ite ()) then
+        if (Foptions.get_u_ite ())
+        then
           ite_gen ag_aux fuel ty :: gl
         else gl
       in
@@ -746,21 +749,21 @@ let expr_gen ?(isform = false) ?(uqvars = true)
       in
       let tmp =
         ( match ty with
-          | Tint -> 
-            gen_int_binop fuel ag_aux 
-          | Treal -> 
+          | Tint ->
+            gen_int_binop fuel ag_aux
+          | Treal ->
             gen_real_binop fuel ag_aux
           | Tbool ->
             gen_bool_binop fuel ag_aux
-          | TBitV len ->
+          | TBitV len when Foptions.get_u_btv () ->
             get_bvec_gens ag_aux fuel len
-          | TFArray {ti; tv} -> 
+          | TFArray {ti; tv} ->
             [ get_fa_update ag_aux fuel ti tv ]
-          | Tadt adt ->
+          | Tadt adt when Foptions.get_u_adts () ->
             let adt_gen =
               adt_dstr_gen (ag_aux ~bvars) adt fuel
             in
-            if snd adt = [] || (not (Foptions.get_u_adts ()))
+            if snd adt = []
             then []
             else [adt_gen]
           | _ -> assert false
