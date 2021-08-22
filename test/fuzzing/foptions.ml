@@ -8,7 +8,7 @@ let u_li = ref true
 
 let u_ite = ref true
 
-let u_fa = ref true
+let u_fa = ref false
 
 let u_btv = ref true
 
