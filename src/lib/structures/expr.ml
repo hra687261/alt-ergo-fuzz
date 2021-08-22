@@ -2972,7 +2972,8 @@ let clear_hc () =
   binder_cpt := 0;
   Labels.clear labels;
   cache := TMap.empty;
-  HC.empty ()
+  HC.empty ~n:15 ()
+
 
 let print_gform : 
   ?p:string -> Format.formatter -> gformula -> unit =

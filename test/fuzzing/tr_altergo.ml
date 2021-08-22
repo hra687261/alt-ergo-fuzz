@@ -136,36 +136,37 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
   | Cst (CstBv b) ->
     E.bitv b.bits (Ty.Tbitv b.length)
 
-  | Unop (Neg, x) -> translate_expr ~vars ~stmtkind x
+  | Unop (Neg, x) -> 
+    translate_expr ~name_base ~vars ~stmtkind x
   | Unop (Not, x) -> 
-    E.neg (translate_expr ~vars ~stmtkind x)
+    E.neg (translate_expr ~name_base ~vars ~stmtkind x)
 
   | Unop (Access { ty = _, tv; fa}, i) -> 
-    let fa' = translate_expr fa ~vars ~stmtkind in
-    let i' = translate_expr i ~vars ~stmtkind in
+    let fa' = translate_expr ~name_base ~vars ~stmtkind fa in
+    let i' = translate_expr ~name_base ~vars ~stmtkind i in
     E.mk_term 
       (Sy.Op Sy.Get) 
       [fa'; i'] 
       (typ_to_ty tv)
 
   | FAUpdate { ty = (ti, tv); fa; i; v}-> 
-    let fa' = translate_expr fa ~vars ~stmtkind in
-    let i' = translate_expr i ~vars ~stmtkind in
-    let v' = translate_expr v ~vars ~stmtkind in
+    let fa' = translate_expr ~name_base ~vars ~stmtkind fa in
+    let i' = translate_expr ~name_base ~vars ~stmtkind i in
+    let v' = translate_expr ~name_base ~vars ~stmtkind v in
     E.mk_term 
       (Sy.Op Sy.Set) 
       [fa'; i'; v'] 
       (typ_to_ty (TFArray {ti; tv}))
 
   | Binop (Concat n, x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_term (Sy.Op Sy.Concat) [x'; y'] (Ty.Tbitv n)
 
   | Unop (Extract {l; r}, b) -> 
     let l' = E.int (Int.to_string l) in 
     let r' = E.int (Int.to_string r) in 
-    let b' = translate_expr ~vars ~stmtkind b in 
+    let b' = translate_expr ~name_base ~vars ~stmtkind b in 
     E.mk_term (Sy.Op Sy.Extract) [b'; l'; r'] (Ty.Tbitv (r-l))
 
   | Binop (((And | Or | Xor) as op), x, y) ->
@@ -180,18 +181,18 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     end
 
   | Binop (Imp, x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_imp x' y' 0
 
   | Binop (Iff, x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_eq ~iff:true x' y'
 
   | Binop ((Lt | Le | Gt | Ge) as op , x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     let sy, x'', y'' = 
       begin
         match op with 
@@ -205,18 +206,18 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     E.mk_builtin ~is_pos:true sy [x''; y'']
 
   | Binop (Eq, x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_eq ~iff:true x' y'
 
   | Binop (Neq, x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_distinct ~iff:true [x'; y']
 
   | Binop (IAdd, x, y) ->
-    let y' = translate_expr ~vars ~stmtkind y in
-    let x' = translate_expr ~vars ~stmtkind x in
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in
     let s = Sy.Op Sy.Plus in 
     let ty = Ty.Tint in
     let args = concat_chainable s ty y' [] in
@@ -225,8 +226,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     E.mk_term s args ty
 
   | Binop (RAdd, x, y) ->
-    let y' = translate_expr ~vars ~stmtkind y in
-    let x' = translate_expr ~vars ~stmtkind x in
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in
     let s = Sy.Op Sy.Plus in 
     let ty = Ty.Treal in
     let args = concat_chainable s ty y' [] in
@@ -235,8 +236,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     E.mk_term s args ty
 
   | Binop (((ISub | IMul | IDiv | IPow | IMod) as op), x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_term
       begin
         match op with 
@@ -250,8 +251,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       [x'; y'] Ty.Tint
 
   | Binop (((RSub | RMul | RDiv | RPow) as op), x, y) ->
-    let x' = translate_expr ~vars ~stmtkind x in 
-    let y' = translate_expr ~vars ~stmtkind y in 
+    let x' = translate_expr ~name_base ~vars ~stmtkind x in 
+    let y' = translate_expr ~name_base ~vars ~stmtkind y in 
     E.mk_term
       begin
         match op with 
@@ -268,7 +269,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       Sy.Name (Hstring.make fname, Sy.Other) 
     in
     let l =
-      List.map (translate_expr ~vars ~stmtkind) args
+      List.map (translate_expr ~name_base ~vars ~stmtkind) args
     in
     let ty = typ_to_ty rtyp in 
     make_adequate_app s l ty
@@ -284,6 +285,13 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
 
   | Exists {qvars = vs; body; _} 
   | Forall {qvars = vs; body; _} ->
+    let n = !name_tag in 
+    incr name_tag;
+    let name =
+      if n = 0 then name_base
+      else
+        Format.sprintf "#%s#sub-%d" name_base n
+    in
     let qvars, vars = 
       VS.fold ( 
         fun v (vl,vm) -> 
@@ -306,18 +314,8 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     let binders = E.mk_binders qve in 
     let triggers = [] (* ??? *) in
     let qbody = E.purify_form @@
-      translate_expr ~vars ~stmtkind body
+      translate_expr  ~name_base ~vars ~stmtkind body
     in
-    let name =
-      let n = !name_tag in 
-      incr name_tag;
-      if n = 0 then name_base
-      else 
-        Format.sprintf "#%s#sub-%d" name_base n
-    in
-    (*
-    Format.printf "\nX{%d %s}X@." !name_tag name;
-    *)
     begin 
       match expr with 
       | Forall _ -> E.mk_forall
@@ -334,11 +332,15 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       ~decl_kind:stmtkind
 
   | ITE {cond; cons; alt; _} ->
-    let cond' = 
-      translate_expr ~vars ~stmtkind:E.Daxiom cond 
-    in 
-    let cons' = translate_expr ~vars ~stmtkind cons in 
-    let alt' = translate_expr ~vars ~stmtkind alt in 
+    let cond' =
+      translate_expr ~name_base ~vars ~stmtkind:E.Daxiom cond
+    in
+    let cons' =
+      translate_expr ~name_base ~vars ~stmtkind cons
+    in
+    let alt' =
+      translate_expr ~name_base ~vars ~stmtkind alt
+    in
     E.mk_ite cond' cons' alt' (incr ite_id; !ite_id)
 
   | LetIn (v, e, b) ->
@@ -356,7 +358,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
           let ty = typ_to_ty v.vty in
           let vars = VM.add v (sy, ty) vars in 
           let expr = 
-            translate_expr ~vars ~stmtkind e
+            translate_expr ~name_base ~vars ~stmtkind e
           in 
           (sy, expr) :: bindings, vars
       ) ([], vars) (List.rev bds)
@@ -365,11 +367,11 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
       (fun acc (sy, e) ->
          E.mk_let sy e acc 0
       )
-      (translate_expr ~vars ~stmtkind rb) 
+      (translate_expr ~name_base ~vars ~stmtkind rb) 
       binders
 
   | PMatching {mtchdv; patts; _} ->
-    let e = translate_expr ~vars ~stmtkind mtchdv in
+    let e = translate_expr ~name_base ~vars ~stmtkind mtchdv in
     let pats = 
       List.rev_map (fun {destrn; pattparams; mbody} ->
           let args, vars = 
@@ -392,7 +394,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
               {name = Hstring.make destrn; args}
           in
           let te =
-            translate_expr ~vars ~stmtkind mbody
+            translate_expr ~name_base ~vars ~stmtkind mbody
           in
           x, te
         ) (List.rev patts)
@@ -406,7 +408,7 @@ let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) 
     let exprs =
       List.rev_map (
         fun (_, a) ->
-          translate_expr ~vars ~stmtkind a
+          translate_expr ~name_base ~vars ~stmtkind a
       ) (List.rev params)
     in
     E.mk_term sy exprs (typ_to_ty cty)
