@@ -1,16 +1,16 @@
 
 
-let u_qvrs = ref false
+let u_qvrs = ref true
 
-let u_adts = ref false
+let u_adts = ref true
 
-let u_li = ref false
+let u_li = ref true
 
-let u_ite = ref false
+let u_ite = ref true
 
-let u_fa = ref false
+let u_fa = ref true
 
-let u_btv = ref false
+let u_btv = ref true
 
 
 (* Getters *)
