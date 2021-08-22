@@ -76,7 +76,7 @@ module type S = sig
   type t
   (** The type of value used. *)
 
-  val empty : unit -> unit
+  val empty : ?n:int -> unit -> unit
   (** Resets the hashconsing storage *)
 
   val make : t -> t

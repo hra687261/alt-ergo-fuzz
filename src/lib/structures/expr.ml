@@ -2544,5 +2544,6 @@ let clear_hc () =
   binder_cpt := 0;
   Labels.clear labels;
   cache := TMap.empty;
-  HC.empty ()
+  HC.empty ~n:15 ()
+
 
