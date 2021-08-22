@@ -710,24 +710,24 @@ let expr_gen ?(isform = false) ?(uqvars = true)
     ?(tydecls : typedecl list = []) max_depth ty =
   ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
+    
+    let gl =
+      usymv_gen ty :: qv_gen uqvars ty
+    in
+    let gl = 
+      List.rev_append (get_bv_gens bvars ty) gl 
+    in
+    let gl =
+      match ty with
+      | TFArray _ | Tadt _ -> gl
+      | _ -> cst_gen ty :: gl
+    in
+
     if fuel <= 0
-    then
+    then Cr.choose gl
+    else 
       let gl =
-        usymv_gen ty :: qv_gen uqvars ty
-      in
-      let gl = List.rev_append gl (get_arg_gens ty args) in
-      let gl =
-        match ty with
-        | TFArray _ | Tadt _ -> gl
-        | _ -> cst_gen ty :: gl
-      in
-      let gl = List.rev_append (get_bv_gens bvars ty) gl in
-      Cr.choose gl
-    else
-      let gl =
-        usymv_gen ty ::
-        usymf_genl ty ag_aux fuel ::
-        (qv_gen uqvars ty)
+        usymf_genl ty ag_aux fuel :: gl 
       in
       let gl =
         if (Foptions.get_u_li ())
@@ -740,12 +740,6 @@ let expr_gen ?(isform = false) ?(uqvars = true)
         then
           ite_gen ag_aux fuel ty :: gl
         else gl
-      in
-      let gl = List.rev_append (get_bv_gens bvars ty) gl in
-      let gl =
-        match ty with
-        | TFArray _ | Tadt _ -> gl
-        | _ -> cst_gen ty :: gl
       in
       let tmp =
         ( match ty with
