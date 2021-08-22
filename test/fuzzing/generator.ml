@@ -415,7 +415,7 @@ let get_fa_access gen fuel tv =
   Cr.dynamic_bind (typ_gen ()) 
     ( fun ti -> 
         Cr.map 
-          [ gen 0 (TFArray {ti;tv});
+          [ gen (fuel - 1) (TFArray {ti;tv});
             gen (fuel - 1) ti]
           ( fun fa i ->
               let g_res =
