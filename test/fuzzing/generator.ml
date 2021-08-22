@@ -704,13 +704,51 @@ let gen_bool_binop fuel ag_aux =
   let tmp = List.rev_append l2 l3 in 
   List.rev_append l1 tmp
 
+let get_binop_gens bvars fuel ty 
+    (ag_aux: ?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) =
+  match ty with
+  | Tint ->
+    gen_int_binop fuel ag_aux
+  | Treal ->
+    gen_real_binop fuel ag_aux
+  | Tbool ->
+    gen_bool_binop fuel ag_aux
+  | TBitV len when Foptions.get_u_btv () ->
+    get_bvec_gens ag_aux fuel len
+  | TFArray {ti; tv} when Foptions.get_u_fa () -> 
+    [ get_fa_update ag_aux fuel ti tv ]
+  | Tadt adt when Foptions.get_u_adts () ->
+    let adt_gen =
+      adt_dstr_gen (ag_aux ~bvars) adt fuel
+    in
+    if snd adt = []
+    then []
+    else [adt_gen]
+  | _ -> assert false
+
+let get_pm_gens tydecls ag_aux fuel ty =
+  let adts_gens = 
+    List.fold_left (
+      fun acc typ ->
+        match typ with
+        | Adt_decl adt -> Cr.const adt :: acc
+        | _ -> acc
+    ) [] tydecls
+  in
+  if adts_gens = [] then []
+  else [
+    Cr.dynamic_bind (Cr.choose adts_gens) (
+      fun td ->
+        pm_gen ag_aux td fuel ty
+    )]
+
 (********************************************************************)
 let expr_gen ?(isform = false) ?(uqvars = true) 
     ?(args = []) ?(fdefs: fd_info list = []) 
     ?(tydecls : typedecl list = []) max_depth ty =
   ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
-    
+
     let gl =
       usymv_gen ty :: qv_gen uqvars ty
     in
@@ -741,29 +779,10 @@ let expr_gen ?(isform = false) ?(uqvars = true)
           ite_gen ag_aux fuel ty :: gl
         else gl
       in
-      let tmp =
-        ( match ty with
-          | Tint ->
-            gen_int_binop fuel ag_aux
-          | Treal ->
-            gen_real_binop fuel ag_aux
-          | Tbool ->
-            gen_bool_binop fuel ag_aux
-          | TBitV len when Foptions.get_u_btv () ->
-            get_bvec_gens ag_aux fuel len
-          | TFArray {ti; tv} when Foptions.get_u_fa () -> 
-            [ get_fa_update ag_aux fuel ti tv ]
-          | Tadt adt when Foptions.get_u_adts () ->
-            let adt_gen =
-              adt_dstr_gen (ag_aux ~bvars) adt fuel
-            in
-            if snd adt = []
-            then []
-            else [adt_gen]
-          | _ -> assert false
-        )
+      let tmp = 
+        get_binop_gens bvars fuel ty ag_aux
       in
-      let gl = List.rev_append gl tmp in
+      let gl = List.rev_append gl tmp in 
       let gl =
         List.rev_append
           (get_arg_gens ty args)
@@ -780,23 +799,11 @@ let expr_gen ?(isform = false) ?(uqvars = true)
         else gl
       in
       let gl =
-        if (Foptions.get_u_adts ()) then 
-          let adts_gens = 
-            List.fold_left (
-              fun acc typ -> 
-                match typ with 
-                | Adt_decl adt -> Cr.const adt :: acc
-                | _ -> acc
-            ) [] tydecls
-          in
-          if adts_gens = []
-          then gl
-          else
-            Cr.dynamic_bind (Cr.choose adts_gens) ( 
-              fun td -> 
-                pm_gen (ag_aux ~bvars) td fuel ty
-            ) :: gl
-        else gl
+        if (Foptions.get_u_adts ()) then
+          List.rev_append (
+            get_pm_gens tydecls (ag_aux ~bvars) fuel ty
+          ) gl
+        else gl 
       in
       Cr.choose gl
   in 
