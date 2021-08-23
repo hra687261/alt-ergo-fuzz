@@ -1219,7 +1219,7 @@ let quantify expr =
     let l, v, spll = 
       List.fold_left 
         ( fun (cacc, accv, gacc) (p, v) ->
-            if v.id = accv.id 
+            if String.compare v.vname accv.vname = 0 
             then (p::cacc, accv, gacc) 
             else ([p], v, (cacc, accv)::gacc))
         ([fh], sh, []) t 
