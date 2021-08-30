@@ -1,15 +1,6 @@
 open Ast
 module Cr = Crowbar 
 
-(************************************************************)
-let query_max_depth = ref 3
-let axiom_max_depth = ref 3
-let func_max_depth = ref 3
-
-let nb_us_vars = ref 5
-let nb_q_vars = ref 1
-
-(************************************************************)
 type 'a gen_res = {
   g_res : 'a;
   u_args : VS.t; 
@@ -213,7 +204,7 @@ let binop_gen : 'a -> int -> binop ->
 
 let usymv_gen ty = 
   Cr.map 
-    [Cr.range !nb_us_vars] 
+    [Cr.range (Foptions.get_nb_us_vars ())] 
     ( fun pos -> 
         let v =
           get_u_tvar pos ty 
@@ -284,9 +275,9 @@ let qv_gen uqvars ty =
   let aux pref pos = 
     mk_var (mk_vname pref pos)
   in
-  if uqvars && !nb_q_vars > 0 && Foptions.get_u_qvrs () then 
+  if uqvars && (Foptions.get_nb_q_vars ()) > 0 && Foptions.get_u_qvrs () then 
     [ Cr.map 
-        [Cr.bool; Cr.range !nb_q_vars] 
+        [Cr.bool; Cr.range (Foptions.get_nb_q_vars ())] 
         ( fun b pos -> 
             let g_res =
               match b with 
@@ -890,11 +881,11 @@ let stmt_gen
     ?(fdefs = []) ?(tydecls: typedecl list = []) ?(name = "") kind =
   match kind with 
   | FD ->
-    fdef_gen ~fdefs ~tydecls name !func_max_depth
+    fdef_gen ~fdefs ~tydecls name (Foptions.get_func_max_depth ())
   | AxD ->
-    axiom_gen ~fdefs ~tydecls name !axiom_max_depth 
+    axiom_gen ~fdefs ~tydecls name (Foptions.get_axiom_max_depth ())
   | GD ->
-    goal_gen ~fdefs ~tydecls name !query_max_depth 
+    goal_gen ~fdefs ~tydecls name (Foptions.get_query_max_depth ())
 
 (********************************************************************)
 let axid, gid, fid = ref 0, ref 0, ref 0
