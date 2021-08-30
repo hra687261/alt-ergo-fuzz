@@ -12,7 +12,7 @@ let call_cvc5 ?(timeout = 10000) stmtcs =
   let ic = 
     Unix.open_process_in ( 
       Format.sprintf 
-        "echo \"\n%s\n\" | cvc5 --incremental --lang smt2 --tlimit=%d" 
+        "echo \"\n%s\n\" | cvc5 --incremental --lang smt2 --tlimit=%d 2>&1" 
         data timeout
     )
   in
