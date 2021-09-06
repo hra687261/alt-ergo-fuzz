@@ -1,3 +1,9 @@
+# Note
+
+This repository is NOT the official Alt-Ergo repository.</br>
+It is a fork of Alt-Ergo used by Alt-Ergo-Fuzz.</br>
+Please report any issues or pull requests to the original project.
+
 # Alt-Ergo
 
 [Alt-Ergo] is an open-source automatic solver of mathematical formulas designed for program verification. It is based on [Satisfiability Modulo Theories] (SMT). Solvers of this family have made impressive advances and became very popular during the last decade. They are now used is various domains such as hardware design, software verification and formal testing. It was developed at [LRI], and is now improved and maintained at [OCamlPro], and friendly collaboration is maintained with the [Why3] development team.
