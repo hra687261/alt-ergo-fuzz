@@ -59,8 +59,8 @@ module type S = sig
 
   val get_assumed : t -> Expr.Set.t
 
-  val reset_cnt : unit -> unit
-  
+  val reset_cpt : unit -> unit
+
 end
 
 module Main_Default : S

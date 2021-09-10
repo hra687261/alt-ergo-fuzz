@@ -317,11 +317,18 @@ let print fmt s = Format.fprintf fmt "%s" (to_string s)
 
 let fresh_sy_cnt = ref 0
 
-let fresh ?(is_var=false) s =
-  incr fresh_sy_cnt;
-  (* garder le suffixe "__" car cela influence l'ordre *)
-  let s = (Format.sprintf "!?__%s%i" s (!fresh_sy_cnt)) in
-  if is_var then var @@ Var.of_string s else name s
+let fresh, reset_fresh_sy_cpt =
+  let cpt = ref 0 in
+  let fresh ?(is_var=false) s =
+    incr cpt;
+    (* garder le suffixe "__" car cela influence l'ordre *)
+    let s = (Format.sprintf "!?__%s%i" s (!cpt)) in
+    if is_var then var @@ Var.of_string s else name s
+  in 
+  let reset_fresh_sy_cpt () =
+    cpt := 0 
+  in
+  fresh, reset_fresh_sy_cpt
 
 let is_get f = equal f (Op Get)
 let is_set f = equal f (Op Set)
@@ -345,8 +352,6 @@ let labels = Labels.create 107
 let add_label lbl t = Labels.replace labels t lbl
 
 let label t = try Labels.find labels t with Not_found -> Hstring.empty
-
-let reset_cnt () = fresh_sy_cnt := 0
 
 let clear_labels () = Labels.clear labels
 

@@ -58,11 +58,16 @@ let rec list_assoc x = function
   | [] -> raise Not_found
   | (y, v) :: l -> if equal x y then v else list_assoc x l
 
-let fresh_str_cnt = ref 0
-
-let fresh_string () =
-  incr fresh_str_cnt;
-  "!k" ^ (string_of_int !fresh_str_cnt)
+let fresh_string, reset_fresh_string_cpt =
+  let cpt = ref 0 in
+  let fresh_string () =
+    incr cpt;
+    "!k" ^ (string_of_int !cpt)
+  in 
+  let reset_fresh_string_cpt () =
+    cpt := 0
+  in 
+  fresh_string, reset_fresh_string_cpt
 
 let is_fresh_string s =
   try s.[0] == '!' && s.[1] == 'k'
@@ -78,7 +83,7 @@ let is_fresh_skolem s =
 
 let reset_cnt () = 
   S.empty ~n:26 ();
-  fresh_str_cnt := 0
+  reset_fresh_string_cpt ()
 
 module Arg = struct type t'= t type t = t' let compare = compare end
 module Set : Set.S with type elt = t = Set.Make(Arg)

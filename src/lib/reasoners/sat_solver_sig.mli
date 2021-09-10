@@ -71,7 +71,8 @@ module type S = sig
 
   val reset_refs : unit -> unit
 
-  val clear_cache : unit -> unit
+  val reinit_ctx : unit -> unit
+
 end
 
 

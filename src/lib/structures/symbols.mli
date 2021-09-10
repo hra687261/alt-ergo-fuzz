@@ -110,6 +110,8 @@ val print_clean : Format.formatter -> t -> unit
 
 val fresh : ?is_var:bool -> string -> t
 
+val reset_fresh_sy_cpt : unit -> unit 
+
 val is_get : t -> bool
 val is_set : t -> bool
 
@@ -124,8 +126,6 @@ val label : t -> Hstring.t
 
 val print_bound : Format.formatter -> bound -> unit
 val string_of_bound : bound -> string
-
-val reset_cnt : unit -> unit 
 
 val clear_labels : unit -> unit
 

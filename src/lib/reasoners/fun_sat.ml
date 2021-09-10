@@ -1131,12 +1131,13 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     env
 
 
-  (* this function has an internal state used to store the latest
-     generated instances. These instances are used to try to backjump
-     as far as possible using simple "assume"s, ie without decision.
-     The reason for this modification is that a set of instances may
-     cause several conflict, and we don't always detect the one which
-     makes us backjump better. *)
+    (* this function has an internal state used to store the latest
+       generated instances. These instances are used to try to backjump
+       as far as possible using simple "assume"s, ie without decision.
+       The reason for this modification is that a set of instances may
+       cause several conflict, and we don't always detect the one which
+       makes us backjump better. *)
+    <<<<<<< HEAD
   let last_cache = ref []
   let update_instances_cache l_opt =
     match l_opt with
@@ -1144,6 +1145,21 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     | Some l -> (* Set or reset if l = [] *)
       last_cache := List.filter (fun (_,e) -> Ex.has_no_bj e) l;
       None
+      =======
+      let update_instances_cache, clear_instances_cache =
+        let last_cache = ref [] in
+        let update_instances_cache l_opt =
+          match l_opt with
+          | None   -> Some !last_cache (* Get *)
+          | Some l -> (* Set or reset if l = [] *)
+            last_cache := List.filter (fun (_,e) -> Ex.has_no_bj e) l;
+            None
+        in 
+        let clear_instances_cache () = 
+          last_cache := [] 
+        in
+        update_instances_cache, clear_instances_cache
+        >>>>>>> next
 
   (* returns the (new) env and true if some new instances are made *)
   let inst_and_assume mconf env inst_function inst_env =
@@ -1955,12 +1971,12 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   let assume_th_elt env th_elt dep =
     {env with tbox = Th.assume_th_elt env.tbox th_elt dep}
 
-  let clear_cache () = 
-    last_cache := [];
+  let reinit_ctx () = 
+    clear_instances_cache ();
     reset_refs ();
     Expr.clear_hc ();
-    Th.reset_cnt ();
-    Symbols.reset_cnt ();
+    Th.reset_cpt ();
+    Symbols.reset_fresh_sy_cpt ();
     Symbols.clear_labels ();
     Var.reset_cnt ();
     Hstring.reset_cnt ();
@@ -1971,4 +1987,5 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Relation.reset_em_cache ();
     Inst.reset_em_cache ();
     Gc.major ()
+
 end
