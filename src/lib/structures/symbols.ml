@@ -315,7 +315,6 @@ let to_string s = to_string ~show_vars:true s
 let print_clean fmt s = Format.fprintf fmt "%s" (to_string_clean s)
 let print fmt s = Format.fprintf fmt "%s" (to_string s)
 
-let fresh_sy_cnt = ref 0
 
 let fresh, reset_fresh_sy_cpt =
   let cpt = ref 0 in

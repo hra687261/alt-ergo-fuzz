@@ -1174,12 +1174,10 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Relation.reset_em_cache ();
     Inst.reset_em_cache ();
     Gc.major ()
-    
+
 end
 
 (*
 (*+ no dynamic loading of SAT solvers anymore +*)
 let () = Sat_solver.set_current (module Main : Sat_solver_sig.S)
 *)
-
-

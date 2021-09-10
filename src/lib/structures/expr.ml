@@ -551,7 +551,6 @@ let type_info t = t.ty
    | Sy.Form _ | Sy.Lit _  -> false
    | _ -> true (* bool vars are terms *)
 *)
-let binder_cpt = ref 0 
 
 let mk_binders, reset_mk_binders_cpt =
   let cpt = ref 0 in
@@ -1310,7 +1309,6 @@ and find_particular_subst =
         if SMap.is_empty sbt then None else Some sbt
       end
 
-let (cache : t Msbty.t Msbt.t TMap.t ref) = ref TMap.empty
 
 let apply_subst, clear_apply_subst_cache =
   let (cache : t Msbty.t Msbt.t TMap.t ref) = ref TMap.empty in

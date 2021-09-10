@@ -79,8 +79,6 @@ module type S = sig
 
 end
 
-let assumed_cnt = ref 0
-
 module Main_Default : S = struct
 
   (*BISECT-IGNORE-BEGIN*)
@@ -227,8 +225,8 @@ module Main_Default : S = struct
           print_dbg ~module_name:"Theory" ~function_name:"assumed"
             "Assumed facts (in this order):";
           print_declarations ~header:false l;
-          incr assumed_cnt;
-          print_dbg ~flushed:false ~header:false "goal g_%d :@ " !assumed_cnt;
+          incr cpt;
+          print_dbg ~flushed:false ~header:false "goal g_%d :@ " !cpt;
           List.iter
             (fun l ->
                print_dbg ~flushed:false ~header:false "(* call to assume *)@ ";

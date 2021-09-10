@@ -269,7 +269,6 @@ module Make (X : Arg) : S with type theory = X.t = struct
       ) env.fils lsbt_acc
 
 
-
   module T2 = struct
     type t = E.t * E.t
     let compare (a, b) (x, y) =
@@ -670,32 +669,14 @@ module Make (X : Arg) : S with type theory = X.t = struct
     let forward_triggers q =
       try HE.find trs_tbl q.E.main
       with Not_found ->
-        let trs = E.make_triggers q.E.main q.E.binders q.E.kind mconf in
-        HEI.add trs_tbl_of (q.E.main, mconf) trs;
+        let trs = E.resolution_triggers ~is_back:false q in
+        HE.add trs_tbl q.E.main trs;
         trs
     in
     let clear_forward_triggers_trs_tbl () =
       HE.clear trs_tbl
     in
     forward_triggers, clear_forward_triggers_trs_tbl
-
-  let trs_tbl_bt = HE.create 101
-
-  let backward_triggers q =
-    try HE.find trs_tbl_bt q.E.main
-    with Not_found ->
-      let trs = E.resolution_triggers ~is_back:true q in
-      HE.add trs_tbl_bt q.E.main trs;
-      trs
-
-  let trs_tbl_ft = HE.create 101
-
-  let forward_triggers q =
-    try HE.find trs_tbl_ft q.E.main
-    with Not_found ->
-      let trs = E.resolution_triggers ~is_back:false q in
-      HE.add trs_tbl_ft q.E.main trs;
-      trs
 
   let add_triggers mconf env formulas =
     ME.fold
