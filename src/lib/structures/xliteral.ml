@@ -26,7 +26,6 @@
 (*                                                                            *)
 (******************************************************************************)
 
-open Hconsing
 open Options
 
 
@@ -87,6 +86,8 @@ module type S = sig
   val hash : t -> int
   val uid : t -> int
   val elements : t -> elt list
+
+  val clear_labels : unit -> unit 
 
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t
@@ -227,7 +228,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   end
 
-  module H = Make(V)
+  module H = Hconsing.Make(V)
 
   let normalize_eq_bool t1 t2 is_neg =
     if X.compare t1 (X.bot()) = 0 then Pred(t2, not is_neg)
@@ -321,4 +322,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
     | PR a, _    -> [a]
     | BT (_,l), _ | EQ_LIST l, _ -> l
 
+  let clear_labels () =
+    H.empty ();
+    Labels.clear labels
 end

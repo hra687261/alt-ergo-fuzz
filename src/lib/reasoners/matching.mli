@@ -48,6 +48,8 @@ module type S = sig
   val query :
     Util.matching_env -> t -> theory -> (trigger_info * gsubst list) list
 
+  val reinit_caches : unit -> unit
+  
 end
 
 

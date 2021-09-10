@@ -1137,14 +1137,19 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
      The reason for this modification is that a set of instances may
      cause several conflict, and we don't always detect the one which
      makes us backjump better. *)
-  let update_instances_cache =
+  let update_instances_cache, clear_instances_cache =
     let last_cache = ref [] in
-    fun l_opt ->
+    let update_instances_cache l_opt =
       match l_opt with
       | None   -> Some !last_cache (* Get *)
       | Some l -> (* Set or reset if l = [] *)
         last_cache := List.filter (fun (_,e) -> Ex.has_no_bj e) l;
         None
+    in 
+    let clear_instances_cache () = 
+      last_cache := [] 
+    in
+    update_instances_cache, clear_instances_cache
 
   (* returns the (new) env and true if some new instances are made *)
   let inst_and_assume mconf env inst_function inst_env =
@@ -1955,4 +1960,22 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
   let assume_th_elt env th_elt dep =
     {env with tbox = Th.assume_th_elt env.tbox th_elt dep}
+
+  let reinit_ctx () = 
+    clear_instances_cache ();
+    reset_refs ();
+    Expr.clear_hc ();
+    Th.reset_cpt ();
+    Symbols.reset_fresh_sy_cpt ();
+    Symbols.clear_labels ();
+    Var.reset_cnt ();
+    Hstring.reset_cnt ();
+    Uf.clear_labels ();
+    Shostak.Combine.empty_cache ();
+    Satml_types.Flat_Formula.reset_cpt ();
+    Ty.reinit_decls ();
+    Relation.reset_em_cache ();
+    Inst.reset_em_cache ();
+    Gc.major ()
+
 end
