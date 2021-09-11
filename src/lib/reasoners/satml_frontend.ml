@@ -1287,11 +1287,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     SAT.assume_th_elt env.satml th_elt dep;
     env
 
-  let clear_cache () = 
+  let reinit_ctx () = 
     reset_refs ();
     Expr.clear_hc ();
-    Th.reset_cnt ();
-    Symbols.reset_cnt ();
+    Th.reset_cpt ();
+    Symbols.reset_fresh_sy_cpt ();
     Symbols.clear_labels ();
     Var.reset_cnt ();
     Hstring.reset_cnt ();
@@ -1302,11 +1302,10 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Relation.reset_em_cache ();
     Inst.reset_em_cache ();
     Gc.major ()
+
 end
 
 (*
 (*+ no dynamic loading of SAT solvers anymore +*)
 let () = Sat_solver.set_current (module Main : Sat_solver_sig.S)
 *)
-
-

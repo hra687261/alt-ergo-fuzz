@@ -148,12 +148,12 @@ let run_with_ae_t =
       let res =
         solve_with_ae (module SAT) (module Tr_altergo) stmtcs
       in
-      SAT.clear_cache ();
+      SAT.reinit_ctx ();
       Tr_altergo.reset_cnt ();
       res
     with
     | exn ->
-      SAT.clear_cache ();
+      SAT.reinit_ctx ();
       Tr_altergo.reset_cnt ();
       Printexc.raise_with_backtrace 
         exn (Printexc.get_raw_backtrace ())
@@ -173,12 +173,12 @@ let run_with_ae_c =
       let res =
         solve_with_ae (module SAT) (module Tr_altergo) stmtcs
       in
-      SAT.clear_cache ();
+      SAT.reinit_ctx ();
       Tr_altergo.reset_cnt ();
       res
     with
     | exn ->
-      SAT.clear_cache ();
+      SAT.reinit_ctx ();
       Tr_altergo.reset_cnt ();
       Printexc.raise_with_backtrace
         exn (Printexc.get_raw_backtrace ())

@@ -249,7 +249,6 @@ module Shostak
         P.add p (P.mult p1 p2), ctx
 
     | Sy.Op Sy.Div, [t1;t2] ->
-      (* assert (not (E.equal t2 (Expr.int (Int.to_string 0)))); *)
       let p1, ctx = mke Q.one (empty_polynome ty) t1 ctx in
       let p2, ctx = mke Q.one (empty_polynome ty) t2 ctx in
       if get_no_nla() &&
@@ -279,7 +278,6 @@ module Shostak
       mke coef p2 t1 ctx
 
     | Sy.Op Sy.Modulo , [t1;t2] ->
-      (* assert (not (E.equal t2 (Expr.int (Int.to_string 0)))); *)
       let p1, ctx = mke Q.one (empty_polynome ty) t1 ctx in
       let p2, ctx = mke Q.one (empty_polynome ty) t2 ctx in
       if get_no_nla() &&
