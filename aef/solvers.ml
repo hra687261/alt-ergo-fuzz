@@ -1,6 +1,7 @@
 module type T = Translater.T
 module AEL = AltErgoLib
 
+
 (* CVC5 *)
 
 let c5_ic : in_channel option ref = ref None  
@@ -45,6 +46,7 @@ let get_cvc5_response () =
     ) lines
   | None -> assert false 
 
+
 (* Alt-Ergo *)
 
 let set_debug debug = 
@@ -79,106 +81,128 @@ let set_debug debug =
   AEL.Options.set_debug_warnings debug
   *)
 
-let solve_with_ae 
-    (module SAT: AEL.Sat_solver_sig.S)
-    (module Tr: T with type t = AEL.Commands.sat_tdecl) = 
+module type SolverType =
+sig
+  module SAT: AEL.Sat_solver_sig.S
+  module FE: AEL.Frontend.S with type sat_env = SAT.t
+end
 
-  let module FE = AEL.Frontend.Make(SAT) in
-  let solve ctx tstmts goal_name =
-    let ctx = FE.choose_used_context ctx ~goal_name in
-    let st = Stack.create () in
-    let resp, _ =
-      List.fold_left (
-        fun (resp, (env, consistent, ex)) tstmt ->
-          let env, consistent, ex =
-            FE.process_decl
-              (fun _ _ -> ()) (*FE.print_status*)
-              ctx st
-              (env, consistent, ex) tstmt
-          in
-          match resp, tstmt.st_decl with
-          | None, AEL.Commands.Query _ ->
-            if consistent
-            then Some Utils.Unknown, (env, consistent, ex)
-            else Some Utils.Unsat, (env, consistent, ex)
-          | None, _ ->
-            resp, (env, consistent, ex)
-          | _ ->
-            Format.fprintf Format.err_formatter
-              "\nSolve is expected to get one goal at a time@.";
-            assert false
-      ) (None, (SAT.empty (), true, AEL.Explanation.empty)) 
-        tstmts
-    in
-    Option.get resp
-  in
-  let ctx =
-    FE.init_all_used_context ()
-  in 
+module MakeSolver(Solver: AEL.Sat_solver_sig.S) =
+struct 
+  module SAT = Solver
+  module FE = AEL.Frontend.Make(SAT)
+end
 
-  fun stmtcs ->
-    let resps, _ =
-      List.fold_left (
-        fun (resps , tstmts) Ast.{stmt; _} ->
-          let tstmt = Tr.translate_stmt stmt in 
-          match stmt with
-          | Ast.Goal {name; _} ->
-            let resp =
-              solve ctx (List.rev_append tstmts [tstmt]) name
+module Theory = AEL.Theory.Main_Default
+
+module CDCL_solver =
+  MakeSolver(AEL.Satml_frontend.Make(Theory))
+
+module Tableaux_solver =
+  MakeSolver(AEL.Fun_sat.Make(Theory))
+
+
+let solve_with_ae =
+  AEL.Options.set_disable_weaks true;
+  AEL.Options.set_use_fpa true;
+
+  fun (module Solver: SolverType) ->
+    let solve ctx tstmts goal_name =
+      let ctx = Solver.FE.choose_used_context ctx ~goal_name in
+      let st = Stack.create () in
+      let resp, _ =
+        List.fold_left (
+          fun (resp, (env, consistent, ex)) tstmt ->
+            let env, consistent, ex =
+              Solver.FE.process_decl
+                (fun _ _ -> ()) (*FE.print_status*)
+                ctx st
+                (env, consistent, ex) tstmt
             in
-            resp :: resps, []
-          | _ ->
-            resps, tstmt :: tstmts
-      ) ([], []) stmtcs
+            match resp, tstmt.st_decl with
+            | None, AEL.Commands.Query _ ->
+              if consistent
+              then Some Utils.Unknown, (env, consistent, ex)
+              else Some Utils.Unsat, (env, consistent, ex)
+            | None, _ ->
+              resp, (env, consistent, ex)
+            | _ ->
+              Format.fprintf Format.err_formatter
+                "\nSolve is expected to get one goal at a time@.";
+              assert false
+        ) (None, (Solver.SAT.empty (), true, AEL.Explanation.empty)) 
+          tstmts
+      in
+      Option.get resp
     in
-    List.rev resps
+    let ctx =
+      Solver.FE.init_all_used_context ()
+    in
+
+    fun stmtcs ->
+      try
+        let rresps, _ =
+          List.fold_left (
+            fun (resps , tstmts) Ast.{stmt; _} ->
+              let tstmt = Tr_altergo.translate_stmt stmt in 
+              match stmt with
+              | Ast.Goal {name; _} ->
+                let resp =
+                  solve ctx (List.rev_append tstmts [tstmt]) name
+                in
+                resp :: resps, []
+              | _ ->
+                resps, tstmt :: tstmts
+          ) ([], []) stmtcs
+        in
+        let resps = List.rev rresps in
+        Solver.SAT.reinit_ctx ();
+        Tr_altergo.reset_cnt ();
+        resps
+      with
+      | exn ->
+        Solver.SAT.reinit_ctx ();
+        Tr_altergo.reset_cnt ();
+        Printexc.raise_with_backtrace 
+          exn (Printexc.get_raw_backtrace ())
+
 
 (* Alt-Ergo Tableaux *)
 
 let run_with_ae_t = 
-  let module SC = AEL.Fun_sat in
-  let module Th = AEL.Theory.Main_Default in
-  let module SAT = SC.Make(Th) in
-  AEL.Options.set_disable_weaks true;
-  AEL.Options.set_use_fpa true;
+  fun stmtcs ->
+  AEL.Options.set_sat_solver AEL.Util.Tableaux;
+  AEL.Options.set_tableaux_cdcl false;
+  AEL.Options.set_cdcl_tableaux_inst false;
+  AEL.Options.set_cdcl_tableaux_th false;
+  solve_with_ae (module Tableaux_solver) stmtcs
 
-  fun ?(debug = false) stmtcs ->
-    set_debug debug;
-    try
-      let res =
-        solve_with_ae (module SAT) (module Tr_altergo) stmtcs
-      in
-      SAT.reinit_ctx ();
-      Tr_altergo.reset_cnt ();
-      res
-    with
-    | exn ->
-      SAT.reinit_ctx ();
-      Tr_altergo.reset_cnt ();
-      Printexc.raise_with_backtrace 
-        exn (Printexc.get_raw_backtrace ())
+(* Alt-Ergo Tableaux-CDCL *)
+
+let run_with_ae_tc = 
+  fun stmtcs ->
+  AEL.Options.set_sat_solver AEL.Util.Tableaux_CDCL;
+  AEL.Options.set_tableaux_cdcl true;
+  AEL.Options.set_cdcl_tableaux_inst false;
+  AEL.Options.set_cdcl_tableaux_th false;
+  solve_with_ae (module Tableaux_solver) stmtcs
 
 (* Alt-Ergo CDCL *)
 
 let run_with_ae_c =
-  let module SC = AEL.Satml_frontend in
-  let module Th = AEL.Theory.Main_Default in
-  let module SAT = SC.Make(Th) in
-  AEL.Options.set_disable_weaks true;
-  AEL.Options.set_use_fpa true;
+  fun stmtcs ->
+  AEL.Options.set_sat_solver AEL.Util.CDCL;
+  AEL.Options.set_tableaux_cdcl false;
+  AEL.Options.set_cdcl_tableaux_inst false;
+  AEL.Options.set_cdcl_tableaux_th false;
+  solve_with_ae (module CDCL_solver) stmtcs
 
-  fun ?(debug = false) stmtcs -> 
-    set_debug debug;
-    try
-      let res =
-        solve_with_ae (module SAT) (module Tr_altergo) stmtcs
-      in
-      SAT.reinit_ctx ();
-      Tr_altergo.reset_cnt ();
-      res
-    with
-    | exn ->
-      SAT.reinit_ctx ();
-      Tr_altergo.reset_cnt ();
-      Printexc.raise_with_backtrace
-        exn (Printexc.get_raw_backtrace ())
+(* Alt-Ergo CDCL-Tableaux *)
+
+let run_with_ae_ct =
+  fun stmtcs ->
+  AEL.Options.set_sat_solver AEL.Util.CDCL_Tableaux;
+  AEL.Options.set_tableaux_cdcl false;
+  AEL.Options.set_cdcl_tableaux_inst true;
+  AEL.Options.set_cdcl_tableaux_th true;
+  solve_with_ae (module CDCL_solver) stmtcs

@@ -72,6 +72,8 @@ module type S = sig
 
   val reinit_ctx : unit -> unit
 
+  val print_env : ?p:string -> Format.formatter -> t -> unit
+
 end
 
 
