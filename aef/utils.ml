@@ -116,7 +116,7 @@ let mknmarshall_bi_na ?(verbose = false)
     exn stmtcs [] [] []
 
 let mknmarshall_stmt_cache exn
-    ?(crash_output_folder_path = "test/fuzzing/crash_output") 
+    ?(crash_output_folder_path = "aef/crash_output") 
     (bis: stmt_cache) =
 
   let of_path = 
