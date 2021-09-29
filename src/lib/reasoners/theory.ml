@@ -257,7 +257,7 @@ module Main_Default : S = struct
       let reset_cpt () =
         cpt := 0
       in 
-      assumed, reset_cpt 
+      assumed, reset_cpt
 
     let theory_of k = match k with
       | Th_util.Th_arith  -> "Th_arith "
@@ -839,7 +839,8 @@ module Main_Default : S = struct
 
   let get_assumed env = env.assumed_set
 
-  let reset_cpt () = Debug.reset_cpt ()
+  let reset_cpt () = 
+    Debug.reset_cpt ()
 
 end
 

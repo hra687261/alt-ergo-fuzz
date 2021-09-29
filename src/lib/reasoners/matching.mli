@@ -51,7 +51,7 @@ module type S = sig
   val print_vrb: ?p:string -> Format.formatter -> t -> unit
 
   val reinit_caches : unit -> unit
-  
+
 end
 
 

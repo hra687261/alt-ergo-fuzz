@@ -133,8 +133,8 @@ struct
 
   module HC = Hconsing.Make(View)
 
-  let empty_cache () = HC.empty ()
-
+  let empty_cache () = 
+    HC.empty ~n:0 ()
   let hcons v = HC.make v
 
   (* end: Hconsing modules and functions *)
@@ -760,13 +760,15 @@ module Combine = struct
     let make t =
       match H.find_opt cache t with
       | None -> let res = make t in H.add cache t res; res
-      | Some res -> res 
+      | Some res -> res
     in
     let empty () =
       empty_cache ();
-      H.clear cache 
-    in
+      H.clear cache;
+      ignore @@ make (Expr.mk_term (Symbols.name "@bottom") [] Ty.Tint)
+    in 
     make, empty
+
 end
 
 module Arith = X1

@@ -1871,21 +1871,22 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
 
   let backward_instantiation env deepest_term =
+
+    let no_ematching = Options.get_no_ematching () in
+    let no_nla = Options.get_no_nla () in
+    let no_ac = Options.get_no_ac () in
+    let instantiation_heuristic = Options.get_instantiation_heuristic () in
+    (*let normalize_instances = Options.normalize_instances () in*)
+    let max_split = Options.get_max_split () in
+
+    Options.set_no_ematching true;
+    Options.set_no_nla true;
+    Options.set_no_ac  true;
+    Options.set_instantiation_heuristic IGreedy;
+    (*Options.set_normalize_instances true;*)
+    Options.set_max_split Numbers.Q.zero;
+
     try
-      let no_ematching = Options.get_no_ematching () in
-      let no_nla = Options.get_no_nla () in
-      let no_ac = Options.get_no_ac () in
-      let instantiation_heuristic = Options.get_instantiation_heuristic () in
-      (*let normalize_instances = Options.normalize_instances () in*)
-      let max_split = Options.get_max_split () in
-
-      Options.set_no_ematching true;
-      Options.set_no_nla true;
-      Options.set_no_ac  true;
-      Options.set_instantiation_heuristic IGreedy;
-      (*Options.set_normalize_instances true;*)
-      Options.set_max_split Numbers.Q.zero;
-
       let max_rnd = 3 * deepest_term in
       let modified_env = backward_instantiation_rec env 1 max_rnd in
 
@@ -1926,6 +1927,12 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
           (Options.Time.value ());
       env
     with IUnsat _ as e ->
+      Options.set_no_ematching no_ematching;
+      Options.set_no_nla no_nla;
+      Options.set_no_ac  no_ac;
+      Options.set_instantiation_heuristic instantiation_heuristic;
+      Options.set_max_split max_split;
+
       if get_verbose () || get_debug_sat () then
         Printer.print_dbg
           ~module_name:"Fun_sat" ~function_name:"backward_instantiation"
@@ -2174,8 +2181,8 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Symbols.clear_labels ();
     Var.reset_cnt ();
     Hstring.reset_cnt ();
-    Uf.clear_labels ();
     Shostak.Combine.empty_cache ();
+    Uf.clear_labels ();
     Satml_types.Flat_Formula.reset_cpt ();
     Ty.reinit_decls ();
     Relation.reset_em_cache ();

@@ -26,6 +26,7 @@
 (*                                                                            *)
 (******************************************************************************)
 
+open Hconsing
 open Options
 
 
@@ -282,7 +283,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   end
 
-  module H = Hconsing.Make(V)
+  module H = Make(V)
 
   let normalize_eq_bool t1 t2 is_neg =
     if X.compare t1 (X.bot()) = 0 then Pred(t2, not is_neg)
@@ -379,4 +380,5 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
   let clear_labels () =
     H.empty ();
     Labels.clear labels
+
 end
