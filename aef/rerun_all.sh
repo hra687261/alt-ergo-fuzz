@@ -1,8 +1,8 @@
 #!/bin/bash
 
-for f in ./test/fuzzing/crash_output/[uoit]*  
+for f in ./aef/crash_output/[uoit]*  
 do  
   echo "#####################################"
-  ./_build/default/test/fuzzing/rerun.exe "$f"
+  ./_build/default/aef/rerun.exe "$f"
   echo "" 
 done

@@ -70,7 +70,7 @@ let data_to_file data of_path =
   close_out oc
 
 let mknmarshall_bi ?(verbose = false)
-    ?(output_folder_path = "test/fuzzing/crash_output") 
+    ?(output_folder_path = "aef/crash_output") 
     id exn stmtcs ae_c ae_t cvc5 = 
   let bi =
     mk_bi id (Some exn) stmtcs ae_c ae_t cvc5
@@ -106,7 +106,7 @@ let mknmarshall_bi ?(verbose = false)
   ) 
 
 let mknmarshall_bi_na ?(verbose = false)
-    ?(output_folder_path = "test/fuzzing/crash_output")
+    ?(output_folder_path = "aef/crash_output")
     id exn stmtcs =
   mknmarshall_bi id
     ~verbose ~output_folder_path
