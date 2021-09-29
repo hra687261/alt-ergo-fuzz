@@ -51,9 +51,9 @@ let main () =
   let module FE = Frontend.Make (SAT) in
 
   let solve all_context (cnf, goal_name) =
-    List.iter (
+    (* List.iter (
       Format.printf "\n>>>%a" Commands.print  
-    ) cnf;
+    ) cnf; *)
 
     let used_context = FE.choose_used_context all_context ~goal_name in
     let consistent_dep_stack = Stack.create () in

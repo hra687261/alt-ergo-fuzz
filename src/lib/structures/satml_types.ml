@@ -17,7 +17,6 @@ module E = Expr
 module Hs = Hstring
 
 
-
 module type ATOM = sig
 
   type var =
@@ -963,11 +962,11 @@ module Flat_Formula : FLAT_FORMULA = struct
 
   let get_atom hcons a = Atom.get_atom hcons.atoms a
 
-  module Set = Set.Make(struct type t'=t type t=t' let compare=compare end)
-  module Map = Map.Make(struct type t'=t type t=t' let compare=compare end)
-
   let reset_cpt () = 
     cpt := 0
+
+  module Set = Set.Make(struct type t'=t type t=t' let compare=compare end)
+  module Map = Map.Make(struct type t'=t type t=t' let compare=compare end)
 
 end
 

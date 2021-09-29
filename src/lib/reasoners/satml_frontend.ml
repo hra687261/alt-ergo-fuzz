@@ -1016,7 +1016,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         unsat_rec env ~first_call:false
       with
       | Satml.Unsat lc -> raise (IUnsat (env, make_explanation lc))
-      | _ -> assert false (*?*)
+      | _ -> assert false
 
 
   (* copied from sat_solvers.ml *)
@@ -1167,8 +1167,8 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     Symbols.clear_labels ();
     Var.reset_cnt ();
     Hstring.reset_cnt ();
-    Uf.clear_labels ();
     Shostak.Combine.empty_cache ();
+    Uf.clear_labels ();
     Satml_types.Flat_Formula.reset_cpt ();
     Ty.reinit_decls ();
     Relation.reset_em_cache ();

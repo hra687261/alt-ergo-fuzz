@@ -27,6 +27,7 @@
 (******************************************************************************)
 
 open Format
+open Hconsing
 open Options
 
 module Sy = Symbols
@@ -304,7 +305,7 @@ module H = struct
 end
 
 module Labels = Hashtbl.Make(H)
-module HC = Hconsing.Make(H)
+module HC = Make(H)
 module Hsko = Hashtbl.Make(H)
 
 module F_Htbl : Hashtbl.S with type key = t =
@@ -396,14 +397,14 @@ let rec print_silent fmt t =
         fprintf fmt "@[(%a \\/@ %a)@]" print_silent f1 print_silent f2
 
       | Sy.F_Lemma, [], B_lemma { user_trs ; main ; name ; binders; _ } ->
-        (*if get_verbose () then*)
-        fprintf fmt "(lemma: %s forall %a[%a].@  %a)"
-          name
-          print_binders binders
-          print_triggers user_trs
-          print_silent main
-      (*else
-        fprintf fmt "(lem %s)" name*)
+        if get_verbose () then
+          fprintf fmt "(lemma: %s forall %a[%a].@  %a)"
+            name
+            print_binders binders
+            print_triggers user_trs
+            print_silent main
+        else
+          fprintf fmt "(lem %s)" name
 
       | Sy.F_Skolem, [], B_skolem { main; binders; _ } ->
         fprintf fmt "(<sko exists %a.> %a)"
@@ -567,7 +568,6 @@ let mk_binders, reset_mk_binders_cpt =
     cpt := 0
   in
   mk_binders, reset_mk_binders_cpt
-
 
 
 let merge_vars acc b =
