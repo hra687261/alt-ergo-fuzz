@@ -1340,7 +1340,6 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
      The reason for this modification is that a set of instances may
      cause several conflict, and we don't always detect the one which
      makes us backjump better. *)
-
   let update_instances_cache, clear_instances_cache =
     let last_cache = ref [] in
     let update_instances_cache l_opt =

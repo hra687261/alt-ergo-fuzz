@@ -2985,8 +2985,19 @@ let clear_hc () =
   reset_mk_binders_cpt ();
   clear_apply_subst_cache ();
   Labels.clear labels;
-  HC.empty ~n:15 ()
+  (*  
+    "~n:14" because of the constants initialized in: 
+    expr.ml: vrai, faux, void
+    fpa_rounding.ml: 
+      NearestTiesToEven, ToZero, Up, Down, NearestTiesToAway, 
+      Aw, Od, No, Nz, Nd, Nu
+    ccx.ml, use.ml: one 
 
+    next_id is not incremented when the "one" constant is created the second time.
+    The value is not reset to 15 because the next_id is incremented in 
+    the call to Hconsing.make in Shostak.Combine.empty.
+  *)
+  HC.empty ~n:14 ()
 
 let print_gform : 
   ?p:string -> Format.formatter -> gformula -> unit =
@@ -3039,3 +3050,4 @@ let print_gform :
     f fmt " %b;" theory_elim;
 
     f fmt "\n%s}" p
+
