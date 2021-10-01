@@ -26,7 +26,6 @@
 (*                                                                            *)
 (******************************************************************************)
 
-open Hconsing
 open Options
 
 
@@ -229,7 +228,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   end
 
-  module H = Make(V)
+  module HC = Hconsing.Make(V)
 
   let normalize_eq_bool t1 t2 is_neg =
     if X.compare t1 (X.bot()) = 0 then Pred(t2, not is_neg)
@@ -257,7 +256,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   let make_aux av is_neg =
     let av = {value = av; uid = -1} in
-    let at = H.make av in
+    let at = HC.make av in
     if is_neg then
       {at = at; neg = is_neg; tpos = 2*at.uid+1; tneg = 2*at.uid}
     else
@@ -324,7 +323,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
     | BT (_,l), _ | EQ_LIST l, _ -> l
 
   let clear_labels () =
-    H.empty ();
+    HC.empty ();
     Labels.clear labels
 
 end

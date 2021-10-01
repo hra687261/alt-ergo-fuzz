@@ -27,7 +27,6 @@
 (******************************************************************************)
 
 open Format
-open Hconsing
 open Options
 
 module Sy = Symbols
@@ -305,7 +304,7 @@ module H = struct
 end
 
 module Labels = Hashtbl.Make(H)
-module HC = Make(H)
+module HC = Hconsing.Make(H)
 module Hsko = Hashtbl.Make(H)
 
 module F_Htbl : Hashtbl.S with type key = t =
@@ -2557,4 +2556,16 @@ let clear_hc () =
   reset_mk_binders_cpt ();
   clear_apply_subst_cache ();
   Labels.clear labels;
-  HC.empty ~n:15 ()
+  (*  
+    "~n:14" because of the constants initialized in: 
+    expr.ml: vrai, faux, void
+    fpa_rounding.ml: 
+      NearestTiesToEven, ToZero, Up, Down, NearestTiesToAway, 
+      Aw, Od, No, Nz, Nd, Nu
+    ccx.ml, use.ml: one 
+
+    next_id is not incremented when the "one" constant is created the second time.
+    The value is not reset to 15 because the next_id is incremented in 
+    the call to Hconsing.make in Shostak.Combine.empty.
+  *)
+  HC.empty ~n:14 ()

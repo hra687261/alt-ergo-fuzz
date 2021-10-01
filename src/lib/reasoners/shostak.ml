@@ -119,7 +119,8 @@ struct
   module HC = Hconsing.Make(View)
 
   let empty_cache () = 
-    HC.empty ~n:0 ()
+    HC.empty ()
+
   let hcons v = HC.make v
 
   (* end: Hconsing modules and functions *)

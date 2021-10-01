@@ -71,6 +71,11 @@ module type S = sig
 
   val reset_refs : unit -> unit
 
+  (** [reinit_ctx ()] reinitializes the resoution context.
+      Allows for two sequences of statements to be treated entirely
+      independantly if it is called after the resolution of one 
+      of them and before the resolution of the other.
+  *)
   val reinit_ctx : unit -> unit
 
 end

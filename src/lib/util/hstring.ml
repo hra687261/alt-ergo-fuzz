@@ -82,7 +82,22 @@ let is_fresh_skolem s =
     false
 
 let reset_cnt () = 
-  S.empty ~n:26 ();
+  (*
+    "~n:25" because of the constants initialized in:
+        hstring.ml:           empty
+        ty.ml:                tunit
+        symbols.ml:           underscore, fake_eq, fake_neq, fake_lt, fake_le
+        fpa_rounding.ml:      fpa_rounding_mode (mode_constrs (x11), mode_ty), 
+                              _No__rounding_mode
+        arith.ml:             mod_symb
+        intervals.ml:         is_question_mark
+        intervalCalculus.ml:  not_theory_const, is_theory_const, linear_dep
+        ccx.ml, use.ml:       one
+
+    The value is not reset to 26 because the next_id is incremented in 
+    the call to Hconsing.make in Shostak.Combine.empty.
+  *)
+  S.empty ~n:25 ();
   reset_fresh_string_cpt ()
 
 module Arg = struct type t'= t type t = t' let compare = compare end
