@@ -42,7 +42,7 @@ end
 module type S =
 sig
   type t
-  val empty : ?n:int -> unit -> unit
+  val reinit : ?n:int -> unit -> unit
   val make : t -> t
   val elements : unit -> t list
 end
@@ -63,7 +63,7 @@ struct
 
   let next_id = ref 0
 
-  let empty ?(n = 0) () =
+  let reinit ?(n = 0) () =
     next_id := n;
     retain_list := [];
     HWeak.clear storage

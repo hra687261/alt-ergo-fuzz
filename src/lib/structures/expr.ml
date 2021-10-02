@@ -2552,7 +2552,7 @@ type th_elt =
 let print_th_elt fmt t =
   Format.fprintf fmt "%s/%s: @[<hov>%a@]" t.th_name t.ax_name print t.ax_form
 
-let clear_hc () = 
+let reinit () = 
   reset_mk_binders_cpt ();
   clear_apply_subst_cache ();
   Labels.clear labels;
@@ -2568,4 +2568,4 @@ let clear_hc () =
     The value is not reset to 15 because the next_id is incremented in 
     the call to Hconsing.make in Shostak.Combine.empty.
   *)
-  HC.empty ~n:14 ()
+  HC.reinit ~n:14 ()

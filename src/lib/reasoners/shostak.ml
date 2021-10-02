@@ -119,7 +119,7 @@ struct
   module HC = Hconsing.Make(View)
 
   let empty_cache () = 
-    HC.empty ()
+    HC.reinit ()
 
   let hcons v = HC.make v
 

@@ -50,7 +50,7 @@ val is_fresh_string : string -> bool
 
 val is_fresh_skolem : string -> bool
 
-val reset_cnt : unit -> unit
+val reinit : unit -> unit
 
 module Set : Set.S with type elt = t
 module Map : Map.S with type key = t

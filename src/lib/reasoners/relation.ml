@@ -200,4 +200,4 @@ let new_terms env =
 
 
 let reset_em_cache () = 
-  IntervalCalculus.reset_em_cache ()
+  IntervalCalculus.reinit ()

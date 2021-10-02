@@ -1161,12 +1161,12 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
   let reinit_ctx () = 
     reset_refs ();
-    Expr.clear_hc ();
+    Expr.reinit ();
     Th.reset_cpt ();
     Symbols.reset_fresh_sy_cpt ();
     Symbols.clear_labels ();
     Var.reset_cnt ();
-    Hstring.reset_cnt ();
+    Hstring.reinit ();
     Shostak.Combine.empty_cache ();
     Uf.clear_labels ();
     Satml_types.Flat_Formula.reset_cpt ();

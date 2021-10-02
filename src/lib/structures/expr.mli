@@ -320,5 +320,5 @@ val is_pure : t -> bool
 val const_term : t -> bool
 (** return true iff the given argument is a term without arguments *)
 
-val clear_hc : unit -> unit
-(** Clears the maps that were allocated by the hashconsing library *)
+val reinit : unit -> unit
+(** Clears the caches of the module *)
