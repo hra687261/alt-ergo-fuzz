@@ -1351,5 +1351,6 @@ let output_concrete_model ({ make; _ } as env) =
     end
 
 let clear_labels () = 
-  LX.clear_labels ();
-  (ignore @@ distinct (empty ()) [X.bot () ;X.top ()] Ex.empty;)
+  LX.reinit ();
+  (* necessary to put the module back to it's initial state *) 
+  (ignore @@ distinct (empty ()) [X.bot () ;X.top ()] Ex.empty) 

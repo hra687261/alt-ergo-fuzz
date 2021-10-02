@@ -84,7 +84,7 @@ let is_fresh_skolem s =
     assert (String.compare s "index out of bounds" = 0);
     false
 
-let reset_cnt () = 
+let reinit () = 
   (*
     "~n:25" because of the constants initialized in:
         hstring.ml:           empty
@@ -100,7 +100,7 @@ let reset_cnt () =
     The value is not reset to 26 because the next_id is incremented in 
     the call to Hconsing.make in Shostak.Combine.empty.
   *)
-  S.empty ~n:25 ();
+  S.reinit ~n:25 ();
   reset_fresh_string_cpt ()
 
 module Arg = struct type t'= t type t = t' let compare = compare end

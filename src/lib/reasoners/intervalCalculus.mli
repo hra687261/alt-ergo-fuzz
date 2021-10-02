@@ -28,4 +28,4 @@
 
 include Sig_rel.RELATION
 
-val reset_em_cache : unit -> unit
+val reinit : unit -> unit

@@ -200,7 +200,7 @@ let new_terms env =
 
 
 let reset_em_cache () = 
-  IntervalCalculus.reset_em_cache ()
+  IntervalCalculus.reinit ()
 
 let pr_vrb ?(p = "") fmt {r1: Rel1.t; r2: Rel2.t; r3: Rel3.t; r4: Rel4.t;
                           r5: Rel5.t; r6: Rel6.t; r7: Rel7.t} =
