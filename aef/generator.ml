@@ -343,7 +343,7 @@ let get_bv_gens bvars ty =
   | [] -> []
   | _ -> [Cr.choose bvgl]
 
-let get_arg_gens ty args =
+let get_arg_gens ty argl =
   List.fold_left (
     fun acc x ->
       if ty = x.vty
@@ -352,7 +352,7 @@ let get_arg_gens ty args =
           mk_empty_gen_res (Var x)
         ) :: acc 
       else acc
-  ) [] (List.rev args)
+  ) [] (List.rev argl)
 
 let func_call_gen : 
   (int -> typ -> expr gen_res Cr.gen) ->
@@ -734,10 +734,9 @@ let get_pm_gens tydecls ag_aux fuel ty =
     )]
 
 (********************************************************************)
-let expr_gen ?(isform = false) ?(uqvars = true) 
+let expr_gen ?(uqvars = true) 
     ?(args = []) ?(fdefs: fd_info list = []) 
     ?(tydecls : typedecl list = []) max_depth ty =
-  ignore isform;
   let rec ag_aux ?(bvars = VS.empty) fuel ty = 
 
     let gl =
@@ -852,7 +851,7 @@ let goal_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
     name query_max_depth =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
-    [expr_gen ~isform:true ~fdefs ~tydecls query_max_depth Tbool]
+    [expr_gen ~fdefs ~tydecls query_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Goal 
@@ -865,7 +864,7 @@ let axiom_gen ?(fdefs = []) ?(tydecls : typedecl list = []) name
     axiom_max_depth =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map 
-    [expr_gen ~isform:true ~fdefs ~tydecls axiom_max_depth Tbool]
+    [expr_gen ~fdefs ~tydecls axiom_max_depth Tbool]
     ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Axiom 

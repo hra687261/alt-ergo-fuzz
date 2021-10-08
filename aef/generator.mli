@@ -15,7 +15,7 @@ val pr_gr : (Format.formatter -> 'a -> unit) ->
   Format.formatter -> 'a gen_res -> unit
 
 val expr_gen : 
-  ?isform:bool -> ?uqvars:bool -> 
+  ?uqvars:bool -> 
   ?args:Ast.tvar list -> 
   ?fdefs:Ast.fd_info list -> 
   ?tydecls:Ast.typedecl list -> 
