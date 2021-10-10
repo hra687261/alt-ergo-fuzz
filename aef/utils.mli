@@ -17,9 +17,9 @@ type bug_info = {
   cvc5: answer list;
 }
 
-val exn_to_string: exn -> string
+val exn_to_str: exn -> string
 
-val mknmarshall_bi:
+val handle_bug:
   ?verbose:bool ->
   ?output_folder_path:string ->
   int ->
@@ -27,11 +27,25 @@ val mknmarshall_bi:
   Ast.stmt_c list ->
   answer list -> answer list -> answer list -> unit
 
-val mknmarshall_bi_na:
+val handle_bug_na:
   ?verbose:bool ->
   ?output_folder_path:string ->
   int -> exn -> Ast.stmt_c list -> unit
 
-val cmp_answers_exn3: answer list -> answer list -> answer list -> unit
+val cmp_answers: answer list -> answer list -> answer list -> unit
 
-val cmp_answers_pr3: answer list -> answer list -> answer list -> unit
+val pr_answers: answer list -> answer list -> answer list -> unit
+
+(* val handle_bug:
+   ?output_folder_path:string ->
+   int -> exn ->
+   Ast.stmt_c list ->
+   ans_c -> unit
+
+   val handle_bug_na:
+   ?output_folder_path:string ->
+   int -> exn -> Ast.stmt_c list -> unit
+
+   val cmp_answers: ans_c -> unit
+
+   val pr_answers: ans_c -> unit *)

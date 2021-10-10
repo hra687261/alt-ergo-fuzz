@@ -20,7 +20,7 @@ let () =
   begin match exn with 
     | None -> Format.printf "\nNo exception.@."
     | Some exn ->
-      Format.printf "\nException: %s@." (exn_to_string exn);
+      Format.printf "\nException: %s@." (exn_to_str exn);
       Format.printf "\nCaused by: \n%a@."
         ( fun fmt stmts ->
             List.iter (
@@ -35,17 +35,17 @@ let () =
     (List.length ae_c) 
     (List.length ae_t) 
     (List.length cvc5);
-  cmp_answers_pr3 ae_c ae_t cvc5;
+  pr_answers ae_c ae_t cvc5;
 
   Format.printf "\nRerunning answers:@.";
   Solvers.call_cvc5 stmtcs;
-  let ae_cr = Solvers.run_with_ae_c stmtcs in
-  let ae_tr = Solvers.run_with_ae_t stmtcs in
+  let ae_cr = Solvers.solve_with_ae_c stmtcs in
+  let ae_tr = Solvers.solve_with_ae_t stmtcs in
   let c5_r = Solvers.get_cvc5_response () in
 
   Format.printf "%d %d %d@."
     (List.length ae_cr) 
     (List.length ae_tr) 
     (List.length c5_r);
-  cmp_answers_pr3 ae_cr ae_tr c5_r;
-  cmp_answers_exn3 ae_cr ae_tr c5_r
+  pr_answers ae_cr ae_tr c5_r;
+  cmp_answers ae_cr ae_tr c5_r

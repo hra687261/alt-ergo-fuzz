@@ -12,23 +12,20 @@ let () =
           try
             incr cnt;
             Solvers.call_cvc5 stmtcs;
-            let ae_cr = Solvers.run_with_ae_c stmtcs in
-            let ae_tr = Solvers.run_with_ae_t stmtcs in
+            let ae_cr = Solvers.solve_with_ae_c stmtcs in
+            let ae_tr = Solvers.solve_with_ae_t stmtcs in
             let cvc5 = Solvers.get_cvc5_response () in
-            cmp_answers_pr3 ae_cr ae_tr cvc5;
-            try  
-              cmp_answers_exn3 ae_cr ae_tr cvc5;
+            pr_answers ae_cr ae_tr cvc5;
+            try
+              cmp_answers ae_cr ae_tr cvc5;
               true
             with
             | exp ->
-              mknmarshall_bi !cnt exp stmtcs ae_cr ae_tr cvc5; 
+              handle_bug !cnt exp stmtcs ae_cr ae_tr cvc5;
               false
           with
           | exp ->
-            mknmarshall_bi_na !cnt exp stmtcs; 
+            handle_bug_na !cnt exp stmtcs;
             false
         )
     )
-
-
-
