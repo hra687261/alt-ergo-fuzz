@@ -15,17 +15,21 @@ type bug_info = {
   exn: exn option;
   stmtcs: Ast.stmt_c list;
   ae_c: answer list;
+  ae_ct: answer list;
   ae_t: answer list;
+  ae_tc: answer list;
   cvc5: answer list
 }
 
-let mk_bi id exn stmtcs ae_c ae_t cvc5 =
-  {id; exn; stmtcs; ae_c; ae_t; cvc5}
+let mk_bi id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 =
+  {id; exn; stmtcs; ae_c; ae_ct; ae_t; ae_tc; cvc5}
 
+(* 
 let ans_to_str = function 
   | Sat -> "sat"
   | Unsat -> "unsat"
   | Unknown -> "unknown"
+*)
 
 let exn_to_str = function
   | Unsoundness -> "Failure [Unsoundness]"
@@ -46,9 +50,9 @@ let data_to_file data of_path =
 
 let handle_bug ?(verbose = false)
     ?(output_folder_path = "aef/crash_output") 
-    id exn stmtcs ae_c ae_t cvc5 = 
+    id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 = 
   let bi =
-    mk_bi id (Some exn) stmtcs ae_c ae_t cvc5
+    mk_bi id (Some exn) stmtcs ae_c ae_ct ae_t ae_tc cvc5
   in
 
   let of_path = 
@@ -85,36 +89,45 @@ let handle_bug_na ?(verbose = false)
     id exn stmtcs =
   handle_bug id
     ~verbose ~output_folder_path
-    exn stmtcs [] [] []
+    exn stmtcs [] [] [] [] []
 
-let cmp_answers l1 l2 l3 =
-  let rec aux l1 l2 l3 =
-    match l1, l2, l3 with
-    | h1 :: t1, h2 :: t2, h3 :: t3 ->
-      begin match h1, h2, h3 with
-        | Unsat, Unsat, Sat
-        | Unknown, Unsat, Sat
-        | Unsat, Unknown, Sat -> raise Unsoundness
-        | _ -> aux t1 t2 t3
+let cmp_answers l1 l2 l3 l4 l5 =
+  let is_unsat = function
+      Unsat -> true 
+    | _ -> false
+  in 
+  let rec aux l1 l2 l3 l4 l5 =
+    match l1, l2, l3, l4, l5 with
+    | h1 :: t1, h2 :: t2, h3 :: t3, h4 :: t4, h5 :: t5 ->
+      begin match h1, h2, h3, h4, h5 with
+        | a1, a2, a3, a4, Sat when 
+            is_unsat a1 || is_unsat a2 ||
+            is_unsat a3 || is_unsat a4 -> raise Unsoundness
+        | _ -> aux t1 t2 t3 t4 t5
       end
-    | [], [], [] -> ()
+    | [], [], [], [], [] -> ()
     | _ -> assert false
   in
-  let len1, len2, len3 =
-    List.length l1, List.length l2, List.length l3
+  let len1, len2, len3, len4, len5 =
+    List.length l1,
+    List.length l2,
+    List.length l3,
+    List.length l4,
+    List.length l5
   in
-  if (len1 = len2 && len2 = len3)
+  if len1 = len2 && len2 = len3 && len3 = len4 && len4 = len5
   then
-    aux l1 l2 l3
+    aux l1 l2 l3 l4 l5
   else
     raise (
       Invalid_argument (
         Format.sprintf
-          "cmp_answers [%d] [%d] [%d]"
-          len1 len2 len3
+          "cmp_answers [%d] [%d] [%d] [%d] [%d]"
+          len1 len2 len3 len4 len5
       )
     )
 
+(*
 let rec pr_answers l1 l2 l3 =
   match l1, l2, l3 with
   | h1 :: t1, h2 :: t2, h3 :: t3 ->
@@ -151,3 +164,4 @@ let rec pr_answers l1 l2 l3 =
       (ans_to_str h1);
     pr_answers t1 [] []
   | [], [], [] -> ()
+*)

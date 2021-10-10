@@ -13,7 +13,7 @@ let () =
   let str = really_input_string ic (in_channel_length ic) in
   close_in ic;
 
-  let {stmtcs; exn; ae_c; ae_t; cvc5; _}: bug_info =
+  let {stmtcs; exn; ae_c; ae_ct; ae_t; ae_tc; cvc5; _}: bug_info =
     Marshal.from_string str 0
   in
 
@@ -31,21 +31,29 @@ let () =
   end;
 
   Format.printf "\nOriginal answers:@.";
-  Format.printf "%d %d %d@."
+  Format.printf "%d %d %d %d %d@."
     (List.length ae_c) 
+    (List.length ae_ct) 
     (List.length ae_t) 
+    (List.length ae_tc) 
     (List.length cvc5);
-  pr_answers ae_c ae_t cvc5;
+  (* pr_answers ae_c ae_t cvc5; *)
 
   Format.printf "\nRerunning answers:@.";
   Solvers.call_cvc5 stmtcs;
-  let ae_cr = Solvers.solve_with_ae_c stmtcs in
-  let ae_tr = Solvers.solve_with_ae_t stmtcs in
-  let c5_r = Solvers.get_cvc5_response () in
 
-  Format.printf "%d %d %d@."
-    (List.length ae_cr) 
-    (List.length ae_tr) 
-    (List.length c5_r);
-  pr_answers ae_cr ae_tr c5_r;
-  cmp_answers ae_cr ae_tr c5_r
+  let ae_c = Solvers.solve_with_ae_c stmtcs in
+  let ae_ct = Solvers.solve_with_ae_c stmtcs in
+  let ae_t = Solvers.solve_with_ae_t stmtcs in
+  let ae_tc = Solvers.solve_with_ae_t stmtcs in
+
+  let cvc5 = Solvers.get_cvc5_response () in
+
+  Format.printf "%d %d %d %d %d@."
+    (List.length ae_c) 
+    (List.length ae_ct) 
+    (List.length ae_t) 
+    (List.length ae_tc) 
+    (List.length cvc5);
+  (* pr_answers ae_c ae_ct ae_t ae_tc c5_r; *)
+  cmp_answers ae_c ae_ct ae_t ae_tc cvc5
