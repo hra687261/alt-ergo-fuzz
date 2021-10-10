@@ -107,7 +107,7 @@ let rec translate_expr (a: expr) =
       else Format.sprintf "%i" i
     )
   | Cst (CstR r) -> 
-    Atom (float_to_string2 r)
+    Atom (float_to_string r)
   | Cst (CstB true) -> Atom "true"
   | Cst (CstB false) -> Atom "false"
   | Cst (CstBv {bits; _}) -> 

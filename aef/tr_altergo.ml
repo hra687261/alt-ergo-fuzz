@@ -7,6 +7,17 @@ module E = Expr
 module Sy = Symbols 
 module ES = E.Set
 
+module VM = Map.Make(
+  struct
+    type t = tvar 
+    let compare v1 v2 =
+      let r = 
+        Ast.typ_compare v1.vty v2.vty 
+      in 
+      if r <> 0 then r
+      else compare v1.vname v2.vname
+  end)
+
 type t = Commands.sat_tdecl
 
 let rec typ_to_ty typ = 
@@ -116,6 +127,51 @@ let concat_chainable p_op p_ty t acc =
     else
       t :: acc
   | _ -> t :: acc
+
+(** Approximating a float with a rational number
+    Taken from src/parsers/native_lexer.mll
+*)
+let mk_num i f exp sign =
+  let n_zero = Num.Int 0 in
+  let n_ten = Num.Int 10 in
+  let decimal_number s =
+    let r = ref n_zero in
+    for i=0 to String.length s - 1 do
+      r := Num.add_num (Num.mult_num n_ten !r)
+          (Num.num_of_int (Char.code s.[i] - Char.code '0'))
+    done;
+    !r
+  in
+  let v =
+    match exp,sign with
+    | Some exp,Some "-" ->
+      Num.div_num (decimal_number (i^f))
+        (Num.power_num (Num.Int 10) (decimal_number exp))
+    | Some exp,_ ->
+      Num.mult_num (decimal_number (i^f))
+        (Num.power_num (Num.Int 10) (decimal_number exp))
+    | None,_ -> decimal_number (i^f)
+  in
+  let v =
+    Num.div_num v
+      (Num.power_num (Num.Int 10) (Num.num_of_int (String.length f)))
+  in
+  v 
+
+let float_to_num f = 
+  if f = 0. || Float.is_nan f || Float.is_infinite f 
+  then Num.num_of_int 0 
+  else if f < 0.
+  then 
+    match String.split_on_char '.' (Float.to_string (-. f)) with 
+    | [x; y] ->
+      Num.minus_num (mk_num x y None None)
+    | _ -> assert false  
+  else
+    match String.split_on_char '.' (Float.to_string f) with 
+    | [x; y] ->
+      mk_num x y None None
+    | _ -> assert false  
 
 let rec translate_expr ?(name_base = "") ?(vars = VM.empty) ?(toplevel = false) ~stmtkind expr = 
   match expr with 
@@ -570,7 +626,7 @@ let rec print_expr fmt expr =
     Format.fprintf fmt "%s" istr
 
   | Cst (CstR r) ->
-    let rstr = float_to_string2 r
+    let rstr = float_to_string r
     in 
     Format.fprintf fmt "%s" rstr
 

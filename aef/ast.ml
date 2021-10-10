@@ -156,37 +156,12 @@ module TDS = Set.Make(
   end
   )
 
-module VM = Map.Make(
-  struct
-    type t = tvar 
-    let compare v1 v2 =
-      let r = 
-        typ_compare v1.vty v2.vty 
-      in 
-      if r <> 0 then r
-      else compare v1.vname v2.vname
-  end)
-
 module TCM = Map.Make(
   struct 
     type t = typc 
     let compare = typc_compare
   end
   )
-
-let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
-  if TCM.is_empty t1
-  then t2
-  else
-  if TCM.is_empty t2
-  then t1
-  else
-    TCM.fold (
-      fun k v acc ->
-        match TCM.find_opt k acc with
-        | Some x -> TCM.add k (SS.union x v) acc
-        | None -> TCM.add k v acc
-    ) t1 t2
 
 type stmt_c = {
   stmt : stmt; 
@@ -251,7 +226,7 @@ let print_adt fmt (adt: adt) =
       Format.fprintf fmt "%a\n" print_patt_ty (dn, prms)
   ) (dstrs: rcrd_ty list)
 
-let print_ftyp fmt ({atyp; rtyp}: ftyp) =
+let print_ftyp fmt ({atyp; rtyp; _}: ftyp) =
   match atyp with 
   | h :: t ->
     Format.fprintf fmt "%a" print_typ h;
@@ -497,52 +472,7 @@ let print_stmtc fmt {stmt; tds; uss} =
 
 (* Auxiliary functions *)
 
-(** Approximating a float with a rational number
-    Taken from src/parsers/native_lexer.mll
-*)
-let mk_num i f exp sign =
-  let n_zero = Num.Int 0 in
-  let n_ten = Num.Int 10 in
-  let decimal_number s =
-    let r = ref n_zero in
-    for i=0 to String.length s - 1 do
-      r := Num.add_num (Num.mult_num n_ten !r)
-          (Num.num_of_int (Char.code s.[i] - Char.code '0'))
-    done;
-    !r
-  in
-  let v =
-    match exp,sign with
-    | Some exp,Some "-" ->
-      Num.div_num (decimal_number (i^f))
-        (Num.power_num (Num.Int 10) (decimal_number exp))
-    | Some exp,_ ->
-      Num.mult_num (decimal_number (i^f))
-        (Num.power_num (Num.Int 10) (decimal_number exp))
-    | None,_ -> decimal_number (i^f)
-  in
-  let v =
-    Num.div_num v
-      (Num.power_num (Num.Int 10) (Num.num_of_int (String.length f)))
-  in
-  v 
-
-let float_to_num f = 
-  if f = 0. || Float.is_nan f || Float.is_infinite f 
-  then Num.num_of_int 0 
-  else if f < 0.
-  then 
-    match String.split_on_char '.' (Float.to_string (-. f)) with 
-    | [x; y] ->
-      Num.minus_num (mk_num x y None None)
-    | _ -> assert false  
-  else
-    match String.split_on_char '.' (Float.to_string f) with 
-    | [x; y] ->
-      mk_num x y None None
-    | _ -> assert false  
-
-let float_to_string2 f = 
+let float_to_string f = 
   if f = 0. || Float.is_nan f || Float.is_infinite f 
   then "0.0" 
   else if f < 0.
@@ -568,14 +498,6 @@ let rec typ_to_str ty =
       (typ_to_str ti) (typ_to_str tv)
   | Tadt (n, _) -> n
   | TDummy -> assert false 
-
-let is_dummy_tvar {vty; _} =
-  match vty with 
-  | TDummy -> true 
-  | _ -> false 
-
-let mk_vname pref num = 
-  pref ^ string_of_int num
 
 let mk_tvar_b vname vty vk id = 
   {vname; vty; vk; id}
@@ -721,7 +643,8 @@ let rec insert_in_ptree path var ptree =
       Node ([], iin_aux h t [])
     | [] -> Node ([var], [])
 
-let add_triggers vs expr =
+(* currently unused *)
+let _add_triggers vs expr =
   let rec add_triggers_aux foundv expr =
     let rec setvn nb nv vlist = 
       match vlist with 

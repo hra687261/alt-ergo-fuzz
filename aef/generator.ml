@@ -63,6 +63,20 @@ let aux_gen_list (gens: 'a Cr.gen list) gf =
     )
   | _ -> assert false
 
+let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
+  if TCM.is_empty t1
+  then t2
+  else
+  if TCM.is_empty t2
+  then t1
+  else
+    TCM.fold (
+      fun k v acc ->
+        match TCM.find_opt k acc with
+        | Some x -> TCM.add k (SS.union x v) acc
+        | None -> TCM.add k v acc
+    ) t1 t2
+
 let aux_join (l, vs, bv, ud, uus, fcs) 
     {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
   g_res :: l,
@@ -273,7 +287,7 @@ let usymf_genl ty gen fuel =
 
 let qv_gen uqvars ty =
   let aux pref pos = 
-    mk_var (mk_vname pref pos)
+    mk_var (pref ^ string_of_int pos)
   in
   if uqvars && (Foptions.get_nb_q_vars ()) > 0 && Foptions.get_u_qvrs () then 
     [ Cr.map 
@@ -989,7 +1003,10 @@ and liter :
                     { f with 
                       atyp = 
                         List.filter (
-                          fun v -> not (is_dummy_tvar v)
+                          fun {vty; _} -> 
+                            match vty with 
+                            | TDummy -> false 
+                            | _ -> true
                         ) atyp
                     }
                 in {stmt; tds; uss} :: acc
