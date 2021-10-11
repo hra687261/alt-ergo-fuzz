@@ -1,8 +1,8 @@
 (executables
- (names afl_fuzzing rerun translate_and_write issue_creation)
- (public_names afl_fuzzing rerun translate_and_write issue_creation)
+ (names main rerun translate_and_write issue_creation)
+ (public_names main rerun translate_and_write issue_creation)
  (libraries alt-ergo-lib crowbar lwt git-cohttp git-cohttp-unix)
  (modules_without_implementation translater)
  (package alt-ergo-lib)
  ;(instrumentation (backend bisect_ppx))
-)
+ )

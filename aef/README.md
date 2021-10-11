@@ -7,7 +7,7 @@ make
 ## Running:
 In afl mode:
 ```
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/ ./_build/default/aef/afl_fuzzing.exe @@
+afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/ ./_build/default/aef/main.exe @@
 ```
 When a crash happens : ```(aka: total crashes > 0)```
 
@@ -46,21 +46,21 @@ for f in ./aef/crash_output/[uiot]* ; do  ./_build/default/aef/rerun.exe "$f"; d
 
 To run alf-fuzz in parallel mode (using more than one core), a primary instance has to be started:
 ```
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -M fuzzer01  ./_build/default/aef/afl_fuzzing.exe  @@
+afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -M fuzzer01  ./_build/default/aef/main.exe  @@
 ```
 And then the secondary instances:
 ```
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer02  ./_build/default/aef/afl_fuzzing.exe  @@
+afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer02  ./_build/default/aef/main.exe  @@
 
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer03  ./_build/default/aef/afl_fuzzing.exe  @@
+afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer03  ./_build/default/aef/main.exe  @@
 ```
 
 
 ---
 ## Quickcheck mode:
 
-To run ```afl_fuzzing.exe``` in quickcheck mode: 
+To run ```main.exe``` in quickcheck mode: 
 ```
-./_build/default/aef/afl_fuzzing.exe
+./_build/default/aef/main.exe
 ```
 the workflow to reproduce the bug is the same, but in this case, the exception stack trace and the output file are printed in stdout.
