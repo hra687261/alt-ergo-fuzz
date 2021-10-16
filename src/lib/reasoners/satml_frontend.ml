@@ -1159,7 +1159,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     SAT.assume_th_elt env.satml th_elt dep;
     env
 
-  let reinit_ctx () = 
+  let reinit_ctx () =
     reset_refs ();
     Expr.reinit ();
     Th.reset_cpt ();

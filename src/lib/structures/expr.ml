@@ -562,7 +562,7 @@ let mk_binders, reset_mk_binders_cpt =
          | { f = (Sy.Var _) as v; ty; _ } -> SMap.add v (ty, !cpt) sym
          | _ -> assert false
       )st SMap.empty
-  in 
+  in
   let reset_mk_binders_cpt () =
     cpt := 0
   in
@@ -1321,7 +1321,7 @@ let apply_subst, clear_apply_subst_cache =
       cache := TMap.add f (Msbt.add sbt (Msbty.add sbty nf c_sbty) c_sbt) ch;
       nf
   in
-  let clear_apply_subst_cache () = 
+  let clear_apply_subst_cache () =
     cache := TMap.empty
   in
   apply_subst, clear_apply_subst_cache
@@ -2552,20 +2552,21 @@ type th_elt =
 let print_th_elt fmt t =
   Format.fprintf fmt "%s/%s: @[<hov>%a@]" t.th_name t.ax_name print t.ax_form
 
-let reinit () = 
+let reinit () =
   reset_mk_binders_cpt ();
   clear_apply_subst_cache ();
   Labels.clear labels;
-  (*  
-    "~n:14" because of the constants initialized in: 
+  (*
+    "~n:14" because of the constants initialized in:
     expr.ml: vrai, faux, void
-    fpa_rounding.ml: 
-      NearestTiesToEven, ToZero, Up, Down, NearestTiesToAway, 
+    fpa_rounding.ml:
+      NearestTiesToEven, ToZero, Up, Down, NearestTiesToAway,
       Aw, Od, No, Nz, Nd, Nu
-    ccx.ml, use.ml: one 
+    ccx.ml, use.ml: one
 
-    next_id is not incremented when the "one" constant is created the second time.
-    The value is not reset to 15 because the next_id is incremented in 
+    next_id is not incremented when the "one" constant is created
+    the second time.
+    The value is not reset to 15 because the next_id is incremented in
     the call to Hconsing.make in Shostak.Combine.empty.
   *)
   HC.reinit ~n:14 ()

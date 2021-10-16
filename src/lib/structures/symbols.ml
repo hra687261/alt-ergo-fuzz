@@ -323,9 +323,9 @@ let fresh, reset_fresh_sy_cpt =
     (* garder le suffixe "__" car cela influence l'ordre *)
     let s = (Format.sprintf "!?__%s%i" s (!cpt)) in
     if is_var then var @@ Var.of_string s else name s
-  in 
+  in
   let reset_fresh_sy_cpt () =
-    cpt := 0 
+    cpt := 0
   in
   fresh, reset_fresh_sy_cpt
 

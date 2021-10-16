@@ -1145,9 +1145,9 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
       | Some l -> (* Set or reset if l = [] *)
         last_cache := List.filter (fun (_,e) -> Ex.has_no_bj e) l;
         None
-    in 
-    let clear_instances_cache () = 
-      last_cache := [] 
+    in
+    let clear_instances_cache () =
+      last_cache := []
     in
     update_instances_cache, clear_instances_cache
 
@@ -1968,7 +1968,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   let assume_th_elt env th_elt dep =
     {env with tbox = Th.assume_th_elt env.tbox th_elt dep}
 
-  let reinit_ctx () = 
+  let reinit_ctx () =
     clear_instances_cache ();
     reset_refs ();
     Expr.reinit ();

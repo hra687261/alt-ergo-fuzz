@@ -963,7 +963,7 @@ module Flat_Formula : FLAT_FORMULA = struct
 
   let get_atom hcons a = Atom.get_atom hcons.atoms a
 
-  let reset_cpt () = 
+  let reset_cpt () =
     cpt := 0
 
   module Set = Set.Make(struct type t'=t type t=t' let compare=compare end)

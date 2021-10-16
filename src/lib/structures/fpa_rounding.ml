@@ -265,5 +265,5 @@ let float_of_rational prec exp mode x =
 let round_to_integer mode q =
   Q.from_z (round_big_int (mode_of_term mode) q)
 
-let empty_cache () = 
+let empty_cache () =
   cache := MQ.empty

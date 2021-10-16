@@ -86,7 +86,7 @@ module type S = sig
   val uid : t -> int
   val elements : t -> elt list
 
-  val reinit : unit -> unit 
+  val reinit : unit -> unit
 
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t

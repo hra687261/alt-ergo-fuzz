@@ -199,5 +199,5 @@ let new_terms env =
                 (Expr.Set.union t6 t7)) )))
 
 
-let reset_em_cache () = 
+let reset_em_cache () =
   IntervalCalculus.reinit ()

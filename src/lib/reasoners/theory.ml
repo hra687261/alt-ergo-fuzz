@@ -248,10 +248,10 @@ module Main_Default : S = struct
             ) (List.rev l);
           print_dbg ~header:false "false";
         end
-      in 
+      in
       let reset_cpt () =
         cpt := 0
-      in 
+      in
       assumed, reset_cpt
 
     let theory_of k = match k with
@@ -752,7 +752,7 @@ module Main_Default : S = struct
 
   let get_assumed env = env.assumed_set
 
-  let reset_cpt () = 
+  let reset_cpt () =
     Debug.reset_cpt ()
 
 end

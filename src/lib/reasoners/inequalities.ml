@@ -355,8 +355,8 @@ module Container : Container_SIG = struct
 
     let available = fourierMotzkin
 
-    let reset_age_cpt () = 
-      age_cpt := Z.zero 
+    let reset_age_cpt () =
+      age_cpt := Z.zero
 
   end
 end

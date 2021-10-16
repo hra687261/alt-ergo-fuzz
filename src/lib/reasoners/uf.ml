@@ -1281,7 +1281,7 @@ let output_concrete_model ({ make; _ } as env) =
       Printer.print_fmt (get_fmt_mdl ()) ")";
     end
 
-let clear_labels () = 
+let clear_labels () =
   LX.reinit ();
-  (* necessary to put the module back to it's initial state *) 
-  (ignore @@ distinct (empty ()) [X.bot () ;X.top ()] Ex.empty) 
+  (* necessary to put the module back to it's initial state *)
+  (ignore @@ distinct (empty ()) [X.bot () ;X.top ()] Ex.empty)

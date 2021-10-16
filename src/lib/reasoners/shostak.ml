@@ -118,7 +118,7 @@ struct
 
   module HC = Hconsing.Make(View)
 
-  let empty_cache () = 
+  let empty_cache () =
     HC.reinit ()
 
   let hcons v = HC.make v
@@ -752,7 +752,7 @@ module Combine = struct
       empty_cache ();
       H.clear cache;
       ignore @@ make (Expr.mk_term (Symbols.name "@bottom") [] Ty.Tint)
-    in 
+    in
     make, empty
 
 end

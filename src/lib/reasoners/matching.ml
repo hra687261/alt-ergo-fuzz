@@ -646,8 +646,8 @@ module Make (X : Arg) : S with type theory = X.t = struct
           trs
     in
     let clear_triggers_of_trs_tbl () =
-      HEI.clear trs_tbl 
-    in 
+      HEI.clear trs_tbl
+    in
     triggers_of, clear_triggers_of_trs_tbl
 
   let backward_triggers, clear_backward_triggers_trs_tbl =

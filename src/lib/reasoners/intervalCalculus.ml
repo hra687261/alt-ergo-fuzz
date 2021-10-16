@@ -2504,5 +2504,5 @@ let instantiate ~do_syntactic_matching env uf selector =
   else instantiate ~do_syntactic_matching env uf selector
 
 let reinit () =
-  Oracle.reset_age_cpt (); 
-  EM.reinit_caches () 
+  Oracle.reset_age_cpt ();
+  EM.reinit_caches ()
