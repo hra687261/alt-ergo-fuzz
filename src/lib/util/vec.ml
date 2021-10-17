@@ -13,6 +13,37 @@ open Options
 
 type 'a t = { mutable dummy: 'a; mutable data : 'a array; mutable sz : int }
 
+let pr_vrb :
+  (?p:string -> Format.formatter -> 'a -> unit) ->
+  (?p:string -> Format.formatter -> 'a t -> unit) =
+  fun pr ?(p = "") fmt {dummy; data; sz} ->
+  (
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    f fmt "\n%s{" p;
+
+    f fmt "\n%sdummy = %a;" p1 (pr ~p:p2) dummy;
+
+    f fmt "\n%sdata = %d %d" p1 sz (Array.length data);
+    f fmt " %a;" (
+      fun fmt arr ->
+        let l = Array.length data in
+        if sz > 30 || l > 30
+        then
+          f fmt "{{size=%d, length=%d}}" sz l
+        else
+          f fmt "{{size=%d, length=%d}}\n%a"
+            sz l (Pp_utils.print_array_lb ~slb:true ~p:p2 pr) arr
+    ) data;
+
+    f fmt "\n%ssz =" p1;
+    f fmt " %d;" sz;
+
+    f fmt "\n%s}" p
+  )
+
 let make capa d = {data = Array.make capa d; sz = 0; dummy = d}
 
 let init capa f d =

@@ -24,7 +24,11 @@
      seq unix num str zarith dynlink ocplib-simplex stdlib-shims)
 
   ; .mli only modules *also* need to be in this field
-  (modules_without_implementation matching_types numbersInterface sig sig_rel)
+  (modules_without_implementation 
+    ;matching_types 
+    numbersInterface sig 
+    ;sig_rel
+  )
 
   ; modules that make up the lib
   (modules
@@ -44,6 +48,7 @@
     Config Emap Gc_debug Hconsing Hstring Iheap Lists Loc
     MyDynlink MyUnix Numbers NumsNumbers NumbersInterface
     Options Timers Util Vec Version ZarithNumbers Steps Printer Format_shims
+    Pp_utils
   )
 
  (js_of_ocaml

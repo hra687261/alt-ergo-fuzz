@@ -328,3 +328,6 @@ val print_rwt :
   (Format.formatter -> 'a -> unit) ->
   Format.formatter -> 'a rwt_rule -> unit
 (** Print a rewrite rule *)
+
+val print_atdecl :
+  Format.formatter -> _ atdecl -> unit

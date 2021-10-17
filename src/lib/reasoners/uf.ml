@@ -105,6 +105,81 @@ type t = {
 }
 
 
+module Pp = Pp_utils
+
+module MEP = Pp.MapPrinter(ME)
+
+let pr_neqs ?(p = "  ") fmt m =
+  let module MLP = Pp.MapPrinter(MapL) in
+  let pr_exm =
+    MLP.pr LX.pr_vrb (Pp.addpref Ex.print)
+  in
+
+  let module MXP = Pp.MapPrinter(MapX) in
+  let print_x = Pp.addpref X.print in
+
+  (MXP.pr_lb print_x (Pp.addpref pr_exm) ~p) fmt m
+
+let pr_vrb ?(p = "") fmt
+    {make; repr; classes; gamma; neqs; ac_rs} =
+  (
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_e = Pp.addpref E.print_bis in
+    let print_se = Pp.print_set_lb (module E.Set) print_e in
+    let pr_r = Pp.addpref X.print in
+    let pr_ex = Pp.addpref Ex.print in
+    let pr_rex = Pp.print_doublet_lb (pr_r, pr_ex) in
+
+    let module MXP = Pp.MapPrinter(MapX) in
+    let print_x = Pp.addpref X.print in
+    let print_sxh =
+      Pp.print_set_lb (module SetX) print_x
+    in
+
+    let module RSP = Pp.MapPrinter(RS) in
+    let pr_sy = Pp.addpref Sy.print in
+    let pr_trpl =
+      Pp.print_triplet_lb
+        ( Pp.addpref Ac.print,
+          pr_r,
+          pr_ex)
+    in
+    let pr_setrl =
+      Pp.print_set_lb (module SetRL) pr_trpl
+    in
+
+    f fmt "\n%s{" p;
+
+    f fmt "\n%smake =" p1;
+    f fmt " %a;"
+      (MEP.pr_lb print_e pr_r ~p:p2) make;
+
+    f fmt "\n%srepr =" p1;
+    f fmt " %a;"
+      (MXP.pr_lb print_x pr_rex ~p:p2) repr;
+
+    f fmt "\n%sclasses =" p1;
+    f fmt " %a;"
+      (MXP.pr_lb print_x print_se ~p:p2) classes;
+
+    f fmt "\n%sgamma =" p1;
+    f fmt " %a;"
+      (MXP.pr_lb print_x print_sxh ~p:p2) gamma;
+
+    f fmt "\n%sneqs =" p1;
+    f fmt " %a;"
+      (pr_neqs ~p:p2) neqs;
+
+    f fmt "\n%sac_rs =" p1;
+    f fmt " %a;"
+      (RSP.pr_lb pr_sy pr_setrl ~p:p2) ac_rs;
+
+    f fmt "\n%s}" p
+  )
+
 exception Found_term of E.t
 
 (* hack: would need an inverse map from semantic values to terms *)

@@ -106,6 +106,11 @@ val print : Format.formatter -> t -> unit
 val to_string_clean : t -> string
 val print_clean : Format.formatter -> t -> unit
 
+val to_string_bis : t -> string
+val print_verbose : Format.formatter -> t -> unit
+val to_string_clean_bis : t -> string
+val print_clean_bis : Format.formatter -> t -> unit
+
 (*val dummy : t*)
 
 val fresh : ?is_var:bool -> string -> t

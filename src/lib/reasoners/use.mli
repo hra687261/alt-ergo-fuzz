@@ -40,3 +40,4 @@ val up_add : t -> Expr.t -> r -> r list -> t
 val congr_add : t -> r list -> Expr.Set.t
 val up_close_up :t -> r -> r -> t
 val congr_close_up : t -> r -> r list -> Expr.Set.t * SA.t
+val pr_vrb : ?p:string -> Format.formatter -> t -> unit

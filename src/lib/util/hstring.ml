@@ -38,6 +38,9 @@ module S =
     let set_id n v = {v with id = n}
     let initial_size = 9001
     let disable_weaks () = Options.get_disable_weaks ()
+
+    let pr_vrb ?(p = "") fmt ({content; id}: elt) =
+      Format.fprintf fmt "%s{%s; %d}" p content id
   end)
 
 let make s = S.make {content = s; id = - 1}

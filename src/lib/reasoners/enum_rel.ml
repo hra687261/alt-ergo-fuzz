@@ -51,6 +51,55 @@ type t = { mx : (HSS.t * Ex.t) MX.t; classes : Expr.Set.t list;
 let empty classes = { mx = MX.empty; classes = classes;
                       size_splits = Numbers.Q.one }
 
+let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt {mx; classes; size_splits} ->
+  (
+    let module Pp = Pp_utils in
+    let f = Format.fprintf in
+    let p1 = p^"  " in
+    let p2 = p1^"  " in
+
+    let print_e =
+      Pp.addpref Expr.print_bis
+    in
+    let print_ex =
+      Pp.addpref Ex.print
+    in
+    let print_x =
+      Pp.addpref X.print
+    in
+    let print_se =
+      Pp.print_set_lb (module Expr.Set) print_e
+    in
+    let print_hss =
+      Pp.print_set_lb (module HSS) (Pp.addpref Hs.print)
+    in
+    let pdl =
+      Pp.print_doublet_lb (print_hss, print_ex)
+    in
+
+    let module MXP = Pp.MapPrinter(MX) in
+    let pr_mx =
+      MXP.pr_lb print_x pdl
+    in
+    f fmt "%s{" p;
+
+    f fmt "\n%smx=" p1;
+    f fmt " %a"
+      (pr_mx ~p:p2)
+      mx;
+
+    f fmt "\n%sclasses=" p1;
+    f fmt " %a"
+      (Pp.print_list_lb print_se ~p:p2)
+      classes;
+
+    f fmt "\n%ssize_splits=" p1;
+    f fmt " %a" Numbers.Q.print size_splits;
+
+    f fmt "\n%s}" p
+  )
+
 (*BISECT-IGNORE-BEGIN*)
 module Debug = struct
   open Printer

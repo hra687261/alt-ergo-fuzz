@@ -41,3 +41,30 @@ type lit_origin =
   | CS of theory * Numbers.Q.t
   | NCS of theory * Numbers.Q.t
   | Other
+
+let print_lit_origin fmt lo =
+  let f = Format.fprintf in
+  let aux fmt th =
+    match th with
+    | Th_arith ->
+      f fmt "Th_arith"
+    | Th_sum ->
+      f fmt "Th_sum"
+    | Th_adt ->
+      f fmt "Th_adt"
+    | Th_arrays ->
+      f fmt "Th_arrays"
+    | Th_UF ->
+      f fmt "Th_UF"
+  in
+  match lo with
+  | Subst ->
+    f fmt "Subst"
+  | CS (th, q) ->
+    f fmt "CS (%a, %a)"
+      aux th Numbers.Q.print q
+  | NCS (th, q) ->
+    f fmt "NCS (%a, %a)"
+      aux th Numbers.Q.print q
+  | Other ->
+    f fmt "Other"

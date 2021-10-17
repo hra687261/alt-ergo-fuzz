@@ -85,6 +85,8 @@ module type SAT_ML = sig
   val push : t -> Satml_types.Atom.atom -> unit
   val pop : t -> unit
 
+  val print_env : ?p:string -> Format.formatter -> t -> unit
+
 end
 
 module MFF = FF.Map
@@ -1820,4 +1822,219 @@ module Make (Th : Theory.S) : SAT_ML with type th = Th.t = struct
       end;
     enqueue env g.neg 0 None
 
+  module Pp = Pp_utils
+
+  let print_env : ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt { is_unsat; unsat_core; clauses; learnts;
+                        clause_inc; var_inc; vars; trail; trail_lim;
+                        qhead; simpDB_assigns; simpDB_props; order;
+                        progress_estimate; remove_satisfied; var_decay;
+                        clause_decay; restart_first; restart_inc;
+                        learntsize_factor; learntsize_inc;
+                        expensive_ccmin; polarity_mode; starts;
+                        decisions; propagations; conflicts;
+                        clauses_literals; learnts_literals; max_literals;
+                        tot_literals; nb_init_vars; nb_init_clauses;
+                        model; tenv; unit_tenv; tenv_queue; tatoms_queue;
+                        th_tableaux; cpt_current_propagations; proxies;
+                        lazy_cnf; lazy_cnf_queue; relevants;
+                        relevants_queue; ff_lvl; lvl_ff; increm_guards;
+                        next_dec_guard } ->
+      (
+        let f = Format.fprintf in
+        let p1 = p^"  " in
+        let p2 = p1^"  " in
+
+        let print_cl =
+          Pp.print_list_lb pr_clause_vrb
+        in
+        let print_ocl =
+          Pp.print_opt_lb print_cl
+        in
+        let print_cv =
+          Vec.pr_vrb pr_clause_vrb
+        in
+        let print_vv =
+          Vec.pr_vrb pr_var_vrb
+        in
+        let print_av =
+          Vec.pr_vrb pr_atom_vrb
+        in
+        let print_iv =
+          Vec.pr_vrb Pp.pr_int
+        in
+        let print_thv =
+          Vec.pr_vrb Th.pr_brv
+        in
+        let print_aq =
+          Pp.print_queue_lb pr_atom_vrb
+        in
+        let print_al =
+          Pp.print_list_lb pr_atom_vrb
+        in
+        let print_aalb =
+          Pp.print_triplet_lb (pr_atom_vrb, print_al, Pp.pr_bool)
+        in
+        let print_ffl =
+          Pp.print_list_lb FF.pr_vrb
+        in
+
+        let module FFP = Pp.MapPrinter(MFF) in
+        let print_fflmff =
+          FFP.pr_lb ~ind:true FF.pr_vrb print_ffl
+        in
+        let print_imff =
+          FFP.pr_lb FF.pr_vrb Pp.pr_int
+        in
+        let print_sff =
+          Pp.print_set_lb (module FF.Set) FF.pr_vrb
+        in
+        let print_sffv =
+          Vec.pr_vrb print_sff
+        in
+        let print_db1 =
+          Pp.print_doublet_lb (print_fflmff, FF.pr_vrb)
+        in
+
+        let module MAP = Pp.MapPrinter(Map) in
+        let print_db1_m =
+          MAP.pr_lb Atom.pr_atom_vrb print_db1
+        in
+        let print_db1_mv =
+          Vec.pr_vrb print_db1_m
+        in
+
+        let module UMIP = Pp.MapPrinter(Util.MI) in
+
+        f fmt "\n%s{" p;
+
+        f fmt "\n%sis_unsat =" p1;
+        f fmt " %b;" is_unsat;
+
+        f fmt "\n%sclauses =" p1;
+        f fmt " %a;" (print_ocl ~p:p2) unsat_core;
+
+        f fmt "\n%sclauses =" p1;
+        f fmt " %a;" (print_cv ~p:p2) clauses;
+
+        f fmt "\n%slearnts =" p1;
+        f fmt " %a;" (print_cv ~p:p2) learnts;
+
+        f fmt "\n%sclause_inc =" p1;
+        f fmt " %f;" clause_inc;
+        f fmt "\n%svar_inc =" p1;
+        f fmt " %f;" var_inc;
+        f fmt "\n%svars =" p1;
+        f fmt " %a;" (print_vv ~p:p2) vars;
+
+        f fmt "\n%strail =" p1;
+        f fmt " %a;" (print_av ~p:p2) trail;
+
+        f fmt "\n%strail_lim =" p1;
+        f fmt " %a;" (print_iv ~p:p2) trail_lim;
+
+        f fmt "\n%sqhead =" p1;
+        f fmt " %d;" qhead;
+        f fmt "\n%ssimpDB_assigns =" p1;
+        f fmt " %d;" simpDB_assigns;
+        f fmt "\n%ssimpDB_props =" p1;
+        f fmt " %d;" simpDB_props;
+        f fmt "\n%sorder =" p1;
+        f fmt " %a" (Iheap.pr_vrb ~p:p2) order;
+
+        f fmt "\n%sprogress_estimate =" p1;
+        f fmt " %f;" progress_estimate;
+        f fmt "\n%sremove_satisfied =" p1;
+        f fmt " %b;" remove_satisfied;
+        f fmt "\n%svar_decay =" p1;
+        f fmt " %f;" var_decay;
+
+        f fmt "\n%sclause_decay =" p1;
+        f fmt " %f" clause_decay;
+        f fmt "\n%srestart_first =" p1;
+        f fmt " %d" restart_first;
+        f fmt "\n%srestart_inc =" p1;
+        f fmt " %f" restart_inc;
+
+        f fmt "\n%slearntsize_factor =" p1;
+        f fmt " %f" learntsize_factor;
+        f fmt "\n%slearntsize_inc =" p1;
+        f fmt " %f" learntsize_inc;
+
+        f fmt "\n%sexpensive_ccmin =" p1;
+        f fmt " %b" expensive_ccmin;
+        f fmt "\n%spolarity_mode =" p1;
+        f fmt " %b" polarity_mode;
+        f fmt "\n%sstarts =" p1;
+        f fmt " %d" starts;
+
+        f fmt "\n%sdecisions =" p1;
+        f fmt " %d" decisions;
+        f fmt "\n%spropagations =" p1;
+        f fmt " %d" propagations;
+        f fmt "\n%sconflicts =" p1;
+        f fmt " %d" conflicts;
+
+        f fmt "\n%sclauses_literals =" p1;
+        f fmt " %d" clauses_literals;
+        f fmt "\n%slearnts_literals =" p1;
+        f fmt " %d" learnts_literals;
+        f fmt "\n%smax_literals =" p1;
+        f fmt " %d" max_literals;
+
+        f fmt "\n%stot_literals =" p1;
+        f fmt " %d" tot_literals;
+        f fmt "\n%snb_init_vars =" p1;
+        f fmt " %d" nb_init_vars;
+        f fmt "\n%snb_init_clauses =" p1;
+        f fmt " %d" nb_init_clauses;
+
+        f fmt "\n%smodel =" p1;
+        f fmt " %a;" (print_vv ~p:p2) model;
+
+        f fmt "\n%stenv =" p1;
+        f fmt " %a" (Th.pr_brv ~p:p2) tenv;
+
+        f fmt "\n%sunit_tenv =" p1;
+        f fmt " %a" (Th.pr_brv ~p:p2) unit_tenv;
+
+        f fmt "\n%stenv_queue =" p1;
+        f fmt " %a" (print_thv ~p:p2) tenv_queue;
+
+        f fmt "\n%statoms_queue =" p1;
+        f fmt " %a" (print_aq ~p:p2) tatoms_queue;
+
+        f fmt "\n%sth_tableaux =" p1;
+        f fmt " %a" (print_aq ~p:p2) th_tableaux;
+        f fmt "\n%scpt_current_propagations =" p1;
+        f fmt " %d;" cpt_current_propagations;
+        f fmt "\n%sproxies =" p1;
+        f fmt " %a" (UMIP.pr_lb Pp.pr_int print_aalb ~p:p2) proxies;
+
+        f fmt "\n%slazy_cnf =" p1;
+        f fmt " %a" (print_db1_m ~p:p2) lazy_cnf;
+        f fmt "\n%slazy_cnf_queue =" p1;
+        f fmt " %a" (print_db1_mv ~p:p2) lazy_cnf_queue;
+
+        f fmt "\n%srelevants =" p1;
+        f fmt " %a" (print_sff ~p:p2) relevants;
+
+        f fmt "\n%srelevants_queue =" p1;
+        f fmt " %a" (print_sffv ~p:p2) relevants_queue;
+
+        f fmt "\n%sff_lvl =" p1;
+        f fmt " %a" (print_imff ~p:p2) ff_lvl;
+        f fmt "\n%slvl_ff =" p1;
+        f fmt " %a" (UMIP.pr_lb Pp.pr_int print_sff ~p:p2) lvl_ff;
+        (*
+        f fmt " %a" (UMIP.pr_lb Pp.pr_int print_sff ~p:p2) lvl_ff;
+        *)
+        f fmt "\n%sincrem_guards =" p1;
+        f fmt " %a" (print_av ~p:p2) increm_guards;
+
+        f fmt "\n%snext_dec_guard =" p1;
+        f fmt " %d" next_dec_guard;
+
+        f fmt "\n%s}" p
+      )
 end

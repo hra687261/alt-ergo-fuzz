@@ -92,6 +92,115 @@ type t =
    size_splits : Numbers.Q.t;
   }
 
+let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt { gets; tbset; split; conseq; seen;
+                      new_terms; size_splits} ->
+    (
+      let module Pp = Pp_utils in
+      let f = Format.fprintf in
+      let pr_gtype : ?p:string -> Format.formatter -> gtype -> unit =
+        fun ?(p = "") fmt {g; gt; gi; gty} ->
+          (
+            let p1 = p^"  " in
+            let p2 = p1^"  " in
+
+            f fmt "%s{" p;
+
+            f fmt "\n%sg=" p1;
+            f fmt "\n%s%a" p2 E.print g;
+
+            f fmt "\n%sgt=" p1;
+            f fmt "\n%s%a" p2 E.print gt;
+
+            f fmt "\n%sgi=" p1;
+            f fmt "\n%s%a" p2 E.print gi;
+
+            f fmt "\n%sgty=" p1;
+            f fmt "\n%s%a" p2 Ty.print gty;
+
+            f fmt "\n%s}" p
+          )
+      in
+      let pr_stype : ?p:string -> Format.formatter -> stype -> unit =
+        fun ?(p = "") fmt {s; st; si; sv; sty} ->
+          (
+            let p1 = p^"  " in
+            let p2 = p1^"  " in
+
+            f fmt "%s{" p;
+
+            f fmt "\n%ss=" p1;
+            f fmt "\n%s%a" p2 E.print s;
+
+            f fmt "\n%sst=" p1;
+            f fmt "\n%s%a" p2 E.print st;
+
+            f fmt "\n%ssi=" p1;
+            f fmt "\n%s%a" p2 E.print si;
+
+            f fmt "\n%ssv=" p1;
+            f fmt "\n%s%a" p2 E.print sv;
+
+            f fmt "\n%ssty=" p1;
+            f fmt "\n%s%a" p2 Ty.print sty;
+
+            f fmt "\n%s}" p
+          )
+      in
+
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+      let pr_e = Pp.addpref E.print_bis in
+      let pr_ex = Pp.addpref Ex.print in
+
+      let module TBSP = Pp.MapPrinter(TBS) in
+
+      let pr_g =
+        Pp.print_set_lb (module G) pr_gtype
+      in
+      let pr_s =
+        Pp.print_set_lb (module S) pr_stype
+      in
+
+      let module TP = Pp.MapPrinter(Tmap) in
+      let pr_se =
+        Pp.print_set_lb (module E.Set) pr_e
+      in
+
+      let pr_eex = Pp.print_doublet_lb (pr_e, pr_ex) in
+      let pr_conseq =
+        Pp.print_set_lb (module Conseq) pr_eex
+      in
+
+      let module LRmP = Pp.MapPrinter(LRmap) in
+      let pr_lrs = Pp.print_set_lb (module LRset) LR.pr_vrb in
+
+      f fmt "%s{" p;
+
+      f fmt "\n%sgets=" p1;
+      f fmt " %a" (pr_g ~p:p2) gets;
+
+      f fmt "\n%stbset=" p1;
+      f fmt " %a" (TBSP.pr_lb pr_e pr_s ~p:p2) tbset;
+
+      f fmt "\n%ssplit=" p1;
+      f fmt " %a" (pr_lrs ~p:p2) split;
+
+      f fmt "\n%sconseq=" p1;
+      f fmt " %a" (LRmP.pr_lb LR.pr_vrb pr_conseq ~p:p2) conseq;
+
+      f fmt "\n%sseen=" p1;
+      f fmt " %a" (TP.pr_lb pr_e pr_se ~p:p2) seen;
+
+      f fmt "\n%snew_terms=" p1;
+      f fmt " %a" (pr_se ~p:p2) new_terms;
+
+      f fmt "\n%ssize_splits=" p1;
+      f fmt " %a" Numbers.Q.print size_splits;
+
+      f fmt "\n%s}" p
+    )
 
 let empty _ =
   {gets  = G.empty;

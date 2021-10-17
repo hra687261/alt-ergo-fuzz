@@ -70,6 +70,9 @@ module type S = sig
   val print_model : header:bool -> Format.formatter -> t -> unit
 
   val reset_refs : unit -> unit
+
+  val print_env : ?p:string -> Format.formatter -> t -> unit
+
 end
 
 

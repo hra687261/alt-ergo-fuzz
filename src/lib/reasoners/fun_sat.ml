@@ -34,6 +34,9 @@ module SE = E.Set
 module ME = E.Map
 module Ex = Explanation
 
+module Pp = Pp_utils
+module MEP = Pp.MapPrinter(E.Map)
+let f = Format.fprintf
 
 module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   module Inst = Instances.Make(Th)
@@ -135,6 +138,30 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         in
         e, delta
 
+    let pr_vrb :
+      ?p:string -> formatter -> t -> unit =
+      fun ?(p = "") fmt {mp; var_inc; var_decay} ->
+      (
+        let p1 = p^"  " in
+        let p2 = p1^"  " in
+
+        let print_e = Pp.addpref E.print_bis in
+        let print_me = MEP.pr_lb print_e Pp.pr_float in
+
+        f fmt "%s{" p;
+
+        f fmt "\n%smp =" p1;
+        f fmt " %a;" (print_me ~p:p2) mp;
+
+        f fmt "\n%svar_inc =" p1;
+        f fmt " %f;" var_inc;
+
+        f fmt "\n%svar_decay =" p1;
+        f fmt " %f;" var_decay;
+
+        f fmt "\n%s}" p
+      )
+
   end
 
   type refs = {
@@ -178,6 +205,177 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     add_inst: E.t -> bool;
     unit_facts_cache : (E.gformula * Ex.t) ME.t ref;
   }
+
+  let pr_e = Pp.addpref E.print_bis
+
+  let print_guards :
+    ?p:string -> formatter -> guards -> unit =
+    fun ?(p = "") fmt {current_guard; stack_elt; guards} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+
+
+      let print_ex =
+        Pp.addpref Ex.print
+      in
+      let print_db1 =
+        Pp.print_doublet_lb
+          (E.print_gform, print_ex)
+      in
+      let print_db1_me =
+        MEP.pr_lb ~ind:true pr_e print_db1
+      in
+      let print_refs ?(p = "") fmt refs =
+        print_db1_me ~p fmt refs.unit_facts
+      in
+
+      let pr_er =
+        Pp.print_doublet_lb (pr_e, print_refs)
+      in
+      let pr_er_st =
+        Pp.print_stack_lb pr_er
+      in
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%scurrent_guard = " p1;
+      f fmt " %a" (pr_e ~p:p2) current_guard;
+
+      f fmt "\n%sstack_elt = " p1;
+      f fmt " %a" (pr_er_st ~p:p2) stack_elt;
+
+      f fmt "\n%sguards = " p1;
+      f fmt " %a" (print_db1_me ~p:p2) guards;
+
+      f fmt "\n%s}" p
+    )
+
+  let print_env :
+    ?p:string -> formatter -> t -> unit =
+    fun ?(p = "") fmt { gamma; nb_related_to_goal; nb_related_to_hypo;
+                        nb_related_to_both; nb_unrelated; cdcl;
+                        tcp_cache; delta; decisions; dlevel; plevel;
+                        ilevel; tbox; unit_tbox; inst; heuristics;
+                        model_gen_mode; guards; add_inst;
+                        unit_facts_cache;} ->
+      (
+        let p1 = p^"  " in
+        let p2 = p1^"  " in
+
+        let pr_ex = Pp.addpref Ex.print_bis in
+
+        let pr_qd1 =
+          Pp.print_quadruplet_lb
+            ( E.print_gform,
+              pr_ex,
+              Pp.pr_int,
+              Pp.pr_int
+            )
+        in
+        let pr_gamma =
+          MEP.pr_lb pr_e pr_qd1
+        in
+
+        let pr_se =
+          Pp.print_set_lb (module SE) pr_e
+        in
+        let pr_sel =
+          Pp.print_list_lb pr_se
+        in
+        let pr_db1 =
+          Pp.print_doublet_lb (pr_ex, pr_sel)
+        in
+        let pr_opt =
+          Pp.print_opt_lb pr_db1
+        in
+        let pr_tcpc =
+          MEP.pr_lb pr_e pr_opt
+        in
+
+        let pr_qd2 =
+          Pp.print_quadruplet_lb
+            ( E.print_gform,
+              E.print_gform,
+              Pp.addpref Ex.print_bis,
+              Pp.pr_bool
+            )
+        in
+        let pr_delta =
+          Pp.print_list_lb pr_qd2
+        in
+        let pr_dcs =
+          MEP.pr_lb pr_e Pp.pr_int
+        in
+        let pr_db2 =
+          Pp.print_doublet_lb
+            ( E.print_gform,
+              pr_ex
+            )
+        in
+        let pr_ufc =
+          MEP.pr_lb pr_e pr_db2
+        in
+
+        f fmt "%s{fun_sat" p;
+
+        f fmt "\n%sgamma =" p1;
+        f fmt " %a;" (pr_gamma ~p:p1) gamma;
+
+        f fmt "\n%snb_related_to_goal =" p1;
+        f fmt " %d;" nb_related_to_goal;
+        f fmt "\n%snb_related_to_hypo =" p1;
+        f fmt " %d;" nb_related_to_hypo;
+        f fmt "\n%snb_related_to_both =" p1;
+        f fmt " %d;" nb_related_to_both;
+
+        f fmt "\n%snb_unrelated = %d;" p1 nb_unrelated;
+        f fmt "\n%scdcl = ref" p1;
+        f fmt " %a;" (CDCL.print_env ~p:p2) !cdcl;
+
+        f fmt "\n%stcp_cache =" p1;
+        f fmt " %a;" (pr_tcpc ~p:p1) tcp_cache;
+
+        f fmt "\n%sdelta =" p1;
+        f fmt " %a;" (pr_delta ~p:p1) delta;
+
+        f fmt "\n%sdecisions =" p1;
+        f fmt " %a;" (pr_dcs ~p:p1) decisions;
+
+        f fmt "\n%sdlevel =" p1;
+        f fmt " %d;" dlevel;
+        f fmt "\n%splevel =" p1;
+        f fmt " %d;" plevel;
+        f fmt "\n%silevel =" p1;
+        f fmt " %d;" ilevel;
+
+        f fmt "\n%stbox =" p1;
+        f fmt "\n%s%a;" p2 Th.print_model tbox;
+
+        f fmt "\n%sunit_tbox =" p1;
+        f fmt "\n%s%a;" p2 Th.print_model unit_tbox;
+
+        f fmt "\n%sinst =" p1 ;
+        f fmt " %a;" (Inst.print_vrb ~p:p2) inst;
+
+        f fmt "\n%sheuristics = ref" p1;
+        f fmt " %a" (Heuristics.pr_vrb ~p:p2) !heuristics;
+
+        f fmt "\n%smodel_gen_mode = ref" p1;
+        f fmt " %b;" !model_gen_mode;
+
+        f fmt "\n%sguards = ;" p1;
+        f fmt " %a" (print_guards ~p:p2) guards;
+
+        ignore add_inst;
+        f fmt "\n%sadd_inst = fun;" p1;
+
+        f fmt "\n%sunit_facts_cache =" p1;
+        f fmt " %a" (pr_ufc ~p:p2) !unit_facts_cache;
+
+        f fmt "\n%s}" p
+      )
+
 
   let all_models_sat_env = ref None
   let latest_saved_env = ref None
@@ -730,7 +928,12 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     with Not_found ->
     try ME.find a !tmp_cache
     with Not_found ->
-      assert (E.is_ground a);
+      if not (E.is_ground a)
+      then (
+        Format.printf
+          "%a is not ground" E.print a;
+        assert false
+      );
       match Th.query a env.tbox with
       | None -> tmp_cache := ME.add a None !tmp_cache; None
       | Some (ex,_) as y ->

@@ -48,6 +48,8 @@ module type S = sig
   val query :
     Util.matching_env -> t -> theory -> (trigger_info * gsubst list) list
 
+  val print_vrb: ?p:string -> Format.formatter -> t -> unit
+
 end
 
 
@@ -56,6 +58,7 @@ module type Arg = sig
   val term_repr : t -> Expr.t -> init_term:bool -> Expr.t
   val are_equal : t -> Expr.t -> Expr.t -> init_terms:bool -> Th_util.answer
   val class_of : t -> Expr.t -> Expr.t list
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
 end
 
 

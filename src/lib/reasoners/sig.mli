@@ -94,6 +94,8 @@ end
 module type X = sig
   type r
 
+  val pr_vrb: ?p:string -> Format.formatter -> r -> unit
+
   val make : Expr.t -> r * Expr.t list
 
   val type_info : r -> Ty.t

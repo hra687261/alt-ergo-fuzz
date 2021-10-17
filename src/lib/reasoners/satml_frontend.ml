@@ -47,6 +47,134 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     guards : guards;
   }
 
+  module Pp = Pp_utils
+
+  let f = Format.fprintf
+
+  let print_env :
+    ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt { satml; ff_hcons_env; nb_mrounds;
+                        last_forced_normal; last_forced_greedy;
+                        gamma; conj; abstr_of_axs; axs_of_abstr;
+                        proxies; inst; skolems; add_inst; guards} ->
+      (
+        let p1 = p^"  " in
+        let p2 = p1^"  " in
+
+        let print_e = Pp.addpref E.print_bis in
+        let print_al =
+          Pp.print_list_lb Atom.pr_atom_vrb
+        in
+        let print_aalb =
+          Pp.print_triplet_lb (Atom.pr_atom_vrb, print_al, Pp.pr_bool)
+        in
+
+        let print_guards ?(p = "") fmt {current_guard; stack_guard} =
+          let p1 = p^"  " in
+          let p2 = p1^"  " in
+
+          let print_ste =
+            Pp.print_stack_lb print_e
+          in
+          f fmt "\n%s{" p;
+
+          f fmt "\n%scurrent_guard = " p1;
+          f fmt " %a" (print_e ~p:"") current_guard;
+
+          f fmt "\n%scurrent_guard = " p1;
+          f fmt " %a" (print_e ~p:"") current_guard;
+
+          f fmt "\n%sstack_guard = " p1;
+          f fmt " %a" (print_ste ~p:p2) stack_guard;
+
+          f fmt "\n%s}" p
+        in
+
+        let print_se = Pp.print_set_lb (module E.Set) print_e in
+        let pr_ffo =
+          Pp.print_opt_lb ~slb:true FF.pr_vrb
+        in
+        let pr_iffo =
+          Pp.print_doublet_lb (Pp.pr_int, pr_ffo)
+        in
+        let pr_ise =
+          Pp.print_doublet_lb (Pp.pr_int, print_se)
+        in
+        let pr_ffa =
+          Pp.print_doublet_lb (FF.pr_vrb, Atom.pr_atom_vrb)
+        in
+        let pr_ea =
+          Pp.print_doublet_lb (print_e, Atom.pr_atom_vrb)
+        in
+        let module MEP = Pp.MapPrinter(ME) in
+        let module FFP = Pp.MapPrinter(FF.Map) in
+        let pr_offo_m =
+          MEP.pr_lb print_e pr_iffo
+        in
+        let pr_ise_mff =
+          FFP.pr_lb FF.pr_vrb pr_ise
+        in
+        let pr_ffa_m =
+          MEP.pr_lb print_e pr_ffa
+        in
+        let pr_ea_m =
+          MEP.pr_lb print_e pr_ea
+        in
+        let pr_gf_m =
+          MEP.pr_lb print_e E.print_gform
+        in
+
+        let module UMIP = Pp.MapPrinter(Util.MI) in
+
+        f fmt "%s{" p;
+
+        f fmt "\n%ssatml =" p1;
+        f fmt " %a;" (SAT.print_env ~p:p2) satml;
+
+        f fmt "\n%sff_hcons_env =" p1;
+        f fmt " %a;" (FF.print_env_vrb ~p:p2) ff_hcons_env;
+
+        f fmt "\n%snb_mrounds =" p1;
+        f fmt " %d;" nb_mrounds;
+
+        f fmt "\n%slast_forced_normal =" p1;
+        f fmt " %d;" last_forced_normal;
+
+        f fmt "\n%slast_forced_greedy =" p1;
+        f fmt " %d;" last_forced_greedy;
+
+        f fmt "\n%sgamma =" p1;
+        f fmt " %a;" (pr_offo_m ~p:p2) gamma;
+
+        f fmt "\n%sconj =" p1;
+        f fmt " %a;" (pr_ise_mff ~p:p2) conj;
+
+        f fmt "\n%sabstr_of_axs =" p1;
+        f fmt " %a;" (pr_ffa_m ~p:p2) abstr_of_axs;
+
+        f fmt "\n%saxs_of_abstr =" p1;
+        f fmt " %a;" (pr_ea_m ~p:p2) axs_of_abstr;
+
+        f fmt "\n%sproxies =" p1;
+        f fmt " %a"
+          (UMIP.pr_lb Pp.pr_int print_aalb ~p:p2) proxies;
+
+        f fmt "\n%sinst =" p1 ;
+        f fmt " %a;" (Inst.print_vrb ~p:p2) inst;
+
+        f fmt "\n%sskolems =" p1;
+        f fmt " %a;" (pr_gf_m ~p:p2) skolems;
+
+        ignore add_inst;
+        f fmt "\n%sadd_inst =" p1;
+        f fmt " fun;" ;
+
+        f fmt "\n%sguards =" p1;
+        f fmt " %a;" (print_guards ~p:p2) guards;
+
+        f fmt "\n%s}" p
+      )
+
   let empty_guards () = {
     current_guard = Expr.vrai;
     stack_guard = Stack.create ();

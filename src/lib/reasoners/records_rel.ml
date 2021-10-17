@@ -28,6 +28,10 @@
 
 type t = unit
 
+let pr_vrb : ?p:string -> Format.formatter -> t -> unit =
+  fun ?(p = "") fmt env ->
+  ignore (p, fmt, env)
+
 let empty _ = ()
 let assume _ _ _ =
   (), { Sig_rel.assume = []; remove = []}

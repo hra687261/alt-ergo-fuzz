@@ -38,6 +38,8 @@ type 'a state = {
 }
 
 let main () =
+  Printexc.record_backtrace true;
+
   let module SatCont =
     (val (Sat_solver.get_current ()) : Sat_solver_sig.SatContainer) in
 
@@ -51,6 +53,13 @@ let main () =
   let module FE = Frontend.Make (SAT) in
 
   let solve all_context (cnf, goal_name) =
+    (*
+    List.iter (
+      fun x ->
+        Format.printf ">>> %a@." Commands.print x;
+        Format.printf "$$$ %a\n@." (Commands.pr_vrb ~p:"") x
+    ) cnf;
+    *)
     let used_context = FE.choose_used_context all_context ~goal_name in
     let consistent_dep_stack = Stack.create () in
     Signals_profiling.init_profiling ();

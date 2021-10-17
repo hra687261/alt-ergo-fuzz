@@ -10,6 +10,11 @@
 (******************************************************************************)
 
 type 'a t = { mutable dummy: 'a; mutable data : 'a array; mutable sz : int }
+
+val pr_vrb :
+  (?p:string -> Format.formatter -> 'a -> unit) ->
+  (?p:string -> Format.formatter -> 'a t -> unit)
+
 val make : int -> 'a -> 'a t
 val init : int -> (int -> 'a) -> 'a -> 'a t
 val from_array : 'a array -> int -> 'a -> 'a t

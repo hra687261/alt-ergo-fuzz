@@ -29,6 +29,8 @@
 module type S = sig
   type t
 
+  val pr_brv : ?p:string -> Format.formatter -> t -> unit
+
   val empty : unit -> t
 
   (* the first int is the decision level (dlvl) and the second one is the

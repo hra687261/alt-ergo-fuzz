@@ -43,6 +43,8 @@ module type S = sig
   type t
   type r = Shostak.Combine.r
 
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
+
   val empty : unit -> t
 
   val empty_facts : unit -> r facts
@@ -103,6 +105,28 @@ module Main : S = struct
   }
 
   type r = Shostak.Combine.r
+
+  let pr_vrb :
+    ?p:string -> Format.formatter -> t -> unit =
+    fun ?(p = "") fmt {use; uf; relation} ->
+    (
+      let p1 = p^"  " in
+      let p2 = p1^"  " in
+      let f = Format.fprintf in
+
+      f fmt "\n%s{" p;
+
+      f fmt "\n%suse=" p1;
+      f fmt " %a;" (Use.pr_vrb ~p:p2) use;
+
+      f fmt"\n%suf =" p1;
+      f fmt " %a;" (Uf.pr_vrb ~p:p2) uf;
+
+      f fmt "\n%srelation =" p1;
+      f fmt " %a;" (Rel.pr_vrb ~p:p2 ) relation;
+
+      f fmt "\n%s}" p
+    )
 
   let empty () = {
     use = Use.empty ;

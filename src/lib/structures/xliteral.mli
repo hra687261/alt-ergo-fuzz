@@ -30,6 +30,8 @@ type builtin = Symbols.builtin =
     LE | LT | (* arithmetic *)
     IsConstr of Hstring.t (* ADT tester *)
 
+val print_builtin : Format.formatter -> builtin -> unit
+
 type 'a view = (*private*)
   | Eq of 'a * 'a
   | Distinct of bool * 'a list
@@ -45,6 +47,13 @@ type 'a atom_view
    | PR of 'a
    | EQ_LIST of 'a list*)
 
+val print_view :
+  ?lbl:string ->
+  (Format.formatter -> 'a -> unit) ->
+  Format.formatter ->
+  'a view ->
+  unit
+
 module type OrderedType = sig
   type t
   val compare : t -> t -> int
@@ -58,6 +67,8 @@ end
 module type S = sig
   type elt
   type t
+
+  val pr_vrb : ?p:string -> Format.formatter -> t -> unit
 
   val make : elt view -> t
   val view : t -> elt view
@@ -89,12 +100,5 @@ module type S = sig
   module Map : Map.S with type key = t
   module Set : Set.S with type elt = t
 end
-
-val print_view :
-  ?lbl:string ->
-  (Format.formatter -> 'a -> unit) ->
-  Format.formatter ->
-  'a view ->
-  unit
 
 module Make ( X : OrderedType ) : S with type elt = X.t
