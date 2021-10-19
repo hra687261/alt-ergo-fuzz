@@ -22,6 +22,8 @@ module type S = sig
   val parse_files :
     filename:string -> preludes:string list -> parsed Seq.t
 
+  val print_parsed : Format.formatter -> parsed -> unit
+
   (* Typechecking *)
 
   type env

@@ -184,4 +184,64 @@ module Make (Th : Theory.S) = struct
             SE.add (formula_of_atom env a) acc) r SE.empty
       in
       raise (Bottom (Ex.make_deps r, [], env))
+
+  module Pp = Pp_utils
+  module F = Format
+
+  let pp_env ppf {
+      sat; assumed; proxies;
+      inv_proxies; hcons_env;
+      decisions; pending
+    } =
+
+    let pp_e = E.pp_bis in
+    let pp_ex = Ex.pp_bis in
+    let pp_i = F.pp_print_int in
+    let pp_gf = E.pp_gform in
+
+    let module MEP = Pp.MapPrinter(ME) in
+    let module MAP = Pp.MapPrinter(MA) in
+
+    let pp_a1 = Atom.pp_atom_vrb in
+    let pp_db1 = Pp.pp_doublet pp_i pp_e in
+    let pp_db2 = Pp.pp_doublet pp_gf pp_ex in
+    let pp_l2 = Pp.pp_list pp_db2 in
+
+
+    let s_p = "sat = " in
+    let a2_p = "assumed = " in
+    let p1_p = "proxies = " in
+
+    let ip_p = "inv_proxies = " in
+    let he_p = "hcons_env = " in
+
+    let d_p = "decisions = " in
+    let p2_p = "pending = " in
+
+
+    let pp_s = Pp.add_p SAT.pp_env ~p:s_p in
+    let pp_a2 = Pp.pp_set (module E.Set) pp_e ~p:a2_p in
+    let pp_p1 = MEP.pp pp_e Atom.pp_atom_vrb ~p:p1_p in
+
+    let pp_ip = MAP.pp pp_a1 pp_e ~p:ip_p in
+    let pp_he = Pp.add_p Atom.pp_env_vrb ~p:he_p in
+
+    let pp_d = Pp.pp_list pp_db1 ~p:d_p in
+    let pp_p2 = Pp.pp_list pp_l2 ~p:p2_p in
+
+
+    F.fprintf ppf "@[<hov 2>{@\n";
+
+    F.fprintf ppf "%a@\n" pp_s sat;
+    F.fprintf ppf "%a@\n" pp_a2 assumed;
+    F.fprintf ppf "%a@\n" pp_p1 proxies;
+
+    F.fprintf ppf "%a@\n" pp_ip inv_proxies;
+    F.fprintf ppf "%a@\n" pp_he hcons_env;
+
+    F.fprintf ppf "%a@\n" pp_d decisions;
+    F.fprintf ppf "%a@\n" pp_p2 pending;
+
+    F.fprintf ppf "}@]@\n"
+
 end

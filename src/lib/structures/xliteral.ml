@@ -26,14 +26,21 @@
 (*                                                                            *)
 (******************************************************************************)
 
-open Hconsing
 open Options
 
-
+module Pp = Pp_utils
+module F = Format
 
 type builtin = Symbols.builtin =
     LE | LT | (* arithmetic *)
     IsConstr of Hstring.t (* ADT tester *)
+
+let print_builtin fmt = function
+  | LE -> Format.fprintf fmt "{LE}"
+  | LT -> Format.fprintf fmt "{LT}"
+  | IsConstr hs ->
+    Format.fprintf fmt "{IsConstr %a}"
+      Hstring.print hs
 
 type 'a view =
   | Eq of 'a * 'a
@@ -46,52 +53,6 @@ type 'a atom_view =
   | BT of builtin * 'a list
   | PR of 'a
   | EQ_LIST of 'a list
-
-module type OrderedType = sig
-  type t
-  val compare : t -> t -> int
-  val hash :  t -> int
-  val print : Format.formatter -> t -> unit
-  val top : unit -> t
-  val bot : unit -> t
-  val type_info : t -> Ty.t
-end
-
-module type S = sig
-  type elt
-  type t
-
-  val make : elt view -> t
-  val view : t -> elt view
-  val atom_view : t -> elt atom_view * bool (* is_negated ? *)
-
-  val mk_eq : elt -> elt -> t
-  val mk_distinct : bool -> elt list -> t
-  val mk_builtin : bool -> builtin -> elt list -> t
-  val mk_pred : elt -> bool -> t
-
-  val mkv_eq : elt -> elt -> elt view
-  val mkv_distinct : bool -> elt list -> elt view
-  val mkv_builtin : bool -> builtin -> elt list -> elt view
-  val mkv_pred : elt -> bool -> elt view
-
-  val neg : t -> t
-
-  val add_label : Hstring.t -> t -> unit
-  val label : t -> Hstring.t
-
-  val print : Format.formatter -> t -> unit
-
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
-  val hash : t -> int
-  val uid : t -> int
-  val elements : t -> elt list
-
-  module Map : Map.S with type key = t
-  module Set : Set.S with type elt = t
-
-end
 
 let print_view ?(lbl="") pr_elt fmt vw =
   match vw with
@@ -131,6 +92,53 @@ let print_view ?(lbl="") pr_elt fmt vw =
 
   | Distinct (_, _) -> assert false
 
+module type OrderedType = sig
+  type t
+  val compare : t -> t -> int
+  val hash :  t -> int
+  val print : Format.formatter -> t -> unit
+  val top : unit -> t
+  val bot : unit -> t
+  val type_info : t -> Ty.t
+end
+
+module type S = sig
+  type elt
+  type t
+
+  val pp_vrb : Format.formatter -> t -> unit
+
+  val make : elt view -> t
+  val view : t -> elt view
+  val atom_view : t -> elt atom_view * bool (* is_negated ? *)
+
+  val mk_eq : elt -> elt -> t
+  val mk_distinct : bool -> elt list -> t
+  val mk_builtin : bool -> builtin -> elt list -> t
+  val mk_pred : elt -> bool -> t
+
+  val mkv_eq : elt -> elt -> elt view
+  val mkv_distinct : bool -> elt list -> elt view
+  val mkv_builtin : bool -> builtin -> elt list -> elt view
+  val mkv_pred : elt -> bool -> elt view
+
+  val neg : t -> t
+
+  val add_label : Hstring.t -> t -> unit
+  val label : t -> Hstring.t
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val hash : t -> int
+  val uid : t -> int
+  val elements : t -> elt list
+
+  module Map : Map.S with type key = t
+  module Set : Set.S with type elt = t
+
+end
 
 module Make (X : OrderedType) : S with type elt = X.t = struct
 
@@ -141,6 +149,28 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
      uid : int }
 
   type t = { at : atom; neg : bool; tpos : int; tneg : int }
+
+  let print_atom_view pp_v ppf = function
+    | EQ (a, b) ->
+      Format.fprintf ppf "EQ @[<hov 2>(%a, %a)@]"
+        pp_v a pp_v b
+    | BT (b, al) ->
+      Format.fprintf ppf "BT @[<hov 2>(%a, %a)@]"
+        print_builtin b (Pp.pp_list pp_v) al
+    | PR a ->
+      Format.fprintf ppf "PR @[<hov 2>(%a)@]"
+        pp_v a
+    | EQ_LIST al ->
+      Format.fprintf ppf "PR @[<hov 2>(%a)@]"
+        (Pp.pp_list pp_v) al
+
+  let pp_atom ppf {value; uid} =
+    Format.fprintf ppf "@[<hov 2>{%a; %d}@]"
+      (print_atom_view X.print) value uid
+
+  let pp_vrb ppf {at : atom; neg; tpos; tneg} =
+    Format.fprintf ppf "@[<hov 2>(atom, %a, %b, %d, %d)@]"
+      pp_atom at neg tpos tneg
 
   let compare a1 a2 = Stdlib.compare a1.tpos a2.tpos
   let equal a1 a2 = a1.tpos = a2.tpos (* XXX == *)
@@ -191,6 +221,8 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
   module V = struct
     type elt = atom
 
+    let pp_vrb = pp_atom
+
     let eq a1 a2 =
       match a1.value, a2.value with
       | EQ(t1, t2), EQ(u1, u2) -> X.compare t1 u1 = 0 && X.compare t2 u2 = 0
@@ -227,7 +259,7 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   end
 
-  module H = Make(V)
+  module H = Hconsing.Make(V)
 
   let normalize_eq_bool t1 t2 is_neg =
     if X.compare t1 (X.bot()) = 0 then Pred(t2, not is_neg)

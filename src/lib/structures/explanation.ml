@@ -202,3 +202,61 @@ let has_no_bj s =
 let compare = S.compare
 
 let subset = S.subset
+
+module Pp = Pp_utils
+module F = Format
+
+let pp_bis ppf =
+  let pp_aux ppf = function
+    | Literal a ->
+      F.fprintf ppf "{Literal:%a}" Satml_types.Atom.pr_atom a
+    | Fresh i ->
+      F.fprintf ppf "{Fresh:%i}" i;
+    | Dep d ->
+      F.fprintf ppf "{Dep:%a}" E.pp_bis d
+    | RootDep r ->
+      F.fprintf ppf "{RootDep:%s}" r.name
+    | Bj d ->
+      F.fprintf ppf "{BJ:%a}" E.pp_bis d
+  in
+  let pp = Pp.pp_set (module S) pp_aux in
+  F.fprintf ppf "@[<hov 2>{%a}@]" pp
+
+let pp_root_dep ppf {name; f; loc} =
+
+  let pp_s = F.pp_print_string in
+  let pp_e = E.pp_bis in
+  let pp_l = Loc.report in
+
+  let n_p = "name = " in
+  let f_p = "f = " in
+  let l_p = "loc = " in
+
+  let pp_n = Pp.add_p pp_s ~p:n_p in
+  let pp_f = Pp.add_p pp_e ~p:f_p in
+  let pp_l = Pp.add_p pp_l ~p:l_p in
+
+  F.fprintf ppf "@[<hov 2>{@\n";
+
+  F.fprintf ppf "%a@\n" pp_n name;
+  F.fprintf ppf "%a@\n" pp_f f;
+  F.fprintf ppf "%a@\n" pp_l loc;
+
+  F.fprintf ppf "}@]@\n"
+
+let pp_exp_vrb ppf = function
+  | Literal atom ->
+    F.fprintf ppf "@[<hov 2>Literal (%a)@]"
+      Satml_types.Atom.pp_atom_vrb atom
+  | Fresh n ->
+    F.fprintf ppf "@[<hov 2>Fresh (%a)@]"
+      F.pp_print_int n
+  | Bj e ->
+    F.fprintf ppf "@[<hov 2>Bj (%a)@]"
+      E.pp_bis e
+  | Dep e ->
+    F.fprintf ppf "@[<hov 2>Dep (%a)@]"
+      E.pp_bis e
+  | RootDep rd ->
+    F.fprintf ppf "@[<hov 2>RootDep (%a)@]"
+      pp_root_dep rd

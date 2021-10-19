@@ -75,11 +75,26 @@ struct
 
   type r = {v : rview ; id : int}
 
+  let print_rview fmt rv =
+    match rv with
+    | Term  e -> Expr.pp_bis fmt e
+    | Ac    e -> AC.print fmt e
+    | X1    e -> X1.print fmt e
+    | X2    e -> X2.print fmt e
+    | X3    e -> X3.print fmt e
+    | X4    e -> X4.print fmt e
+    | X5    e -> X5.print fmt e
+    | X6    e -> X6.print fmt e
+    | X7    e -> X7.print fmt e
+
   (* begin: Hashconsing modules and functions *)
 
   module View = struct
 
     type elt = r
+
+    let pp_vrb fmt ({v ; id}: elt) =
+      Format.fprintf fmt "{%a; %d}" print_rview v id
 
     let set_id tag r = { r with id=tag }
 
@@ -115,6 +130,8 @@ struct
     let disable_weaks () = Options.get_disable_weaks ()
 
   end
+
+  let pp_vrb = View.pp_vrb
 
   module HC = Hconsing.Make(View)
 
@@ -243,6 +260,91 @@ struct
 
   module SX = Set.Make(struct type t = r let compare = CX.hash_cmp end)
 
+  (*BISECT-IGNORE-BEGIN*)
+  module Debug = struct
+    open Printer
+
+    let print fmt r =
+      if get_term_like_pp () then
+        match r.v with
+        | X1 t    -> fprintf fmt "%a" X1.print t
+        | X2 t    -> fprintf fmt "%a" X2.print t
+        | X3 t    -> fprintf fmt "%a" X3.print t
+        | X4 t    -> fprintf fmt "%a" X4.print t
+        | X5 t    -> fprintf fmt "%a" X5.print t
+        | X6 t    -> fprintf fmt "%a" X6.print t
+        | X7 t    -> fprintf fmt "%a" X7.print t
+        | Term t  -> fprintf fmt "%a" Expr.print t
+        | Ac t    -> fprintf fmt "%a" AC.print t
+      else
+        match r.v with
+        | X1 t    -> fprintf fmt "X1(%s):[%a]" X1.name X1.print t
+        | X2 t    -> fprintf fmt "X2(%s):[%a]" X2.name X2.print t
+        | X3 t    -> fprintf fmt "X3(%s):[%a]" X3.name X3.print t
+        | X4 t    -> fprintf fmt "X4(%s):[%a]" X4.name X4.print t
+        | X5 t    -> fprintf fmt "X5(%s):[%a]" X5.name X5.print t
+        | X6 t    -> fprintf fmt "X6(%s):[%a]" X6.name X6.print t
+        | X7 t    -> fprintf fmt "X7(%s):[%a]" X7.name X7.print t
+        | Term t  -> fprintf fmt "FT:[%a]" Expr.print t
+        | Ac t    -> fprintf fmt "Ac:[%a]" AC.print t
+
+    let print_sbt msg sbs =
+      let c = ref 0 in
+      let print fmt (p,v) =
+        incr c;
+        fprintf fmt "<%d) %a |-> %a@ "
+          !c print p print v
+      in
+      if get_debug_combine () then
+        print_dbg
+          ~module_name:"Shostak" ~function_name:"print_sbt"
+          "@[<v 2>%s subst:@ %a@]"
+          msg
+          (pp_list_no_space print) sbs
+
+    let debug_abstraction_result oa ob a b acc =
+      let c = ref 0 in
+      let print fmt (p,v) =
+        incr c;
+        fprintf fmt "(%d) %a |-> %a@ "
+          !c CX.print p CX.print v
+      in
+      if get_debug_combine () then
+        print_dbg
+          ~module_name:"Shostak" ~function_name:"abstraction_result"
+          "@[<v 0>== get_debug_abstraction_result ==@ \
+           Initial equaliy:   %a = %a@ \
+           abstracted equality: %a = %a@ \
+           @[<v 2>selectors elimination result:@ \
+           %a@]@]"
+          CX.print oa CX.print ob CX.print a CX.print b
+          (pp_list_no_space print) acc
+
+    let solve_one a b =
+      if get_debug_combine () then
+        print_dbg
+          ~module_name:"Shostak" ~function_name:"solve_one"
+          "solve one %a = %a" CX.print a CX.print b
+
+    let debug_abstract_selectors a =
+      if get_debug_combine () then
+        print_dbg
+          ~module_name:"Shostak" ~function_name:"abstract_selectors"
+          "abstract selectors of %a" CX.print a
+
+    let assert_have_mem_types tya tyb =
+      assert (
+        not (Options.get_enable_assertions()) ||
+        if not (Ty.compare tya tyb = 0) then (
+          print_err "@[<v 0>@ Tya = %a  and @ Tyb = %a@]"
+            Ty.print tya Ty.print tyb;
+          false)
+        else true)
+
+  end
+  (*BISECT-IGNORE-END*)
+
+  let print = Debug.print
   let leaves r =
     match r.v with
     | X1 t -> X1.leaves t
@@ -366,93 +468,6 @@ struct
       | false , false , false , false, false, true , false, false -> X6.color ac
       | false , false , false , false, false, false, true , false -> X7.color ac
       | _  -> ac_embed ac
-
-
-  (*BISECT-IGNORE-BEGIN*)
-  module Debug = struct
-    open Printer
-
-    let print fmt r =
-      if get_term_like_pp () then
-        match r.v with
-        | X1 t    -> fprintf fmt "%a" X1.print t
-        | X2 t    -> fprintf fmt "%a" X2.print t
-        | X3 t    -> fprintf fmt "%a" X3.print t
-        | X4 t    -> fprintf fmt "%a" X4.print t
-        | X5 t    -> fprintf fmt "%a" X5.print t
-        | X6 t    -> fprintf fmt "%a" X6.print t
-        | X7 t    -> fprintf fmt "%a" X7.print t
-        | Term t  -> fprintf fmt "%a" Expr.print t
-        | Ac t    -> fprintf fmt "%a" AC.print t
-      else
-        match r.v with
-        | X1 t    -> fprintf fmt "X1(%s):[%a]" X1.name X1.print t
-        | X2 t    -> fprintf fmt "X2(%s):[%a]" X2.name X2.print t
-        | X3 t    -> fprintf fmt "X3(%s):[%a]" X3.name X3.print t
-        | X4 t    -> fprintf fmt "X4(%s):[%a]" X4.name X4.print t
-        | X5 t    -> fprintf fmt "X5(%s):[%a]" X5.name X5.print t
-        | X6 t    -> fprintf fmt "X6(%s):[%a]" X6.name X6.print t
-        | X7 t    -> fprintf fmt "X7(%s):[%a]" X7.name X7.print t
-        | Term t  -> fprintf fmt "FT:[%a]" Expr.print t
-        | Ac t    -> fprintf fmt "Ac:[%a]" AC.print t
-
-    let print_sbt msg sbs =
-      let c = ref 0 in
-      let print fmt (p,v) =
-        incr c;
-        fprintf fmt "<%d) %a |-> %a@ "
-          !c print p print v
-      in
-      if get_debug_combine () then
-        print_dbg
-          ~module_name:"Shostak" ~function_name:"print_sbt"
-          "@[<v 2>%s subst:@ %a@]"
-          msg
-          (pp_list_no_space print) sbs
-
-    let debug_abstraction_result oa ob a b acc =
-      let c = ref 0 in
-      let print fmt (p,v) =
-        incr c;
-        fprintf fmt "(%d) %a |-> %a@ "
-          !c CX.print p CX.print v
-      in
-      if get_debug_combine () then
-        print_dbg
-          ~module_name:"Shostak" ~function_name:"abstraction_result"
-          "@[<v 0>== get_debug_abstraction_result ==@ \
-           Initial equaliy:   %a = %a@ \
-           abstracted equality: %a = %a@ \
-           @[<v 2>selectors elimination result:@ \
-           %a@]@]"
-          CX.print oa CX.print ob CX.print a CX.print b
-          (pp_list_no_space print) acc
-
-    let solve_one a b =
-      if get_debug_combine () then
-        print_dbg
-          ~module_name:"Shostak" ~function_name:"solve_one"
-          "solve one %a = %a" CX.print a CX.print b
-
-    let debug_abstract_selectors a =
-      if get_debug_combine () then
-        print_dbg
-          ~module_name:"Shostak" ~function_name:"abstract_selectors"
-          "abstract selectors of %a" CX.print a
-
-    let assert_have_mem_types tya tyb =
-      assert (
-        not (Options.get_enable_assertions()) ||
-        if not (Ty.compare tya tyb = 0) then (
-          print_err "@[<v 0>@ Tya = %a  and @ Tyb = %a@]"
-            Ty.print tya Ty.print tyb;
-          false)
-        else true)
-
-  end
-  (*BISECT-IGNORE-END*)
-
-  let print = Debug.print
 
   let abstract_selectors a acc =
     Debug.debug_abstract_selectors a;

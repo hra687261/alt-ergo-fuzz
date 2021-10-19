@@ -28,6 +28,8 @@
 
 type t = unit
 
+let pp_vrb _ppf _env = ()
+
 let empty _ = ()
 let assume _ _ _ =
   (), { Sig_rel.assume = []; remove = []}

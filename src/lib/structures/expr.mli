@@ -142,6 +142,11 @@ val print_list : Format.formatter -> t list -> unit
 val print_list_sep : string -> Format.formatter -> t list -> unit
 val print_triggers : Format.formatter -> trigger list -> unit
 
+val pp_bis : Format.formatter -> t -> unit
+val pp_vrb : (*?firstcall:bool ->*) Format.formatter -> t -> unit
+val pp_strg : Format.formatter -> semantic_trigger -> unit
+val pp_trg : Format.formatter -> trigger -> unit
+
 (** Comparison and hashing functions *)
 
 val compare : t -> t -> int
@@ -319,3 +324,7 @@ val is_pure : t -> bool
 
 val const_term : t -> bool
 (** return true iff the given argument is a term without arguments *)
+
+val pp_th_elt : Format.formatter -> th_elt -> unit
+
+val pp_gform : Format.formatter -> gformula -> unit

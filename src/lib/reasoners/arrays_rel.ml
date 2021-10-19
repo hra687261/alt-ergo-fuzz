@@ -92,6 +92,107 @@ type t =
    size_splits : Numbers.Q.t;
   }
 
+module Pp = Pp_utils
+module F = Format
+
+let pp_gtype ppf {g; gt; gi; gty} =
+
+  let pp_e = E.pp_bis in
+  let pp_ty = Ty.print in
+
+  let g_p = "g = " in
+  let gt_p = "gt = " in
+  let gi_p = "gi = " in
+  let gty_p = "gty = " in
+
+  let pp_g = Pp.add_p ~p:g_p pp_e in
+  let pp_gt = Pp.add_p ~p:gt_p pp_e in
+  let pp_gi = Pp.add_p ~p:gi_p pp_e in
+  let pp_gty = Pp.add_p ~p:gty_p pp_ty in
+
+  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "%a@\n" pp_g g;
+  F.fprintf ppf "%a@\n" pp_gt gt;
+  F.fprintf ppf "%a@\n" pp_gi gi;
+  F.fprintf ppf "%a@\n" pp_gty gty;
+  F.fprintf ppf "}@]@\n"
+
+let pp_stype ppf {s; st; si; sv; sty} =
+
+  let pp_e = E.pp_bis in
+  let pp_ty = Ty.print in
+
+  let s_p = "g = " in
+  let st_p = "gt = " in
+  let si_p = "gi = " in
+  let sv_p = "gty = " in
+  let sty_p = "gty = " in
+
+  let pp_s = Pp.add_p ~p:s_p pp_e in
+  let pp_st = Pp.add_p ~p:st_p pp_e in
+  let pp_si = Pp.add_p ~p:si_p pp_e in
+  let pp_sv = Pp.add_p ~p:sv_p pp_e in
+  let pp_sty = Pp.add_p ~p:sty_p pp_ty in
+
+  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "%a@\n" pp_s s;
+  F.fprintf ppf "%a@\n" pp_st st;
+  F.fprintf ppf "%a@\n" pp_si si;
+  F.fprintf ppf "%a@\n" pp_sv sv;
+  F.fprintf ppf "%a@\n" pp_sty sty;
+  F.fprintf ppf "}@]@\n"
+
+let pp_vrb ppf {
+    gets; tbset; split;
+    conseq; seen; new_terms;
+    size_splits
+  } =
+
+  let pp_e = E.pp_bis in
+  let pp_ex = Ex.print in
+  let pp_lr = LR.print in
+  let pp_eex = Pp.pp_doublet pp_e pp_ex in
+  let pp_cs = Pp.pp_set (module Conseq) pp_eex in
+  let pp_se = Pp.pp_set (module E.Set) pp_e in
+  let pp_tys = Pp.pp_set (module S) pp_stype in
+
+  let module TBSP = Pp.MapPrinter(TBS) in
+  let module TP = Pp.MapPrinter(Tmap) in
+  let module LRmP = Pp.MapPrinter(LRmap) in
+
+  let g_p = "gets = " in
+  let tb_p = "tbset = " in
+  let s1_p = "split = " in
+
+  let c_p = "conseq = " in
+  let s2_p = "seen = " in
+  let nt_p = "new_terms = " in
+
+  let ss_p = "size_splits = " in
+
+  let pp_g = Pp.pp_set ~p:g_p (module G) pp_gtype in
+  let pp_tb = TBSP.pp ~p:tb_p pp_e pp_tys in
+  let pp_s1 = Pp.pp_set ~p:s1_p (module LRset) pp_lr in
+
+  let pp_c = LRmP.pp ~p:c_p pp_lr pp_cs in
+  let pp_s2 = TP.pp ~p:s2_p pp_e pp_se in
+  let pp_nt = Pp.pp_set ~p:nt_p (module E.Set) pp_e in
+
+  let pp_ss = Pp.add_p ~p:ss_p Numbers.Q.print in
+
+  F.fprintf ppf "@[<hov 2>{@\n";
+
+  F.fprintf ppf "%a@\n" pp_g gets;
+  F.fprintf ppf "%a@\n" pp_tb tbset;
+  F.fprintf ppf "%a@\n" pp_s1 split;
+
+  F.fprintf ppf "%a@\n" pp_c conseq;
+  F.fprintf ppf "%a@\n" pp_s2 seen;
+  F.fprintf ppf "%a@\n" pp_nt new_terms;
+
+  F.fprintf ppf "%a@\n" pp_ss size_splits;
+
+  F.fprintf ppf "}@]@\n"
 
 let empty _ =
   {gets  = G.empty;

@@ -36,6 +36,8 @@ module type S = sig
   type t
   type r = Shostak.Combine.r
 
+  val pp_vrb : Format.formatter -> t -> unit
+
   val empty : unit -> t
 
   val empty_facts : unit -> r Sig_rel.facts

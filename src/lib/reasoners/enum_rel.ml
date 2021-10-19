@@ -51,6 +51,36 @@ type t = { mx : (HSS.t * Ex.t) MX.t; classes : Expr.Set.t list;
 let empty classes = { mx = MX.empty; classes = classes;
                       size_splits = Numbers.Q.one }
 
+module Pp = Pp_utils
+module F = Format
+
+let pp_vrb ppf {mx; classes; size_splits} =
+
+  let pp_e = Expr.pp_bis in
+  let pp_ex = Ex.pp_bis in
+  let pp_x = X.pp_vrb in
+  let pp_hs = Hs.print in
+
+  let pp_se = Pp.pp_set (module Expr.Set) pp_e in
+  let pp_hss = Pp.pp_set (module HSS) pp_hs in
+  let pp_he = Pp.pp_doublet pp_hss pp_ex in
+
+  let module MXP = Pp.MapPrinter(MX) in
+
+  let m_p = "mx = " in
+  let c_p = "classes = " in
+  let ss_p = "size_splits = " in
+
+  let pp_m = MXP.pp ~p:m_p pp_x pp_he in
+  let pp_c = Pp.pp_list ~p:c_p pp_se in
+  let pp_ss = Pp.add_p ~p:ss_p Numbers.Q.print in
+
+  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "%a@\n" pp_m mx;
+  F.fprintf ppf "%a@\n" pp_c classes;
+  F.fprintf ppf "%a@\n" pp_ss size_splits;
+  F.fprintf ppf "}@]@\n"
+
 (*BISECT-IGNORE-BEGIN*)
 module Debug = struct
   open Printer

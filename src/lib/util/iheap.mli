@@ -19,6 +19,8 @@
 type t
 (** The type of heaps. *)
 
+val pp_vrb : Format.formatter -> t -> unit
+
 val init : int -> t
 (** Create a heap with the given initial size. *)
 

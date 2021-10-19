@@ -312,6 +312,67 @@ let to_string ?(show_vars=true) x = match x with
 let to_string_clean s = to_string ~show_vars:false s
 let to_string s = to_string ~show_vars:true s
 
+let to_string_bis ?(show_vars=true) x =
+  match x with
+  | Name (n,Ac) -> "(AcName) "^ Hstring.view n
+  | Name (n,Other) -> "(OtherName) "^ Hstring.view n
+  | Var v when show_vars -> "(Varsv) "^Format.sprintf "'%s'" (Var.to_string v)
+  | Var v -> "(Var) "^Var.to_string v
+  | Int n -> Hstring.view n
+  | Real n -> Hstring.view n
+  | Bitv s -> "[|"^s^"|]"
+  | Op Plus -> "+"
+  | Op Minus -> "-"
+  | Op Mult -> "*"
+  | Op Div -> "/"
+  | Op Modulo -> "%"
+  | Op (Access s) -> "@Access_"^(Hstring.view s)
+  | Op (Constr s) -> (Hstring.view s)
+  | Op (Destruct (s,g)) ->
+    Format.sprintf "%s%s" (if g then "" else "!") (Hstring.view s)
+
+  | Op Record -> "@Record"
+  | Op Get -> "get"
+  | Op Set -> "set"
+  | Op Float -> "float"
+  | Op Fixed -> "fixed"
+  | Op Abs_int -> "abs_int"
+  | Op Abs_real -> "abs_real"
+  | Op Sqrt_real -> "sqrt_real"
+  | Op Sqrt_real_default -> "sqrt_real_default"
+  | Op Sqrt_real_excess -> "sqrt_real_excess"
+  | Op Real_of_int -> "real_of_int"
+  | Op Int_floor -> "int_floor"
+  | Op Int_ceil -> "int_ceil"
+  | Op Max_real -> "max_real"
+  | Op Max_int -> "max_int"
+  | Op Min_real -> "min_real"
+  | Op Min_int -> "min_int"
+  | Op Integer_log2 -> "integer_log2"
+  | Op Pow -> "**"
+  | Op Integer_round -> "integer_round"
+  | Op Concat -> "@"
+  | Op Extract -> "^"
+  | Op Tite -> "ite"
+  | Op Reach -> assert false
+  | True -> "true"
+  | False -> "false"
+  | Void -> "void"
+  | In (lb, rb) ->
+    Format.sprintf "%s , %s" (string_of_bound lb) (string_of_bound rb)
+
+  | MapsTo x ->  Format.sprintf "%s |->" (Var.to_string x)
+
+  | Lit lit -> "(Lit) "^string_of_lit lit
+  | Form form -> "(Form) "^string_of_form form
+  | Let -> "let"
+
+let to_string_clean_bis s = to_string_bis ~show_vars:false s
+let to_string_bis s = to_string_bis ~show_vars:true s
+
+let pp_clean_bis ppf s = Format.fprintf ppf "%s" (to_string_clean_bis s)
+let pp_vrb ppf s = Format.fprintf ppf "%s" (to_string_bis s)
+
 let print_clean fmt s = Format.fprintf fmt "%s" (to_string_clean s)
 let print fmt s = Format.fprintf fmt "%s" (to_string s)
 

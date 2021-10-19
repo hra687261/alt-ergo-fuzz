@@ -42,8 +42,13 @@ module Sy = Symbols
 
 module CC_X = Ccx.Main
 
+module Pp = Pp_utils
+module F = Format
+
 module type S = sig
   type t
+
+  val pp_vrb : Format.formatter -> t -> unit
 
   val empty : unit -> t
 
@@ -351,6 +356,68 @@ module Main_Default : S = struct
     gamma_finite : CC_X.t;
     choices : choice list
   }
+
+  let pp_choice_sign ppf = function
+    | CNeg ->
+      F.fprintf ppf "CNeg"
+    | CPos x ->
+      F.fprintf ppf "CPos @[<hov 2>(%a)@]"
+        Ex.pp_exp_vrb x
+
+  let pp_vrb ppf {
+      assumed_set; assumed; cs_pending_facts;
+      terms; gamma; gamma_finite;
+      choices
+    } =
+
+    let pp_e = E.pp_bis in
+    let pp_ex = Ex.pp_bis in
+    let pp_x = X.pp_vrb in
+    let pp_i = F.pp_print_int in
+    let pp_plo = Th_util.pp_lit_origin in
+
+    let pp_eii = Pp.pp_triplet pp_e pp_i pp_i in
+    let pp_eiil = Pp.pp_list pp_eii in
+    let pp_eexii = Pp.pp_quadruplet pp_e pp_ex pp_i pp_i in
+    let pp_eexiil = Pp.pp_list pp_eexii in
+
+    let pp_xv = A.print_view pp_x in
+    let pp_q = Pp.pp_quadruplet pp_xv pp_plo pp_choice_sign pp_ex in
+    let pp_ccx = CC_X.pp_vrb in
+
+
+    let as_p = "assumed_set = " in
+    let a_p = "assumed = " in
+    let cpf_p = "cs_pending_facts = " in
+
+    let t_p = "terms = " in
+    let g_p = "gamma = " in
+    let gf_p = "gamma_finite = " in
+    let c_p = "choices = " in
+
+
+    let pp_as = Pp.pp_set (module E.Set) pp_e ~p:as_p in
+    let pp_a = Pp.pp_list pp_eiil ~p:a_p in
+    let pp_cpf = Pp.pp_list pp_eexiil ~p:cpf_p in
+
+    let pp_t = Pp.pp_set (module E.Set) pp_e ~p:t_p in
+    let pp_g = Pp.add_p pp_ccx ~p:g_p in
+    let pp_gf = Pp.add_p pp_ccx ~p:gf_p in
+    let pp_c = Pp.pp_list pp_q ~p:c_p in
+
+
+    F.fprintf ppf "@[<hov 2>{@\n";
+
+    F.fprintf ppf "%a@\n" pp_as assumed_set;
+    F.fprintf ppf "%a@\n" pp_a assumed;
+    F.fprintf ppf "%a@\n" pp_cpf cs_pending_facts;
+
+    F.fprintf ppf "%a@\n" pp_t terms;
+    F.fprintf ppf "%a@\n" pp_g gamma;
+    F.fprintf ppf "%a@\n" pp_gf gamma_finite;
+    F.fprintf ppf "%a@\n" pp_c choices;
+
+    F.fprintf ppf "}@]@\n"
 
   let look_for_sat ?(bad_last=None) ch t base_env l ~for_model =
     let rec aux ch bad_last dl base_env li =
@@ -751,6 +818,14 @@ module Main_Empty : S = struct
 
   type t =
     { assumed_set : E.Set.t }
+
+  let pp_vrb ppf {assumed_set} =
+    let p = "assumed_set = " in
+    let pp = Pp.pp_set (module SE) E.pp_bis ~p in
+
+    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "%a@\n" pp assumed_set;
+    F.fprintf ppf "}@]@\n"
 
   let empty () = { assumed_set = E.Set.empty }
 

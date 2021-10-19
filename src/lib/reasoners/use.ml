@@ -46,6 +46,25 @@ module MX = Shostak.MXH
 type t = (SE.t * SA.t) MX.t
 type r = X.r
 
+module Pp = Pp_utils
+module F = Format
+module Ex = Explanation
+
+let pp_vrb ppf =
+  let pp_e = E.pp_bis in
+  let pp_x = X.pp_vrb in
+  let pp_se = Pp.pp_set (module SE) pp_e in
+  let pp_ex = Ex.pp_bis in
+
+  let pp_eex = Pp.pp_doublet pp_e pp_ex in
+  let pp_sa = Pp.pp_set (module SA) pp_eex in
+  let pp_dbl = Pp.pp_doublet pp_se pp_sa in
+
+  let module MXP = Pp.MapPrinter(MX) in
+  let pp_mxp = MXP.pp pp_x pp_dbl in
+
+  pp_mxp ppf
+
 let inter_tpl (x1,y1) (x2,y2) =
   Options.exec_thread_yield ();
   SE.inter x1 x2, SA.inter y1 y2

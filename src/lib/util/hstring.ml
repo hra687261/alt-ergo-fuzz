@@ -38,6 +38,9 @@ module S =
     let set_id n v = {v with id = n}
     let initial_size = 9001
     let disable_weaks () = Options.get_disable_weaks ()
+
+    let pp_vrb ppf {content; id} =
+      Format.fprintf ppf "@[<hov 2>{%s; %d}@]" content id
   end)
 
 let make s = S.make {content = s; id = - 1}

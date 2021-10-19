@@ -56,6 +56,8 @@ module type S = sig
   val query :
     Util.matching_env -> t -> theory -> (trigger_info * gsubst list) list
 
+  val pp_vrb: Format.formatter -> t -> unit
+
 end
 
 module type Arg = sig
@@ -63,6 +65,7 @@ module type Arg = sig
   val term_repr : t -> E.t -> init_term:bool -> E.t
   val are_equal : t -> E.t -> E.t -> init_terms:bool -> Th_util.answer
   val class_of : t -> E.t -> E.t list
+  val pp_vrb : Format.formatter -> t -> unit
 end
 
 module Make (X : Arg) : S with type theory = X.t = struct
@@ -77,6 +80,44 @@ module Make (X : Arg) : S with type theory = X.t = struct
   }
 
   exception Echec
+
+  module Pp = Pp_utils
+  module F = Format
+
+  let pp_vrb ppf {fils; info; max_t_depth; pats} =
+
+    let pp_e = E.pp_bis in
+    let pp_i1 = F.pp_print_int in
+    let pp_el = Pp.pp_list pp_e in
+    let pp_sy = Symbols.print in
+    let pp_pi = Matching_types.pp_info in
+
+    let module MEP = Pp.MapPrinter(ME) in
+    let module MSP = Pp.MapPrinter(Symbols.Map) in
+
+    let pp_mep1 = MEP.pp pp_e pp_el in
+
+
+    let f_p = "fils = " in
+    let i_p = "info = " in
+    let mtd_p = "max_t_depth = " in
+    let p_p = "pats = " in
+
+    let pp_f = MSP.pp pp_sy pp_mep1 ~p:f_p in
+    let pp_i2 = MEP.pp pp_e pp_pi ~p:i_p in
+    let pp_mtd = Pp.add_p pp_i1 ~p:mtd_p in
+    let pp_p =
+      Pp.pp_list Matching_types.pp_trigger_info ~p:p_p
+    in
+
+    F.fprintf ppf "@[<hov 2>{@\n";
+
+    F.fprintf ppf "%a@\n" pp_f fils;
+    F.fprintf ppf "%a@\n" pp_i2 info;
+    F.fprintf ppf "%a@\n" pp_mtd max_t_depth;
+    F.fprintf ppf "%a@\n" pp_p pats;
+
+    F.fprintf ppf "}@]@\n"
 
   let empty = {
     fils = SubstE.empty ;

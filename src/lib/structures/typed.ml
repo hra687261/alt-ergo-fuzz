@@ -335,6 +335,9 @@ and print_formula fmt f =
   | TFforall { qf_bvars = l; qf_triggers = t; qf_form = f; _ } ->
     fprintf fmt "forall %a [%a]. %a"
       print_binders l print_triggers t print_formula f
+  | TFexists { qf_bvars = l; qf_triggers = t; qf_form = f; _ } ->
+    fprintf fmt "exists %a [%a]. %a"
+      print_binders l print_triggers t print_formula f
 
   | TFlet (_, binders, f) ->
     List.iter
@@ -345,7 +348,16 @@ and print_formula fmt f =
          | TletForm f -> fprintf fmt "%a in@." print_formula f
       )binders;
     fprintf fmt "%a" print_formula f
-  | _ -> fprintf fmt "(formula pprint not implemented)"
+  | TFop (OPif, _::_::_::_::_)
+  | TFop (OPif, _::[])
+  | TFop (OPif, [])
+  | TFop (OPnot, _::_::_::_)
+  | TFop (OPnot, [])
+  | TFop ((OPand|OPor|OPxor|OPimp|OPiff), _::_::_::_)
+  | TFop ((OPand|OPor|OPxor|OPimp|OPiff), _::[])
+  | TFop ((OPand|OPor|OPxor|OPimp|OPiff), [])
+  | TFnamed (_, _)
+  | TFmatch (_, _) -> fprintf fmt "(formula pprint not implemented)"
 
 (*
 let rec print_tdecl fmt = function
@@ -381,3 +393,58 @@ let is_local_hyp s =
 
 let is_global_hyp s =
   try String.equal (String.sub s 0 2) "@H" with Invalid_argument _ -> false
+
+
+let rec print_atdecl ppf d =
+  let module Pp = Pp_utils in
+  let module F = Format in
+
+  let pp_str = F.pp_print_string in
+  let pp_ty = Ty.print in
+  let pp_st = Pp.pp_doublet pp_str pp_ty in
+  let pp_stl = Pp.pp_list pp_st in
+  let pp_rwt = print_rwt print_term in
+  let pp_rwtl = Pp.pp_list pp_rwt in
+  let pp_atd = print_atdecl in
+  let pp_atdl = Pp.pp_list pp_atd in
+
+  match d.c with
+  | TPush (_, n) ->
+    F.fprintf ppf "TPush(_, %d)" n
+
+  | TPop (_, n) ->
+    F.fprintf ppf "TPop(_, %d)" n
+
+  | TTheory(_, name, ext, l) ->
+    F.fprintf ppf "TTheory(_, %s, %s, %a)"
+      name (Util.string_of_th_ext ext) pp_atdl l
+
+  | TAxiom(_, name, Default, f) ->
+    F.fprintf ppf "TAxiom(_, %s, Default, %a)"
+      name print_formula f
+
+  | TAxiom(_, name, Propagator, f) ->
+    F.fprintf ppf "TAxiom(_, %s, Propagator, %a)"
+      name print_formula f
+
+  | TRewriting(_, _, lr) ->
+    F.fprintf ppf "TRewriting(_, _, %a)"
+      pp_rwtl lr
+
+  | TGoal(_, sort, n, f) ->
+    F.fprintf ppf "TGoal(_, %a, %s, %a)"
+      print_goal_sort sort n print_formula f
+
+  | TPredicate_def(_, n, _args, f) ->
+    F.fprintf ppf "TPredicate_def(_, %s, %a, %a)"
+      n pp_stl _args print_formula f
+
+  | TFunction_def(_, n, _args, _rety, f) ->
+    F.fprintf ppf "TFunction_def(_, %s, %a, %a, %a)"
+      n pp_stl _args Ty.print _rety print_formula f
+
+  | TTypeDecl _ ->
+    F.fprintf ppf "TTypeDecl _"
+
+  | TLogic _ ->
+    F.fprintf ppf "TLogic _"

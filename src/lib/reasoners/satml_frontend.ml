@@ -47,6 +47,121 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     guards : guards;
   }
 
+  module Pp = Pp_utils
+  module F = Format
+
+
+  let pp_guards ppf {current_guard; stack_guard} =
+
+    let pp_e = E.pp_bis in
+
+    let cg_p = "current_guard = " in
+    let sg_p = "stack_guard = " in
+
+    let pp_cg = Pp.add_p pp_e ~p:cg_p in
+    let pp_sg = Pp.pp_stack pp_e ~p:sg_p in
+
+    F.fprintf ppf "@[<hov 2>{@\n";
+
+    F.fprintf ppf "%a@\n" pp_cg current_guard;
+    F.fprintf ppf "%a@\n" pp_sg stack_guard;
+
+    F.fprintf ppf "}@]@\n"
+
+
+  let pp_env ppf {
+      satml; ff_hcons_env;
+      nb_mrounds; last_forced_normal; last_forced_greedy;
+      gamma; conj; abstr_of_axs;
+      axs_of_abstr; proxies; inst;
+      skolems; add_inst = _; guards
+    } =
+
+    let pp_e = E.pp_bis in
+    let pp_gf = E.pp_gform in
+    let pp_a = Atom.pp_atom_vrb in
+    let pp_b = F.pp_print_bool in
+    let pp_i1 = F.pp_print_int in
+    let pp_al = Pp.pp_list pp_a in
+    let pp_ff1 = FF.pp_vrb in
+    let pp_ffe = FF.pp_env_vrb in
+    let pp_sat = SAT.pp_env in
+    let pp_i2 = Inst.pp_vrb in
+
+    let pp_tr1 = Pp.pp_triplet pp_a pp_al pp_b in
+    let pp_se = Pp.pp_set (module E.Set) pp_e in
+    let pp_o1 = Pp.pp_option pp_ff1 in
+
+    let pp_db1 = Pp.pp_doublet pp_i1 pp_o1 in
+    let pp_db2 = Pp.pp_doublet pp_i1 pp_se in
+    let pp_db3 = Pp.pp_doublet pp_ff1 pp_a in
+    let pr_db4 = Pp.pp_doublet pp_e pp_a in
+
+    let module MEP = Pp.MapPrinter(ME) in
+    let module FFP = Pp.MapPrinter(FF.Map) in
+    let module UMIP = Pp.MapPrinter(Util.MI) in
+
+    let s1_p = "satml = " in
+    let ff_p = "ff_hcons_env = " in
+
+    let nm_p = "nb_mrounds = " in
+    let lfn_p = "last_forced_normal = " in
+    let lfg_p = "last_forced_greedy = " in
+
+    let g1_p = "gamma = " in
+    let c_p = "conj = " in
+    let aox_p = "abstr_of_axs = " in
+
+    let aoa_p = "axs_of_abstr = " in
+    let p_p = "proxies = " in
+    let i_p = "inst = " in
+
+    let s2_p = "skolems = " in
+    let g2_p = "guards = " in
+
+
+    let pp_s1 = Pp.add_p pp_sat ~p:s1_p in
+    let pp_ff2 = Pp.add_p pp_ffe ~p:ff_p in
+
+    let pp_nm = Pp.add_p pp_i1 ~p:nm_p in
+    let pp_lfn = Pp.add_p pp_i1 ~p:lfn_p in
+    let pp_lfg = Pp.add_p pp_i1 ~p:lfg_p in
+
+    let pp_g1 = MEP.pp pp_e pp_db1 ~p:g1_p in
+    let pp_c = FFP.pp pp_ff1 pp_db2 ~p:c_p in
+    let pp_aox = MEP.pp pp_e pp_db3 ~p:aox_p in
+
+    let pp_aoa = MEP.pp pp_e pr_db4 ~p:aoa_p in
+    let pp_p = UMIP.pp pp_i1 pp_tr1 ~p:p_p in
+    let pp_i1 = Pp.add_p pp_i2 ~p:i_p in
+
+    let pp_s2 = MEP.pp pp_e pp_gf ~p:s2_p in
+    let pp_g2 = Pp.add_p pp_guards ~p:g2_p in
+
+
+    F.fprintf ppf "@[<hov 2>{@\n";
+
+    F.fprintf ppf "%a@\n" pp_s1 satml;
+    F.fprintf ppf "%a@\n" pp_ff2 ff_hcons_env;
+
+    F.fprintf ppf "%a@\n" pp_nm nb_mrounds;
+    F.fprintf ppf "%a@\n" pp_lfn last_forced_normal;
+    F.fprintf ppf "%a@\n" pp_lfg last_forced_greedy;
+
+    F.fprintf ppf "%a@\n" pp_g1 gamma;
+    F.fprintf ppf "%a@\n" pp_c conj;
+    F.fprintf ppf "%a@\n" pp_aox abstr_of_axs;
+
+    F.fprintf ppf "%a@\n" pp_aoa axs_of_abstr;
+    F.fprintf ppf "%a@\n" pp_p proxies;
+    F.fprintf ppf "%a@\n" pp_i1 inst;
+
+    F.fprintf ppf "%a@\n" pp_s2 skolems;
+    F.fprintf ppf "add_inst = fun@\n";
+    F.fprintf ppf "%a@\n" pp_g2 guards;
+
+    F.fprintf ppf "}@]@\n"
+
   let empty_guards () = {
     current_guard = Expr.vrai;
     stack_guard = Stack.create ();
