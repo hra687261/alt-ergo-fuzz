@@ -1,16 +1,16 @@
-open Ast 
+open Ast
 
 type sort = typ
 
 type sexp =
-  | Atom of string  
+  | Atom of string
   | Expr of sexp Queue.t
   | PExpr of sexp Queue.t
 
-type t = sexp 
+type t = sexp
 
-let binop_to_str (op: binop) = 
-  match op with 
+let binop_to_str (op: binop) =
+  match op with
   | And -> "and"
   | Or -> "or"
   | Xor -> "xor"
@@ -26,12 +26,12 @@ let binop_to_str (op: binop) =
   | IMul | RMul -> "*"
   | IDiv -> "div"
   | RDiv -> "/"
-  | IPow | RPow -> "^" 
+  | IPow | RPow -> "^"
   | IMod -> "mod"
   | Concat _ -> "concat"
 
 let unop_to_str (op: unop) =
-  match op with 
+  match op with
   | Neg -> Atom "-"
   | Not -> Atom "not"
   | Extract {l; r} ->
@@ -55,16 +55,16 @@ let rec translate_sort (s: sort) =
     Queue.push (Atom (string_of_int n)) q;
     PExpr q
 
-  | TFArray {ti; tv} -> 
-    let is = translate_sort ti in 
-    let vs = translate_sort tv in 
+  | TFArray {ti; tv} ->
+    let is = translate_sort ti in
+    let vs = translate_sort tv in
     let q = Queue.create () in
     Queue.push (Atom "Array") q;
     Queue.push is q;
     Queue.push vs q;
     PExpr q
 
-  | Tadt (adtn, _) -> 
+  | Tadt (adtn, _) ->
     Atom adtn
 
   | TDummy -> assert false
@@ -73,7 +73,7 @@ let tr_rcrd (ptrn, prms: rcrd_ty) =
   let q = Queue.create () in
   Queue.push (Atom ptrn) q;
   List.iter (
-    fun (n, so) -> 
+    fun (n, so) ->
       let tmpq = Queue.create () in
       Queue.push (Atom n) tmpq;
       Queue.push (translate_sort so) tmpq;
@@ -96,39 +96,39 @@ let translate_typedecl tdecl =
   end;
   PExpr q
 
-let rec translate_expr (a: expr) = 
-  match a with 
-  | Cst (CstI i) -> 
+let rec translate_expr (a: expr) =
+  match a with
+  | Cst (CstI i) ->
     Atom (
-      if i < 0 
-      then Format.sprintf "(- %s)" 
+      if i < 0
+      then Format.sprintf "(- %s)"
           ( let istr = string_of_int i in
             String.sub istr 1 (String.length istr - 1))
       else Format.sprintf "%i" i
     )
-  | Cst (CstR r) -> 
+  | Cst (CstR r) ->
     Atom (float_to_string r)
   | Cst (CstB true) -> Atom "true"
   | Cst (CstB false) -> Atom "false"
-  | Cst (CstBv {bits; _}) -> 
-    Atom (Format.sprintf "#b%s" bits) 
+  | Cst (CstBv {bits; _}) ->
+    Atom (Format.sprintf "#b%s" bits)
 
   | Var {vname; _} -> Atom vname
 
-  | Unop (Access {fa; _}, x) -> 
+  | Unop (Access {fa; _}, x) ->
     let q = Queue.create () in
     Queue.push (Atom "select") q;
     Queue.push (translate_expr fa) q;
     Queue.push (translate_expr x) q;
     PExpr q
 
-  | Unop (uop, x) -> 
+  | Unop (uop, x) ->
     let q = Queue.create () in
     Queue.push (unop_to_str uop) q;
     Queue.push (translate_expr x) q;
     PExpr q
 
-  | Binop (bop, x, y) -> 
+  | Binop (bop, x, y) ->
     let q = Queue.create () in
     Queue.push (Atom (binop_to_str bop)) q;
     Queue.push (translate_expr x) q;
@@ -159,7 +159,7 @@ let rec translate_expr (a: expr) =
     Queue.push (translate_expr y) q;
     PExpr q
 
-  | FunCall {fname; args; _} -> 
+  | FunCall {fname; args; _} ->
     let q = Queue.create () in
     Queue.push (Atom fname) q;
     List.iter (
@@ -169,10 +169,10 @@ let rec translate_expr (a: expr) =
     PExpr q
 
   | Forall {qvars; body; _}
-  | Exists {qvars; body; _} -> 
+  | Exists {qvars; body; _} ->
     let q = Queue.create () in
     Queue.push (Atom (
-        match a with 
+        match a with
         | Forall _ -> "forall"
         | Exists _ -> "exists"
         | _ -> assert false
@@ -180,7 +180,7 @@ let rec translate_expr (a: expr) =
     let vsb = Queue.create () in
     VS.iter (
       fun {vname; vty; _} ->
-        let vq = Queue.create () in  
+        let vq = Queue.create () in
         Queue.push (Atom vname) vq;
         Queue.push (translate_sort vty) vq;
         Queue.push (PExpr vq) vsb
@@ -189,7 +189,7 @@ let rec translate_expr (a: expr) =
     Queue.push (translate_expr body) q;
     PExpr q
 
-  | FAUpdate {fa; i; v; _} -> 
+  | FAUpdate {fa; i; v; _} ->
     let q = Queue.create () in
     Queue.push (Atom "store") q;
     Queue.push (translate_expr fa) q;
@@ -197,37 +197,37 @@ let rec translate_expr (a: expr) =
     Queue.push (translate_expr v) q;
     PExpr q
 
-  | PMatching {mtchdv; patts; _} -> 
+  | PMatching {mtchdv; patts; _} ->
     let mk_match_case {destrn; pattparams; mbody} =
-      let pattern = 
+      let pattern =
         begin
           let q = Queue.create () in
           Queue.add (Atom destrn) q;
           if pattparams = []
-          then 
+          then
             Expr q
           else (
             List.iter (
               fun v ->
-                match v with 
+                match v with
                 | Some {vname; _ } ->
                   Queue.add (Atom vname) q
-                | None -> 
+                | None ->
                   Queue.add (Atom "_") q
             ) pattparams;
             PExpr q
           )
         end
-      in 
-      let term = translate_expr mbody in 
+      in
+      let term = translate_expr mbody in
       let q = Queue.create () in
       Queue.add pattern q;
       Queue.add term q;
       PExpr q
-    in 
+    in
     let qmc = Queue.create () in
     List.iter (
-      fun p -> 
+      fun p ->
         Queue.add (mk_match_case p) qmc
     ) patts;
 
@@ -241,39 +241,39 @@ let rec translate_expr (a: expr) =
     let q = Queue.create () in
     Queue.push (Atom cname) q;
     List.iter (
-      fun (_, a) -> 
+      fun (_, a) ->
         Queue.push (translate_expr a) q;
     ) params;
     PExpr q
 
-  | Dummy -> assert false 
+  | Dummy -> assert false
 
 let translate_stmt (d: stmt) =
-  match d with 
+  match d with
   | Axiom {body; _} ->
-    let q = Queue.create () in 
+    let q = Queue.create () in
     Queue.push (Atom "assert") q;
     Queue.push (translate_expr body) q;
     PExpr q
 
-  | Goal {body; _} -> 
-    let qg = Queue.create () in 
+  | Goal {body; _} ->
+    let qg = Queue.create () in
     Queue.push (Atom "assert") qg;
     Queue.push (translate_expr (Unop (Not, body))) qg;
     let q = Queue.create () in
     Queue.push (PExpr qg) q;
-    let cs = Queue.create () in 
+    let cs = Queue.create () in
     Queue.push (Atom "check-sat") cs;
     Queue.push (PExpr cs) q;
     Expr q
 
   | FuncDef {name; body; atyp; rtyp} ->
-    let q = Queue.create () in 
+    let q = Queue.create () in
     Queue.push (Atom "define-fun") q;
     Queue.push (Atom name) q;
-    let vsq = Queue.create () in 
+    let vsq = Queue.create () in
     List.iter (
-      fun {vname; vty; _} -> 
+      fun {vname; vty; _} ->
         let vq = Queue.create () in
         Queue.push (Atom vname) vq;
         Queue.push (translate_sort vty) vq;
@@ -285,52 +285,52 @@ let translate_stmt (d: stmt) =
     PExpr q
 
 let rec print_sexp fmt s =
-  match s with 
-  | Atom w -> 
+  match s with
+  | Atom w ->
     Format.fprintf fmt "%s" w
-  | Expr lq -> 
-    ignore @@ 
+  | Expr lq ->
+    ignore @@
     Queue.fold (
-      fun acc se -> 
+      fun acc se ->
         Format.fprintf fmt (
-          if acc 
+          if acc
           then "%a"
           else " %a"
-        ) print_sexp se; false  
-    ) true lq 
-  | PExpr lq -> 
+        ) print_sexp se; false
+    ) true lq
+  | PExpr lq ->
     Format.fprintf fmt "(%a)" (
-      fun fmt lq -> 
-        ignore @@ 
+      fun fmt lq ->
+        ignore @@
         Queue.fold (
-          fun acc se -> 
+          fun acc se ->
             Format.fprintf fmt (
-              if acc 
+              if acc
               then "%a"
               else " %a"
-            ) print_sexp se; false  
-        ) true lq 
+            ) print_sexp se; false
+        ) true lq
     ) lq
 
 let print_sort fmt s =
   Format.fprintf fmt "%a" print_sexp (translate_sort s)
 
-let print_tcm fmt (gtm: SS.t Ast.TCM.t) = 
+let print_tcm fmt (gtm: SS.t Ast.TCM.t) =
   Ast.TCM.iter (
-    fun gs ss -> 
+    fun gs ss ->
       SS.iter (
-        fun str -> 
-          match gs with 
-          | A {ty; _} -> 
+        fun str ->
+          match gs with
+          | A {ty; _} ->
             Format.fprintf fmt
-              "(declare-const %s %a)@." 
+              "(declare-const %s %a)@."
               str print_sort ty
-          | F  {atyp; rtyp; _} -> 
+          | F  {atyp; rtyp; _} ->
             Format.fprintf fmt
-              "(declare-fun %s (%a) %a)@." 
+              "(declare-fun %s (%a) %a)@."
               str
               ( fun fmt sl ->
-                  match sl with 
+                  match sl with
                   | h::t ->
                     Format.fprintf fmt
                       "%a"
@@ -343,51 +343,51 @@ let print_tcm fmt (gtm: SS.t Ast.TCM.t) =
                   | _ -> ()
               ) atyp
               print_sort rtyp
-      ) ss 
-  ) gtm 
+      ) ss
+  ) gtm
 
-let print_typedecls fmt tydecls = 
+let print_typedecls fmt tydecls =
   TDS.iter (
     fun td ->
-      Format.fprintf fmt "%a\n" 
+      Format.fprintf fmt "%a\n"
         print_sexp (translate_typedecl td)
   ) tydecls
 
-let print_stmts fmt (scs: stmt_c list) = 
+let print_stmts fmt (scs: stmt_c list) =
   Format.fprintf fmt "\n(set-logic ALL)@.";
   ignore @@
   List.fold_left (
     fun (dtds, duss) {stmt; tds; uss} ->
-      let atds, tptds = 
+      let atds, tptds =
         TDS.fold (
           fun td (atds, tptds) ->
-            if TDS.mem td atds 
+            if TDS.mem td atds
             then (atds, tptds)
             else (TDS.add td atds, TDS.add td tptds)
         ) tds (dtds, TDS.empty)
-      in 
+      in
       let auss, tpuss =
         TCM.fold (
           fun tc s (atcm, tpuss) ->
-            let nass, ntpss = 
-              match TCM.find_opt tc atcm with 
-              | Some ss -> 
-                SS.union s ss, 
+            let nass, ntpss =
+              match TCM.find_opt tc atcm with
+              | Some ss ->
+                SS.union s ss,
                 SS.filter (fun n -> not (SS.mem n ss)) s
               | None -> s, s
             in
-            TCM.add tc nass atcm, 
+            TCM.add tc nass atcm,
             TCM.add tc ntpss tpuss
         ) uss (duss, TCM.empty)
-      in 
-      if not (TDS.is_empty tptds) then 
+      in
+      if not (TDS.is_empty tptds) then
         Format.fprintf fmt "\n%a@."
           print_typedecls tptds;
-      if not (TCM.is_empty tpuss) then 
+      if not (TCM.is_empty tpuss) then
         Format.fprintf fmt "\n%a@."
           print_tcm tpuss;
-      let se = translate_stmt stmt in 
-      Format.fprintf fmt "\n%a@." 
+      let se = translate_stmt stmt in
+      Format.fprintf fmt "\n%a@."
         print_sexp se;
       atds, auss
   ) (TDS.empty, TCM.empty) scs

@@ -2,47 +2,47 @@
 
 (* CVC5 *)
 
-let c5_ic : in_channel option ref = ref None  
+let c5_ic : in_channel option ref = ref None
 
 let call_cvc5 ?(timeout = 10000) stmtcs =
-  let data = 
+  let data =
     Format.asprintf "%a" Smtlib2_tr.print_stmts stmtcs
   in
-  let ic = 
-    Unix.open_process_in ( 
-      Format.sprintf 
-        "echo \"\n%s\n\" | cvc5 --incremental --lang smt2 --tlimit=%d 2>&1" 
+  let ic =
+    Unix.open_process_in (
+      Format.sprintf
+        "echo \"\n%s\n\" | cvc5 --incremental --lang smt2 --tlimit=%d 2>&1"
         data timeout
     )
   in
   c5_ic := Some ic
 
-let get_cvc5_response () = 
+let get_cvc5_response () =
   let rec get_lines (ic: in_channel) =
     try
       let l = input_line ic in
       l :: get_lines ic
     with End_of_file -> []
   in
-  match !c5_ic with 
+  match !c5_ic with
   | Some ic ->
     let lines = get_lines ic in
     let _ = Unix.close_process_in ic in
 
     List.map (
-      fun x ->  
-        match x with 
+      fun x ->
+        match x with
         | "sat" -> Utils.Sat
         | "unsat" -> Utils.Unsat
         | "unknown" -> Utils.Unknown
-        | "cvc5 interrupted by timeout." -> 
+        | "cvc5 interrupted by timeout." ->
           Format.printf "\nCVC5.process_stmts <1> %s@." x;
           raise Utils.Timeout
-        | _ -> 
+        | _ ->
           Format.printf "\nCVC5.process_stmts <2> %s@." x;
           raise (Utils.Other x)
     ) lines
-  | None -> assert false 
+  | None -> assert false
 
 
 (* Alt-Ergo *)
@@ -61,7 +61,7 @@ sig
 end
 
 module MakeSolver(S: AEL.Sat_solver_sig.S) =
-struct 
+struct
   module SAT = S
   module FE = AEL.Frontend.Make(SAT)
 end
@@ -99,7 +99,7 @@ let solve_with_ae (module S: Solver) =
             Format.fprintf Format.err_formatter
               "\nSolve is expected to get one goal at a time@.";
             assert false
-      ) (None, (S.SAT.empty (), true, AEL.Explanation.empty)) 
+      ) (None, (S.SAT.empty (), true, AEL.Explanation.empty))
         tstmts
     in
     Option.get resp
@@ -113,7 +113,7 @@ let solve_with_ae (module S: Solver) =
       let rresps, _ =
         List.fold_left (
           fun (resps , tstmts) Ast.{stmt; _} ->
-            let tstmt = Tr_altergo.translate_stmt stmt in 
+            let tstmt = Tr_altergo.translate_stmt stmt in
             match stmt with
             | Ast.Goal {name; _} ->
               let resp =
@@ -132,7 +132,7 @@ let solve_with_ae (module S: Solver) =
     | exn ->
       S.SAT.reinit_ctx ();
       Tr_altergo.reset_cnt ();
-      Printexc.raise_with_backtrace 
+      Printexc.raise_with_backtrace
         exn (Printexc.get_raw_backtrace ())
 
 
@@ -156,7 +156,7 @@ let solve_with_ae_ct stmtcs =
 
 (* Alt-Ergo Tableaux *)
 
-let solve_with_ae_t stmtcs = 
+let solve_with_ae_t stmtcs =
   AEL.Options.set_sat_solver AEL.Util.Tableaux;
   AEL.Options.set_tableaux_cdcl false;
   AEL.Options.set_cdcl_tableaux_inst false;
@@ -165,7 +165,7 @@ let solve_with_ae_t stmtcs =
 
 (* Alt-Ergo Tableaux-CDCL *)
 
-let solve_with_ae_tc stmtcs = 
+let solve_with_ae_tc stmtcs =
   AEL.Options.set_sat_solver AEL.Util.Tableaux_CDCL;
   AEL.Options.set_tableaux_cdcl true;
   AEL.Options.set_cdcl_tableaux_inst false;

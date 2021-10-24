@@ -8,7 +8,7 @@ exception Timeout
 
 exception Other of string
 
-type bug_info = { 
+type bug_info = {
   id: int;
   exn: exn option;
   stmtcs: Ast.stmt_c list;

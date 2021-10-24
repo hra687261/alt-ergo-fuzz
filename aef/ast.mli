@@ -1,5 +1,5 @@
 
-type typ =           
+type typ =
     Tint
   | Treal
   | Tbool

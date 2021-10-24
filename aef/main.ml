@@ -1,10 +1,10 @@
 open Utils
 
-module Cr = Crowbar 
+module Cr = Crowbar
 
-let cnt = ref 0 
+let cnt = ref 0
 
-let test_fun stmtcs = 
+let test_fun stmtcs =
   Cr.check (
     try
       incr cnt;

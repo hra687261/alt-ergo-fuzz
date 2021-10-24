@@ -1,5 +1,5 @@
 
-type answer = 
+type answer =
   | Sat | Unsat | Unknown
 
 (* When the response of Alt-Ergo is different from the other solvers*)
@@ -10,7 +10,7 @@ exception Timeout
 exception Other of string
 
 
-type bug_info = { 
+type bug_info = {
   id: int;
   exn: exn option;
   stmtcs: Ast.stmt_c list;
@@ -24,8 +24,8 @@ type bug_info = {
 let mk_bi id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 =
   {id; exn; stmtcs; ae_c; ae_ct; ae_t; ae_tc; cvc5}
 
-(* 
-let ans_to_str = function 
+(*
+let ans_to_str = function
   | Sat -> "sat"
   | Unsat -> "unsat"
   | Unknown -> "unknown"
@@ -49,21 +49,21 @@ let data_to_file data of_path =
   close_out oc
 
 let handle_bug ?(verbose = false)
-    ?(output_folder_path = "aef/crash_output") 
-    id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 = 
+    ?(output_folder_path = "aef/crash_output")
+    id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 =
   let bi =
     mk_bi id (Some exn) stmtcs ae_c ae_ct ae_t ae_tc cvc5
   in
 
-  let of_path = 
+  let of_path =
     Format.sprintf (
-      match exn with 
+      match exn with
       | Unsoundness -> "%s/u%d_%f.txt"
       | InternalCrash -> "%s/i%d_%f.txt"
       | Timeout -> "%s/t%d_%f.txt"
       | _ -> "%s/o%d_%f.txt"
     ) output_folder_path id (Unix.gettimeofday ())
-  in 
+  in
 
   data_to_file bi of_path;
 
@@ -82,7 +82,7 @@ let handle_bug ?(verbose = false)
     Format.printf
       "Marshalled and written to the file : %s@."
       of_path
-  ) 
+  )
 
 let handle_bug_na ?(verbose = false)
     ?(output_folder_path = "aef/crash_output")
@@ -93,14 +93,14 @@ let handle_bug_na ?(verbose = false)
 
 let cmp_answers l1 l2 l3 l4 l5 =
   let is_unsat = function
-      Unsat -> true 
+      Unsat -> true
     | _ -> false
-  in 
+  in
   let rec aux l1 l2 l3 l4 l5 =
     match l1, l2, l3, l4, l5 with
     | h1 :: t1, h2 :: t2, h3 :: t3, h4 :: t4, h5 :: t5 ->
       begin match h1, h2, h3, h4, h5 with
-        | a1, a2, a3, a4, Sat when 
+        | a1, a2, a3, a4, Sat when
             is_unsat a1 || is_unsat a2 ||
             is_unsat a3 || is_unsat a4 -> raise Unsoundness
         | _ -> aux t1 t2 t3 t4 t5
