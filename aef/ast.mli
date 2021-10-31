@@ -1,59 +1,152 @@
-
+(** The type of types *)
 type typ =
-    Tint
-  | Treal
-  | Tbool
-  | TDummy
-  | TBitV of int
-  | TFArray of { ti: typ; tv: typ; }
-  | Tadt of adt
+  | Tint
+  (** Integers *)
 
+  | Treal
+  (** Reals *)
+
+  | Tbool
+  (** Booleans *)
+
+  | TBitV of int
+  (** Bit vectors *)
+
+  | TFArray of { ti: typ; tv: typ; }
+  (** [TFArray {ti; tv}] a functional array in which
+      [ti] is the type of the indexes and
+      [tv] is the type of the stored values *)
+
+  | Tadt of adt
+  (** Algebraic data type *)
+
+  | TDummy
+  (** Dummy type *)
+
+(** Description of an algebraic data type *)
 and adt = string * rcrd_ty list
 
+(** Description of a record type *)
 and rcrd_ty = string * (string * typ) list
 
+(** A type declaration *)
 type typedecl = Adt_decl of adt | Record_decl of rcrd_ty
 
+(** A funcion's type *)
 type ftyp = { atyp: typ list; rtyp: typ; }
 
+(** A type containter, with the a unique tag associated to each type *)
 type typc =
     A of { tag: string; ty: typ; }
   | F of { tag: string; atyp: typ list; rtyp: typ; }
 
-type vkind = EQ | UQ | US | ARG | BLI
+(** Variable kinds  *)
+type vkind =
+    EQ  (** Existantially quantified *)
+  | UQ  (** Universally quantified *)
+  | US  (** Uninterpreted symbol *)
+  | ARG (** Bound as an argument to a function *)
+  | BLI (** Bound to a let-in statement *)
 
-type fkind = UDF | USF
+(** Function kind *)
+type fkind =
+  | UDF
+  (** A defined function *)
 
+  | USF
+  (** A uninterpreted function *)
+
+(** A variable container *)
 type tvar = { vname: string; vty: typ; vk: vkind; id: int; }
 
+(** [typ_tag ty] returns the tag of the type [ty]. *)
 val typ_tag: typ -> string
 
+(** [typc_tag ftyp] returns the tag of a function type [fty]. *)
 val typc_tag: ftyp -> string
 
+(** [typ_compare ty1 ty2] compares two types by comparing their tags.
+    Returns [1] if the first is greater than the second,
+    [0] if they're equal and [-1] otherwise. *)
 val typ_compare: typ -> typ -> int
 
+(** [get_tctag typc] returns the tag of a type container [typc]. *)
 val get_tctag: typc -> string
 
 module VS: Set.S with type elt = tvar
 
-type cst = CstI of int | CstR of float | CstB of bool | CstBv of bitv
+(** The type of constants *)
+type cst =
+  | CstI of int
+  (** Integer literal *)
 
+  | CstR of float
+  (** Real literal *)
+
+  | CstB of bool
+  (** Boolean literal *)
+
+  | CstBv of bitv
+  (** Bitvector literal *)
+
+(** A bitvector literal container  *)
 and bitv = { length: int; bits: string; }
 
+(** An SMT expression *)
 type expr =
-    Cst of cst
+
+  | Cst of cst
+  (** Constant *)
+
   | Var of tvar
+  (** Variable *)
+
   | Unop of unop * expr
+  (** [Unop (un, e)] Represents the unary application of [un] on [e] *)
+
   | Binop of binop * expr * expr
+  (** [Binop (bin, e1, e1)] Represents the binary application
+      of [bin] on [e1] and [e2] *)
+
   | ITE of { ty: typ; cond: expr; cons: expr; alt: expr; }
+  (** [ITE {ty; cond; expr; cons; alt}] An if-then-else conditional expression
+      in which the condition is [cond], the consequences is [cons], and the
+      alternative is [alt] and [ty] is the type of the [cons] and [alt]
+      expressions *)
+
   | LetIn of tvar * expr * expr
+  (** [LetIn (v,e1,e2)] A let binding in which the variable [v] is bound to the
+      expresion [e1] in the expression [e2] *)
+
   | FAUpdate of { ty: typ * typ; fa: expr; i: expr; v: expr; }
+  (** [FAUpdate {ty; fa; i; v}] A write operation on the functional array [fa]
+      which is of type [ty], and in which [i] is the index to be written and
+      [v] is the value to be stored in [i] *)
+
   | FunCall of fcall
+  (** [FunCall {fname; fk; atyp; rtyp; args}] A call to the function named
+      [fname] which is of kind [fk], and has the return type [rtyp], with
+      the arguments in [args], which have the types in [atyp] *)
+
   | Forall of quant
+  (** [Forall {qvars; trgs; body}] Universal quantification of the variables
+      [qvars] in the expression [body] *)
+
   | Exists of quant
+  (** [Exists {qvars; trgs; body}] Existential quantification of the variables
+      [qvars] in the expression [body] *)
+
   | PMatching of pm
+  (** [PMatching {mtchdv; patts; valty}] A pattern matchin in which the
+      expresion [mtchdv] is matched on the patterns [patts] which return
+      values of type [valty] *)
+
   | Cstr of constr
+  (** [Cstr {cname; cty; params}] A contructor of an algebraic data type named
+      [cname] of type [cty] and parametrized with the expressions in [params] *)
+
   | Dummy
+  (** [Dummy] *)
 
 and pm = { mtchdv: expr; patts: patt list; valty: typ; }
 
@@ -62,7 +155,7 @@ and patt = { destrn: string; pattparams: tvar option list; mbody: expr; }
 and constr = { cname: string; cty: typ; params: (string * expr) list; }
 
 and binop =
-    And
+  | And
   | Or
   | Xor
   | Imp
@@ -87,7 +180,7 @@ and binop =
   | Concat of int
 
 and unop =
-    Neg
+  | Neg
   | Not
   | Extract of { l: int; r: int; }
   | Access of { ty: typ * typ; fa: expr; }
