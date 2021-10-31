@@ -1,8 +1,9 @@
 type typ =
-  | Tint | Treal | Tbool | TDummy
+  | Tint | Treal | Tbool
   | TBitV of int
   | TFArray of {ti: typ; tv: typ}
   | Tadt of adt
+  | TDummy
 and adt =
   string * rcrd_ty list
 and rcrd_ty = string * (string * typ) list
