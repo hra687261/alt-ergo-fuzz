@@ -37,16 +37,25 @@ type ftyp = { atyp: ty list; rtyp: ty; }
 
 (** A type containter, with the a unique tag associated to each type *)
 type typc =
-    A of { tag: string; ty: ty; }
+  | A of { tag: string; ty: ty; }
   | F of { tag: string; atyp: ty list; rtyp: ty; }
 
 (** Variable kinds  *)
 type vkind =
-    EQ  (** Existantially quantified *)
-  | UQ  (** Universally quantified *)
-  | US  (** Uninterpreted symbol *)
-  | ARG (** Bound as an argument to a function *)
-  | BLI (** Bound to a let-in statement *)
+  | EQ
+  (** Existantially quantified *)
+
+  | UQ
+  (** Universally quantified *)
+
+  | US
+  (** Uninterpreted symbol *)
+
+  | ARG
+  (** Bound as an argument to a function *)
+
+  | BLI
+  (** Bound to a let-in statement *)
 
 (** Function kind *)
 type fkind =
@@ -196,7 +205,7 @@ and fcall = {
 }
 
 type stmt =
-    Axiom of { name: string; body: expr; }
+  | Axiom of { name: string; body: expr; }
   | Goal of { name: string; body: expr; }
   | FuncDef of fdef
 
