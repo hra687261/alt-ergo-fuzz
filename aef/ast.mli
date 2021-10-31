@@ -1,5 +1,5 @@
 (** The type of types *)
-type typ =
+type ty =
   | Tint
   (** Integers *)
 
@@ -12,7 +12,7 @@ type typ =
   | TBitV of int
   (** Bit vectors *)
 
-  | TFArray of { ti: typ; tv: typ; }
+  | TFArray of { ti: ty; tv: ty; }
   (** [TFArray {ti; tv}] a functional array in which
       [ti] is the type of the indexes and
       [tv] is the type of the stored values *)
@@ -27,18 +27,18 @@ type typ =
 and adt = string * rcrd_ty list
 
 (** Description of a record type *)
-and rcrd_ty = string * (string * typ) list
+and rcrd_ty = string * (string * ty) list
 
 (** A type declaration *)
 type typedecl = Adt_decl of adt | Record_decl of rcrd_ty
 
 (** A funcion's type *)
-type ftyp = { atyp: typ list; rtyp: typ; }
+type ftyp = { atyp: ty list; rtyp: ty; }
 
 (** A type containter, with the a unique tag associated to each type *)
 type typc =
-    A of { tag: string; ty: typ; }
-  | F of { tag: string; atyp: typ list; rtyp: typ; }
+    A of { tag: string; ty: ty; }
+  | F of { tag: string; atyp: ty list; rtyp: ty; }
 
 (** Variable kinds  *)
 type vkind =
@@ -57,10 +57,10 @@ type fkind =
   (** A uninterpreted function *)
 
 (** A variable container *)
-type tvar = { vname: string; vty: typ; vk: vkind; id: int; }
+type tvar = { vname: string; vty: ty; vk: vkind; id: int; }
 
 (** [typ_tag ty] returns the tag of the type [ty]. *)
-val typ_tag: typ -> string
+val typ_tag: ty -> string
 
 (** [typc_tag ftyp] returns the tag of a function type [fty]. *)
 val typc_tag: ftyp -> string
@@ -68,7 +68,7 @@ val typc_tag: ftyp -> string
 (** [typ_compare ty1 ty2] compares two types by comparing their tags.
     Returns [1] if the first is greater than the second,
     [0] if they're equal and [-1] otherwise. *)
-val typ_compare: typ -> typ -> int
+val typ_compare: ty -> ty -> int
 
 (** [get_tctag typc] returns the tag of a type container [typc]. *)
 val get_tctag: typc -> string
@@ -108,7 +108,7 @@ type expr =
   (** [Binop (bin, e1, e1)] Represents the binary application
       of [bin] on [e1] and [e2] *)
 
-  | ITE of { ty: typ; cond: expr; cons: expr; alt: expr; }
+  | ITE of { ty: ty; cond: expr; cons: expr; alt: expr; }
   (** [ITE {ty; cond; expr; cons; alt}] An if-then-else conditional expression
       in which the condition is [cond], the consequences is [cons], and the
       alternative is [alt] and [ty] is the type of the [cons] and [alt]
@@ -118,7 +118,7 @@ type expr =
   (** [LetIn (v,e1,e2)] A let binding in which the variable [v] is bound to the
       expresion [e1] in the expression [e2] *)
 
-  | FAUpdate of { ty: typ * typ; fa: expr; i: expr; v: expr; }
+  | FAUpdate of { ty: ty * ty; fa: expr; i: expr; v: expr; }
   (** [FAUpdate {ty; fa; i; v}] A write operation on the functional array [fa]
       which is of type [ty], and in which [i] is the index to be written and
       [v] is the value to be stored in [i] *)
@@ -148,11 +148,11 @@ type expr =
   | Dummy
   (** [Dummy] *)
 
-and pm = { mtchdv: expr; patts: patt list; valty: typ; }
+and pm = { mtchdv: expr; patts: patt list; valty: ty; }
 
 and patt = { destrn: string; pattparams: tvar option list; mbody: expr; }
 
-and constr = { cname: string; cty: typ; params: (string * expr) list; }
+and constr = { cname: string; cty: ty; params: (string * expr) list; }
 
 and binop =
   | And
@@ -183,15 +183,15 @@ and unop =
   | Neg
   | Not
   | Extract of { l: int; r: int; }
-  | Access of { ty: typ * typ; fa: expr; }
+  | Access of { ty: ty * ty; fa: expr; }
 
 and quant = { qvars: VS.t; trgs: expr list; body: expr; }
 
 and fcall = {
   fname: string;
   fk: fkind;
-  atyp: typ list;
-  rtyp: typ;
+  atyp: ty list;
+  rtyp: ty;
   args: expr list;
 }
 
@@ -200,9 +200,9 @@ type stmt =
   | Goal of { name: string; body: expr; }
   | FuncDef of fdef
 
-and fdef = { name: string; body: expr; atyp: tvar list; rtyp: typ; }
+and fdef = { name: string; body: expr; atyp: tvar list; rtyp: ty; }
 
-type fd_info = { fn: string; params: typ list; rtyp: typ; }
+type fd_info = { fn: string; params: ty list; rtyp: ty; }
 
 type stmtkind = FD | AxD | GD
 
@@ -215,7 +215,7 @@ module TCM: Map.S with type key = typc
 type stmt_c = { stmt: stmt; tds: TDS.t; uss: SS.t TCM.t; }
 
 
-val print_typ: Format.formatter -> typ -> unit
+val print_typ: Format.formatter -> ty -> unit
 
 val pr_tvar: Format.formatter -> tvar -> unit
 
@@ -242,22 +242,22 @@ val print_stmtc: Format.formatter -> stmt_c -> unit
 
 val float_to_string: float -> string
 
-val typ_to_str: typ -> string
+val typ_to_str: ty -> string
 
-val mk_tvar: string -> typ -> vkind -> tvar
+val mk_tvar: string -> ty -> vkind -> tvar
 
-val mk_var: string -> typ -> vkind -> expr
+val mk_var: string -> ty -> vkind -> expr
 
 val mk_binop: binop -> expr -> expr -> expr
 
 val int_to_bitv: ?wl:int -> int -> bitv
 
-val get_u_tvar: int -> typ -> tvar
+val get_u_tvar: int -> ty -> tvar
 
-val get_args: int -> typ list
+val get_args: int -> ty list
 
-val get_ufunc_expr: int -> typ -> fd_info
+val get_ufunc_expr: int -> ty -> fd_info
 
-val mk_bound_var: typ -> tvar
+val mk_bound_var: ty -> tvar
 
 val quantify: expr -> expr

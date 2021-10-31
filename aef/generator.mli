@@ -41,7 +41,7 @@ val expr_gen:
   ?args:Ast.tvar list ->
   ?fdefs:Ast.fd_info list ->
   ?tydecls:Ast.typedecl list ->
-  int -> Ast.typ -> Ast.expr gen_res Cr.gen
+  int -> Ast.ty -> Ast.expr gen_res Cr.gen
 
 (** [stmt_gen ?fdefs ?tydecls ?name sk] generates a statement of the kind [sk],
     named with the value of [name] and where [fdefs] is a set of usable

@@ -196,7 +196,7 @@ let cst_gen ty =
   | _ -> assert false
 
 let binop_gen : 'a -> int -> binop ->
-  (int -> typ -> expr gen_res Cr.gen) -> expr gen_res Cr.gen =
+  (int -> ty -> expr gen_res Cr.gen) -> expr gen_res Cr.gen =
   fun ty fuel bop gen ->
   Cr.map
     [ gen (fuel - 1) ty;
@@ -244,10 +244,10 @@ let usymf_genl ty gen fuel =
       in
       let egl, atyp =
         List.fold_left (
-          fun (accel, acctyl) typ ->
-            match typ with
+          fun (accel, acctyl) ty ->
+            match ty with
             | TDummy -> (accel, acctyl)
-            | _ -> auxg typ :: accel, typ :: acctyl
+            | _ -> auxg ty :: accel, ty :: acctyl
         ) ([] ,[]) (List.rev params)
       in
       let gf = fun rgl ->
@@ -360,17 +360,17 @@ let get_arg_gens ty argl =
   ) [] (List.rev argl)
 
 let func_call_gen :
-  (int -> typ -> expr gen_res Cr.gen) ->
-  int -> typ -> fd_info list -> expr gen_res Cr.gen list =
+  (int -> ty -> expr gen_res Cr.gen) ->
+  int -> ty -> fd_info list -> expr gen_res Cr.gen list =
   fun gen fuel ty fdis ->
   let togen {fn = fname; params; rtyp} =
     let egl, atyp =
       List.fold_left (
-        fun (accel, acctyl) typ ->
-          match typ with
+        fun (accel, acctyl) ty ->
+          match ty with
           | TDummy -> (accel, acctyl)
           | Tbool -> cst_gen Tbool :: accel, Tbool :: acctyl
-          | _ ->  gen (fuel - 1) ty :: accel, typ :: acctyl
+          | _ ->  gen (fuel - 1) ty :: accel, ty :: acctyl
       ) ([] ,[]) (List.rev params)
     in
     let gf =
@@ -518,8 +518,8 @@ let ite_gen gen fuel ty =
         }
     )
 
-let letin_gen : (?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) ->
-  VS.t -> int -> typ -> expr gen_res Cr.gen =
+let letin_gen : (?bvars:VS.t -> int -> ty -> expr gen_res Cr.gen) ->
+  VS.t -> int -> ty -> expr gen_res Cr.gen =
   fun gen bvars fuel ty ->
   let nv = mk_bound_var ty in
   Cr.map [
@@ -577,7 +577,7 @@ let adt_gen () =
         Format.sprintf "adt_%d" id, [d1; d2]
     )
 
-let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
+let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: ty) =
   let pattern_gen (fuel: int) (pty : rcrd_ty) : patt gen_res Cr.gen =
     let destrn, ppmsty = pty in
     match ppmsty with
@@ -614,12 +614,12 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
     )
   | _ -> assert false
 
-let app_expr_gen expr_gen fuel typ =
-  match typ with
+let app_expr_gen expr_gen fuel ty =
+  match ty with
   | TDummy -> Cr.const dummy_gen_res
-  | _ -> expr_gen fuel typ
+  | _ -> expr_gen fuel ty
 
-let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
+let adt_dstr_gen (expr_gen: int -> ty -> expr gen_res Cr.gen)
     ((adtn, _) as adt: adt) (fuel: int) =
   let aux tadt_typ ((dstrn, pls): rcrd_ty) =
     match pls with
@@ -690,7 +690,7 @@ let gen_bool_binop fuel ag_aux =
   List.rev_append l1 tmp
 
 let get_binop_gens bvars fuel ty
-    (ag_aux: ?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) =
+    (ag_aux: ?bvars:VS.t -> int -> ty -> expr gen_res Cr.gen) =
   match ty with
   | Tint ->
     gen_int_binop fuel ag_aux
@@ -714,8 +714,8 @@ let get_binop_gens bvars fuel ty
 let get_pm_gens tydecls ag_aux fuel ty =
   let adts_gens =
     List.fold_left (
-      fun acc typ ->
-        match typ with
+      fun acc ty ->
+        match ty with
         | Adt_decl adt -> Cr.const adt :: acc
         | _ -> acc
     ) [] tydecls

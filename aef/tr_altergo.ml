@@ -20,8 +20,8 @@ module VM = Map.Make(
 
 type t = Commands.sat_tdecl
 
-let rec typ_to_ty typ =
-  match typ with
+let rec typ_to_ty ty =
+  match ty with
   | Tint -> Ty.Tint
   | Treal -> Ty.Treal
   | Tbool -> Ty.Tbool
@@ -797,18 +797,18 @@ let print_tvar_list fmt atyp =
     ) t
   | [] -> assert false
 
-let print_rcrd_b fmt (rcrd_b: (string * typ) list) =
+let print_rcrd_b fmt (rcrd_b: (string * ty) list) =
   match rcrd_b with
   | [] -> assert false
-  | (n, typ) :: t ->
+  | (n, ty) :: t ->
     Format.fprintf fmt
       "{%s: %a"
-      n print_typ typ;
+      n print_typ ty;
     List.iter (
-      fun (n, typ) ->
+      fun (n, ty) ->
         Format.fprintf fmt
           "; %s: %a"
-          n print_typ typ;
+          n print_typ ty;
     ) t;
     Format.fprintf fmt "}"
 

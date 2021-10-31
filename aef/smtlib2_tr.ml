@@ -1,6 +1,6 @@
 open Ast
 
-type sort = typ
+type sort = ty
 
 type sexp =
   | Atom of string

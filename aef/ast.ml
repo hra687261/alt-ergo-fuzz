@@ -1,22 +1,22 @@
-type typ =
+type ty =
   | Tint | Treal | Tbool
   | TBitV of int
-  | TFArray of {ti: typ; tv: typ}
+  | TFArray of {ti: ty; tv: ty}
   | Tadt of adt
   | TDummy
 and adt =
   string * rcrd_ty list
-and rcrd_ty = string * (string * typ) list
+and rcrd_ty = string * (string * ty) list
 
 type typedecl =
   | Adt_decl of adt
   | Record_decl of rcrd_ty
 
-type ftyp = {atyp: typ list; rtyp: typ}
+type ftyp = {atyp: ty list; rtyp: ty}
 
 type typc =
-  | A of {tag: string; ty: typ}
-  | F of {tag: string; atyp: typ list; rtyp: typ}
+  | A of {tag: string; ty: ty}
+  | F of {tag: string; atyp: ty list; rtyp: ty}
 
 type vkind =
   | EQ (* Exisancially quantified *)
@@ -30,11 +30,11 @@ type fkind =
   | USF (* uninterpreted function*)
 
 type tvar =
-  { vname: string; vty: typ;
+  { vname: string; vty: ty;
     vk: vkind; id: int}
 
-let rec typ_tag typ =
-  match typ with
+let rec typ_tag ty =
+  match ty with
   | Tint -> "i"
   | Treal -> "r"
   | Tbool -> "b"
@@ -83,9 +83,9 @@ type expr =
   | Var of tvar
   | Unop of unop * expr
   | Binop of binop * expr * expr
-  | ITE of {ty: typ; cond: expr; cons: expr; alt: expr}
+  | ITE of {ty: ty; cond: expr; cons: expr; alt: expr}
   | LetIn of tvar * expr * expr
-  | FAUpdate of {ty: typ * typ; fa: expr; i: expr; v: expr}
+  | FAUpdate of {ty: ty * ty; fa: expr; i: expr; v: expr}
   | FunCall of fcall
   | Forall of quant
   | Exists of quant
@@ -93,11 +93,11 @@ type expr =
   | Cstr of constr
   | Dummy
 and pm =
-  {mtchdv: expr; patts: patt list; valty: typ}
+  {mtchdv: expr; patts: patt list; valty: ty}
 and patt =
   {destrn: string; pattparams: tvar option list; mbody: expr}
 and constr =
-  {cname: string; cty: typ; params: (string * expr) list}
+  {cname: string; cty: ty; params: (string * expr) list}
 
 and binop =
   | And | Or | Xor | Imp | Iff
@@ -108,7 +108,7 @@ and binop =
 and unop =
   | Neg | Not
   | Extract of {l: int; r: int}
-  | Access of {ty: typ * typ; fa: expr}
+  | Access of {ty: ty * ty; fa: expr}
 
 and quant = {
   qvars: VS.t;
@@ -119,8 +119,8 @@ and quant = {
 and fcall = {
   fname: string;
   fk: fkind;
-  atyp: typ list;
-  rtyp: typ;
+  atyp: ty list;
+  rtyp: ty;
   args: expr list
 }
 
@@ -130,10 +130,10 @@ type stmt =
   | FuncDef of fdef
 and fdef =
   { name: string; body: expr;
-    atyp: tvar list; rtyp : typ}
+    atyp: tvar list; rtyp : ty}
 
 type fd_info =
-  {fn: string; params: typ list; rtyp: typ}
+  {fn: string; params: ty list; rtyp: ty}
 
 type stmtkind = (* statement kind *)
   | FD (* function statement *)
@@ -172,8 +172,8 @@ type stmt_c = {
 
 (* Pretty printing *)
 
-let rec print_typ fmt typ =
-  match typ with
+let rec print_typ fmt ty =
+  match ty with
   | Tint -> Format.fprintf fmt "int"
   | Treal -> Format.fprintf fmt "real"
   | Tbool -> Format.fprintf fmt "bool"
