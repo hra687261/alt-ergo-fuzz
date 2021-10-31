@@ -5,7 +5,6 @@ type 'a gen_res = {
   g_res: 'a;
   (** [g_res] the generated value *)
 
-  u_args: Ast.VS.t;
   u_bvars: Ast.VS.t;
   (** [u_bvars] used bound variables: a set of the bound variables that were
       used in the generated value *)

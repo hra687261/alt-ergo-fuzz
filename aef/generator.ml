@@ -3,7 +3,6 @@ module Cr = Crowbar
 
 type 'a gen_res = {
   g_res : 'a;
-  u_args : VS.t;
   u_bvars : VS.t;
   u_dt : SS.t;
   u_us : SS.t TCM.t;
@@ -77,10 +76,9 @@ let tcm_union (t1: SS.t TCM.t) (t2: SS.t TCM.t) : SS.t TCM.t =
         | None -> TCM.add k v acc
     ) t1 t2
 
-let aux_join (l, vs, bv, ud, uus, fcs)
-    {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
+let aux_join (l, bv, ud, uus, fcs)
+    {g_res; u_bvars; u_dt; u_us; c_funcs} =
   g_res :: l,
-  VS.union u_args vs,
   VS.union u_bvars bv,
   SS.union u_dt ud,
   tcm_union u_us uus,
@@ -88,7 +86,6 @@ let aux_join (l, vs, bv, ud, uus, fcs)
 
 let mk_empty_gen_res g_res =
   { g_res;
-    u_args = VS.empty;
     u_bvars = VS.empty;
     u_dt = SS.empty;
     u_us = TCM.empty;
@@ -96,7 +93,7 @@ let mk_empty_gen_res g_res =
 
 let dummy_gen_res = mk_empty_gen_res Dummy
 
-let pr_gr pr fmt {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
+let pr_gr pr fmt {g_res; u_bvars; u_dt; u_us; c_funcs} =
   let pr_vs fmt e =
     Format.fprintf fmt "{";
     VS.iter (
@@ -124,8 +121,6 @@ let pr_gr pr fmt {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
   Format.fprintf fmt "{@.";
   Format.fprintf fmt "  g_res = \n%a@."
     pr g_res;
-  Format.fprintf fmt "  u_args = %a;@."
-    pr_vs u_args;
   Format.fprintf fmt "  u_bvars = %a;@."
     pr_vs u_bvars;
   Format.fprintf fmt "  u_dt = %a;@."
@@ -210,7 +205,6 @@ let binop_gen : 'a -> int -> binop ->
         let g_res =
           mk_binop bop x.g_res y.g_res in
         { g_res;
-          u_args = VS.union x.u_args y.u_args;
           u_bvars = VS.union x.u_bvars y.u_bvars;
           u_dt = SS.union x.u_dt y.u_dt;
           u_us = tcm_union x.u_us y.u_us;
@@ -225,7 +219,6 @@ let usymv_gen ty =
         in
         let g_res = Var v in
         { g_res;
-          u_args = VS.empty;
           u_bvars = VS.empty;
           u_dt = SS.empty;
           u_us =
@@ -258,9 +251,9 @@ let usymf_genl ty gen fuel =
         ) ([] ,[]) (List.rev params)
       in
       let gf = fun rgl ->
-        let args, u_args, u_bvars, u_dt, u_us, c_funcs =
+        let args, u_bvars, u_dt, u_us, c_funcs =
           List.fold_left aux_join
-            ([], VS.empty, VS.empty, SS.empty, TCM.empty, SS.empty)
+            ([], VS.empty, SS.empty, TCM.empty, SS.empty)
             (List.rev rgl)
         in
         let fc =
@@ -270,7 +263,6 @@ let usymf_genl ty gen fuel =
           F {tag = typc_tag {atyp; rtyp}; atyp; rtyp}
         in
         { g_res = FunCall fc;
-          u_args;
           u_bvars;
           u_dt;
           u_us =
@@ -343,7 +335,6 @@ let get_bv_gens bvars ty =
         then
           Cr.const (
             { g_res = Var bv;
-              u_args = VS.empty;
               u_bvars = VS.add bv VS.empty;
               u_dt = SS.empty;
               u_us = TCM.empty;
@@ -384,9 +375,9 @@ let func_call_gen :
     in
     let gf =
       fun egl ->
-        let args, u_args, u_bvars, u_dt, u_us, c_funcs =
+        let args, u_bvars, u_dt, u_us, c_funcs =
           List.fold_left aux_join
-            ( [], VS.empty, VS.empty, SS.empty,
+            ( [], VS.empty, SS.empty,
               TCM.empty, SS.add fname SS.empty)
             (List.rev egl)
         in
@@ -395,7 +386,6 @@ let func_call_gen :
               atyp;
               rtyp;
               args};
-          u_args;
           u_bvars;
           u_dt;
           u_us;
@@ -427,7 +417,6 @@ let get_fa_access gen fuel tv =
                 Unop (Access {ty = ti, tv; fa = fa.g_res}, i.g_res)
               in
               { g_res;
-                u_args = VS.union fa.u_args i.u_args;
                 u_bvars = VS.union fa.u_bvars i.u_bvars;
                 u_dt = SS.union fa.u_dt i.u_dt;
                 u_us = tcm_union fa.u_us i.u_us;
@@ -452,9 +441,6 @@ let get_fa_update gen fuel ti tv =
             v = v.g_res}
         in
         { g_res;
-          u_args =
-            VS.union fa.u_args
-              (VS.union i.u_args v.u_args);
           u_bvars =
             VS.union fa.u_bvars
               (VS.union i.u_bvars v.u_bvars);
@@ -498,7 +484,6 @@ let get_bvec_gens gen fuel len =
                 Binop (Concat len, x.g_res, y.g_res)
               in
               { g_res;
-                u_args = VS.union x.u_args y.u_args;
                 u_bvars = VS.union x.u_bvars y.u_bvars;
                 u_dt = SS.union x.u_dt y.u_dt;
                 u_us = tcm_union x.u_us y.u_us;
@@ -518,9 +503,6 @@ let ite_gen gen fuel ty =
                  cond = cond.g_res;
                  cons = cons.g_res;
                  alt = alt.g_res};
-          u_args =
-            VS.union cond.u_args
-              (VS.union cons.u_args alt.u_args);
           u_bvars =
             VS.union cond.u_bvars
               (VS.union cons.u_bvars alt.u_bvars);
@@ -548,14 +530,13 @@ let letin_gen : (?bvars:VS.t -> int -> typ -> expr gen_res Cr.gen) ->
       if VS.mem nv b.u_bvars
       then
         { g_res = LetIn (nv , e.g_res, b.g_res);
-          u_args = VS.union e.u_args b.u_args;
           u_bvars = VS.union e.u_bvars b.u_bvars;
           u_dt = SS.union e.u_dt b.u_dt;
           u_us = tcm_union e.u_us b.u_us;
           c_funcs = SS.union e.c_funcs b.c_funcs;
         }
       else
-        { g_res = b.g_res; u_args = b.u_args;
+        { g_res = b.g_res;
           u_bvars = b.u_bvars; u_dt = b.u_dt;
           u_us = b.u_us; c_funcs = b.c_funcs;
         }
@@ -622,14 +603,14 @@ let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: typ) =
       pattern_gen (fuel - 1) p2
     ] (
       fun g p1 p2 ->
-        let patts, u_args, u_bvars, u_dt, u_us, c_funcs =
+        let patts, u_bvars, u_dt, u_us, c_funcs =
           List.fold_left aux_join
-            ( [], g.u_args, g.u_bvars,
+            ( [], g.u_bvars,
               SS.add adtn g.u_dt, g.u_us, g.c_funcs)
             [p2; p1]
         in
         { g_res = PMatching {mtchdv = g.g_res; patts; valty};
-          u_args; u_bvars; u_dt; u_us; c_funcs}
+          u_bvars; u_dt; u_us; c_funcs}
     )
   | _ -> assert false
 
@@ -653,26 +634,25 @@ let adt_dstr_gen (expr_gen: int -> typ -> expr gen_res Cr.gen)
               (fun (_, a) -> not (a.g_res = Dummy))
               [(n2, a2); (n1, a1)]
           in
-          let n, {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} =
+          let n, {g_res; u_bvars; u_dt; u_us; c_funcs} =
             List.hd tmp
           in
-          let params, u_args, u_bvars, u_dt, u_us, c_funcs =
+          let params, u_bvars, u_dt, u_us, c_funcs =
             List.fold_left (
-              fun (pl, ua, ub, ud, uus, cf)
-                (n, {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}) ->
+              fun (pl, ub, ud, uus, cf)
+                (n, {g_res; u_bvars; u_dt; u_us; c_funcs}) ->
                 (n, g_res) :: pl,
-                VS.union u_args ua,
                 VS.union u_bvars ub,
                 SS.union u_dt ud,
                 tcm_union u_us uus,
                 SS.union c_funcs cf
-            ) ( [n, g_res], u_args, u_bvars, SS.add adtn u_dt,
+            ) ( [n, g_res], u_bvars, SS.add adtn u_dt,
                 u_us, c_funcs) (List.tl tmp)
           in
           let cty = tadt_typ in
           let cname = dstrn in
           { g_res = Cstr {cname; cty; params};
-            u_args; u_bvars; u_dt; u_us; c_funcs}
+            u_bvars; u_dt; u_us; c_funcs}
       )
     | _ -> assert false
   in
@@ -843,17 +823,17 @@ let fdef_gen ?(nbp = 5) ?(fdefs = []) ?(tydecls : typedecl list = [])
 
       let ge =
         Cr.map [gen] (
-          fun {g_res = body; u_args; u_bvars; u_dt; u_us; c_funcs} ->
+          fun {g_res = body; u_bvars; u_dt; u_us; c_funcs} ->
             let atyp =
               List.fold_left (
                 fun vacc v ->
-                  if VS.mem v u_args
+                  if VS.mem v u_bvars
                   then v :: vacc
                   else vacc
               ) [] rargs
             in
             { g_res = FuncDef {name; body; atyp; rtyp};
-              u_args; u_bvars; u_dt; u_us; c_funcs}
+              u_bvars; u_dt; u_us; c_funcs}
         )
       in
       ge
@@ -866,12 +846,12 @@ let goal_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map
     [expr_gen ~fdefs ~tydecls query_max_depth Tbool]
-    ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
+    ( fun {g_res; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Goal
             {name; body = quantify g_res}
         in
-        {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}
+        {g_res; u_bvars; u_dt; u_us; c_funcs}
     )
 
 let axiom_gen ?(fdefs = []) ?(tydecls : typedecl list = []) name
@@ -879,12 +859,12 @@ let axiom_gen ?(fdefs = []) ?(tydecls : typedecl list = []) name
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map
     [expr_gen ~fdefs ~tydecls axiom_max_depth Tbool]
-    ( fun {g_res; u_args; u_bvars; u_dt; u_us; c_funcs} ->
+    ( fun {g_res; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Axiom
             {name; body = quantify g_res}
         in
-        {g_res; u_args; u_bvars; u_dt; u_us; c_funcs}
+        {g_res; u_bvars; u_dt; u_us; c_funcs}
     )
 
 (********************************************************************)
