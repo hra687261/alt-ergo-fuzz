@@ -48,29 +48,28 @@ let data_to_file data of_path =
   Format.fprintf fmt "%s" str;
   close_out oc
 
-let handle_bug ?(verbose = false)
-    ?(output_folder_path = "aef/crash_output")
+let handle_unsoundness_bug ?(verbose = false)
+    ?(output_folder_path = "aef/store")
     id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 =
-  let bi =
-    mk_bi id (Some exn) stmtcs ae_c ae_ct ae_t ae_tc cvc5
-  in
 
+  let exn_str = function
+    | Unsoundness -> "unsoundness"
+    | InternalCrash -> "internalcrash"
+    | Timeout -> "timeout"
+    | Stack_overflow -> "stackoverflow"
+    | Out_of_memory -> "outofmemory"
+    | _ -> "other"
+  in
+  let bi = mk_bi id (Some exn) stmtcs ae_c ae_ct ae_t ae_tc cvc5 in
   let of_path =
-    Format.sprintf (
-      match exn with
-      | Unsoundness -> "%s/u%d_%f.txt"
-      | InternalCrash -> "%s/i%d_%f.txt"
-      | Timeout -> "%s/t%d_%f.txt"
-      | _ -> "%s/o%d_%f.txt"
-    ) output_folder_path id (Unix.gettimeofday ())
+    Format.sprintf "%s/%s/%d_%.22f.txt" output_folder_path
+      (exn_str exn) (Unix.getpid ()) (Unix.gettimeofday ())
   in
-
   data_to_file bi of_path;
 
   if verbose
   then (
-    Format.printf "\nException: %s@."
-      (exn_to_str exn);
+    Format.printf "\nException: %s@." (exn_to_str exn);
     Format.printf "\nCaused by: \n%a@."
       ( fun fmt stmtcl ->
           List.iter (
@@ -84,10 +83,10 @@ let handle_bug ?(verbose = false)
       of_path
   )
 
-let handle_bug_na ?(verbose = false)
-    ?(output_folder_path = "aef/crash_output")
+let handle_failure_bug ?(verbose = false)
+    ?(output_folder_path = "aef/store")
     id exn stmtcs =
-  handle_bug id
+  handle_unsoundness_bug id
     ~verbose ~output_folder_path
     exn stmtcs [] [] [] [] []
 

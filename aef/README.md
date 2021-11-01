@@ -11,7 +11,7 @@ afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/ ./_build/default/aef/ma
 ```
 When a crash happens : ```(aka: total crashes > 0)```
 
-For each crash a file is created under: ```alt-ergo/aef/crash_output/```
+For each crash a file is created under: ```alt-ergo/aef/store/```
 
 Containing the marshalled bug_info of the statements whose satisfiability check caused the exception to be raised either by making Alt-Ergo crash, or by giving an unsound response (one which is contradictory to CVC5's reponse).
 
@@ -22,13 +22,13 @@ Containing the marshalled bug_info of the statements whose satisfiability check 
 By running:
 
 ```
-./_build/default/aef/rerun.exe ./aef/crash_output/{sym}{num}_XXXXXXXXXX.txt
+./_build/default/aef/rerun.exe ./aef/store/{sym}{num}_XXXXXXXXXX.txt
 ```
-Where {sym} is one of the following symbols: 
+Where {sym} is one of the following symbols:
   - i (internal crash)
-  - u (unsoundness) 
+  - u (unsoundness)
   - t (timeout)
-  - o (other) 
+  - o (other)
 
 And {num} is the id of the crash
 
@@ -37,7 +37,7 @@ The exception and the statements that caused the crash are read from the file ``
 
 To rerun all of the outputs:
 ```
-for f in ./aef/crash_output/[uiot]* ; do  ./_build/default/aef/rerun.exe "$f"; done;
+for f in ./aef/store/[uiot]* ; do  ./_build/default/aef/rerun.exe "$f"; done;
 ```
 
 
@@ -59,7 +59,7 @@ afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer03  .
 ---
 ## Quickcheck mode:
 
-To run ```main.exe``` in quickcheck mode: 
+To run ```main.exe``` in quickcheck mode:
 ```
 ./_build/default/aef/main.exe
 ```

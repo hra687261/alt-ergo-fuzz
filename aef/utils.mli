@@ -1,3 +1,4 @@
+
 type answer = Sat | Unsat | Unknown
 
 exception Unsoundness
@@ -21,7 +22,7 @@ type bug_info = {
 
 val exn_to_str: exn -> string
 
-val handle_bug:
+val handle_unsoundness_bug:
   ?verbose:bool ->
   ?output_folder_path:string ->
   int ->
@@ -31,7 +32,7 @@ val handle_bug:
   answer list -> answer list ->
   answer list -> unit
 
-val handle_bug_na:
+val handle_failure_bug:
   ?verbose:bool ->
   ?output_folder_path:string ->
   int -> exn -> Ast.stmt_c list -> unit

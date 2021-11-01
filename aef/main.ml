@@ -22,11 +22,11 @@ let test_fun stmtcs =
         true
       with
       | exp ->
-        handle_bug !cnt exp stmtcs ae_c ae_ct ae_t ae_tc cvc5;
+        handle_unsoundness_bug !cnt exp stmtcs ae_c ae_ct ae_t ae_tc cvc5;
         false
     with
     | exp ->
-      handle_bug_na !cnt exp stmtcs;
+      handle_failure_bug !cnt exp stmtcs;
       false
   )
 
