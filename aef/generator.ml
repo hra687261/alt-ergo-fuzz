@@ -212,7 +212,7 @@ let binop_gen : 'a -> int -> binop ->
 
 let usymv_gen ty =
   Cr.map
-    [Cr.range (Foptions.get_nb_us_vars ())]
+    [Cr.range (Foptions.get_nuv ())]
     ( fun pos ->
         let v =
           get_u_tvar pos ty
@@ -281,9 +281,9 @@ let qv_gen uqvars ty =
   let aux pref pos =
     mk_var (pref ^ string_of_int pos)
   in
-  if uqvars && (Foptions.get_nb_q_vars ()) > 0 && Foptions.get_u_qvrs () then
+  if uqvars && (Foptions.get_nqv ()) > 0 && Foptions.get_u_qvrs () then
     [ Cr.map
-        [Cr.bool; Cr.range (Foptions.get_nb_q_vars ())]
+        [Cr.bool; Cr.range (Foptions.get_nqv ())]
         ( fun b pos ->
             let g_res =
               match b with
@@ -574,7 +574,7 @@ let adt_gen () =
     [ dest_gen id 1;
       dest_gen id 2]
     ( fun d1 d2 ->
-        Format.sprintf "adt_%d" id, [d1; d2]
+        Adt_decl (Format.sprintf "adt_%d" id, [d1; d2])
     )
 
 let pm_gen expr_gen (adtn, pattrns: adt) (fuel: int) (valty: ty) =
@@ -795,7 +795,7 @@ let expr_gen ?(uqvars = true)
 
 (********************************************************************)
 let fdef_gen ?(nbp = 5) ?(fdefs = []) ?(tydecls : typedecl list = [])
-    name func_max_depth =
+    name fmd =
   let tgens = List.init (nbp + 1) (fun _ -> typ_gen ()) in
   let ftyg =
     aux_gen_list tgens (
@@ -818,7 +818,7 @@ let fdef_gen ?(nbp = 5) ?(fdefs = []) ?(tydecls : typedecl list = [])
 
       let gen =
         expr_gen ~uqvars:false ~args ~fdefs
-          ~tydecls func_max_depth rtyp
+          ~tydecls fmd rtyp
       in
 
       let ge =
@@ -842,10 +842,10 @@ let fdef_gen ?(nbp = 5) ?(fdefs = []) ?(tydecls : typedecl list = [])
   Cr.dynamic_bind ftyg fg
 
 let goal_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
-    name query_max_depth =
+    name qmd =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map
-    [expr_gen ~fdefs ~tydecls query_max_depth Tbool]
+    [expr_gen ~fdefs ~tydecls qmd Tbool]
     ( fun {g_res; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Goal
@@ -855,10 +855,10 @@ let goal_gen ?(fdefs = []) ?(tydecls : typedecl list = [])
     )
 
 let axiom_gen ?(fdefs = []) ?(tydecls : typedecl list = []) name
-    axiom_max_depth =
+    amd =
   Cr.with_printer (pr_gr print_stmt) @@
   Cr.map
-    [expr_gen ~fdefs ~tydecls axiom_max_depth Tbool]
+    [expr_gen ~fdefs ~tydecls amd Tbool]
     ( fun {g_res; u_bvars; u_dt; u_us; c_funcs} ->
         let g_res =
           Axiom
@@ -874,11 +874,11 @@ let stmt_gen
     ?(fdefs = []) ?(tydecls: typedecl list = []) ?(name = "") kind =
   match kind with
   | FD ->
-    fdef_gen ~fdefs ~tydecls name (Foptions.get_func_max_depth ())
+    fdef_gen ~fdefs ~tydecls name (Foptions.get_fmd ())
   | AxD ->
-    axiom_gen ~fdefs ~tydecls name (Foptions.get_axiom_max_depth ())
+    axiom_gen ~fdefs ~tydecls name (Foptions.get_amd ())
   | GD ->
-    goal_gen ~fdefs ~tydecls name (Foptions.get_query_max_depth ())
+    goal_gen ~fdefs ~tydecls name (Foptions.get_qmd ())
 
 (********************************************************************)
 let axid, gid, fid = ref 0, ref 0, ref 0
@@ -916,9 +916,9 @@ let update_fdis : fd_info list -> stmt gen_res -> fd_info list =
 (********************************************************************)
 
 let rec iter :
-  fd_info list -> typedecl list -> SS.t ->
-  stmtkind list -> stmt_c list -> stmt_c list Cr.gen =
-  fun fds adtl ocfs kndl acc ->
+  ?fds:fd_info list -> ?adtl:typedecl list -> ?ocfs:SS.t ->
+  ?acc:stmt_c list -> stmtkind list -> stmt_c list Cr.gen =
+  fun ?(fds = []) ?(adtl = []) ?(ocfs = SS.empty) ?(acc = []) kndl ->
   match kndl with
   | [knd] ->
     liter fds adtl ocfs knd acc
@@ -941,7 +941,7 @@ let rec iter :
         let nfds = update_fdis fds gr in
         let ncfs = SS.union c_funcs ocfs in
         let stmtc = {stmt; tds; uss = u_us} in
-        iter nfds adtl ncfs t (stmtc :: acc)
+        iter ~fds:nfds ~adtl ~ocfs:ncfs ~acc:(stmtc :: acc) t
     in
     Cr.dynamic_bind a b
   | _ -> assert false
@@ -1000,36 +1000,63 @@ and liter :
 
 (********************************************************************)
 
-let gen_stmts ?(nb_tds = 2) ?(nb_dks = 4) () =
-  ignore (nb_tds, nb_dks);
-  Cr.dynamic_bind (
-    Cr.map
-      [ adt_gen ();
-        adt_gen ();
-        dk_gen;
-        dk_gen]
-      (fun adt1 adt2 e1 e2 -> (adt1, adt2), (e1, e2))
-  ) (
-    fun ((adt1, adt2), (e1, e2)) ->
-      iter [] [Adt_decl adt1; Adt_decl adt2] SS.empty
-        [e1; e2; GD] []
+let aux_stmts_gen =
+  let aux ?(nb_tds = 2) ?(nb_dks = 4) () =
+    let agl = aux_gen_list in
+    let a =
+      agl (List.init nb_tds (fun _ -> adt_gen ())) (
+        fun adtl ->
+          agl
+            (List.init nb_dks (fun _ -> dk_gen))
+            (fun kndl -> iter ~adtl kndl)
+      )
+    in Cr.dynamic_bind a (fun x -> Cr.dynamic_bind x (fun x -> x))
+  in
+  let f =
+    Cr.map [
+      Cr.range ~min:Foptions.ntd_i.lb
+        (Foptions.ntd_i.ub + 1);
+      Cr.range ~min:Foptions.nst_i.lb
+        (Foptions.nst_i.ub + 1);
+    ] (fun nb_tds nb_dks -> nb_tds, nb_dks)
+  in
+  Cr.dynamic_bind f (
+    fun (nb_tds, nb_dks) ->
+      aux ~nb_tds ~nb_dks ()
   )
 
-(* Doesn't work for some reason *)
-(* let gen_stmts ?(nb_tds = 2) ?(nb_dks = 4) () =
-   let tdgs =
-    aux_gen_list
-      (List.init nb_tds (fun _ -> adt_gen ()))
-      (List.map (fun x -> Adt_decl x))
-   in
-   let dks =
-    aux_gen_list
-      (List.init nb_dks (fun _ -> dk_gen))
-      List.rev
-   in
-   Cr.dynamic_bind (
-    Cr.map [tdgs; dks] (
-      fun l1 l2 ->
-        iter [] l1 SS.empty (List.rev_append l2 [GD]) []
-    )
-   ) Fun.id *)
+let fopts_gen =
+  Cr.map [
+    Cr.range
+      ~min:Foptions.qmd_i.lb
+      (Foptions.qmd_i.ub + 1);
+    Cr.range
+      ~min:Foptions.amd_i.lb
+      (Foptions.amd_i.ub + 1);
+    Cr.range
+      ~min:Foptions.fmd_i.lb
+      (Foptions.fmd_i.ub + 1);
+    Cr.range
+      ~min:Foptions.nuv_i.lb
+      (Foptions.nuv_i.ub + 1);
+    Cr.range
+      ~min:Foptions.nqv_i.lb
+      (Foptions.nqv_i.ub + 1);
+  ] (
+    fun qmd amd fmd nuv nqv ->
+      Foptions.set_qmd qmd;
+      Foptions.set_amd amd;
+      Foptions.set_fmd fmd;
+      Foptions.set_nuv nuv;
+      Foptions.set_nqv nqv
+  )
+
+let firstcall = ref true
+
+let stmts_gen () =
+  if !firstcall = true then
+    let _ =
+      Cr.dynamic_bind fopts_gen (fun () -> Cr.const ())
+    in firstcall := false
+  else ();
+  aux_stmts_gen

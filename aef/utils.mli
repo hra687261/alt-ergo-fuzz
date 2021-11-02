@@ -42,8 +42,7 @@ val cmp_answers:
   answer list -> answer list ->
   answer list -> unit
 
-(*
-val pr_answers:
+val pp_answers:
+  answer list -> answer list ->
   answer list -> answer list ->
   answer list -> unit
-*)

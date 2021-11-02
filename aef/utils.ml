@@ -126,41 +126,40 @@ let cmp_answers l1 l2 l3 l4 l5 =
       )
     )
 
-(*
-let rec pr_answers l1 l2 l3 =
-  match l1, l2, l3 with
-  | h1 :: t1, h2 :: t2, h3 :: t3 ->
-    Format.printf "%s  %s  %s@."
-      (ans_to_str h1)
-      (ans_to_str h2)
-      (ans_to_str h3);
-    pr_answers t1 t2 t3
-  | [], h2 :: t2, h3 :: t3 ->
-    Format.printf "no-answer  %s  %s@."
-      (ans_to_str h2)
-      (ans_to_str h3);
-    pr_answers [] t2 t3
-  | h1 :: t1, [], h3 :: t3 ->
-    Format.printf "%s  no-answer  %s@."
-      (ans_to_str h1)
-      (ans_to_str h3);
-    pr_answers t1 [] t3
-  | h1 :: t1, h2 :: t2, [] ->
-    Format.printf "%s  %s  no-answer@."
-      (ans_to_str h1)
-      (ans_to_str h2);
-    pr_answers t1 t2 []
-  | [], [], h3 :: t3 ->
-    Format.printf "no-answer  no-answer  %s@."
-      (ans_to_str h3);
-    pr_answers [] [] t3
-  | [], h2 :: t2, [] ->
-    Format.printf "no-answer  %s  no-answer@."
-      (ans_to_str h2);
-    pr_answers [] t2 []
-  | h1 :: t1, [], [] ->
-    Format.printf "%s  no-answer  no-answer@."
-      (ans_to_str h1);
-    pr_answers t1 [] []
-  | [], [], [] -> ()
-*)
+let pp_answers l1 l2 l3 l4 l5 =
+  let len = List.length in
+  let len1 = len l1 in
+  let len2 = len l2 in
+  let len3 = len l3 in
+  let len4 = len l4 in
+  let len5 = len l5 in
+  let ml = max len1 len2 in
+  let ml = max ml len3 in
+  let ml = max ml len4 in
+  let ml = max ml len5 in
+  let map = List.map in
+  let some = Option.some in
+  let l1 = (map some l1) @ (List.init (ml - len1) (fun _ -> None)) in
+  let l2 = (map some l2) @ (List.init (ml - len2) (fun _ -> None)) in
+  let l3 = (map some l3) @ (List.init (ml - len3) (fun _ -> None)) in
+  let l4 = (map some l4) @ (List.init (ml - len4) (fun _ -> None)) in
+  let l5 = (map some l5) @ (List.init (ml - len5) (fun _ -> None)) in
+
+  let ans_to_str = function
+    | Some Sat -> "sat   "
+    | Some Unsat -> "unsat "
+    | Some Unknown -> "unkown"
+    | None -> "none  "
+  in
+
+  let rec aux l1 l2 l3 l4 l5 =
+    match l1, l2, l3, l4, l5 with
+    | h1 :: t1, h2 :: t2, h3 :: t3, h4 :: t4, h5 :: t5 ->
+      Format.printf "%s  %s  %s  %s  %s@."
+        (ans_to_str h1) (ans_to_str h2) (ans_to_str h3)
+        (ans_to_str h4) (ans_to_str h5);
+      aux t1 t2 t3 t4 t5
+    | [], [], [], [], [] -> ()
+    | _ -> assert false
+  in
+  aux l1 l2 l3 l4 l5

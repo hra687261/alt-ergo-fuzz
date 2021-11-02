@@ -16,7 +16,7 @@ let test_fun stmtcs =
       let ae_tc = Solvers.solve_with_ae_t stmtcs in
 
       let cvc5 = Solvers.get_cvc5_response () in
-      (* pr_answers ae_c ae_ct ae_t ae_tc cvc5; *)
+      pp_answers ae_c ae_ct ae_t ae_tc cvc5;
       try
         cmp_answers ae_c ae_ct ae_t ae_tc cvc5;
         true
@@ -31,4 +31,4 @@ let test_fun stmtcs =
   )
 
 let () =
-  Cr.add_test ~name:"ae" [Generator.gen_stmts ()] test_fun
+  Cr.add_test ~name:"ae" [Generator.stmts_gen ()] test_fun
