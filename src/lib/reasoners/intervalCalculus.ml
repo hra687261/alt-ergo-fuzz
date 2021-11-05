@@ -176,25 +176,25 @@ let pp_sc_vi ppf Sim.Core.{
   let pp_ed = Pp.add_p ~p:ed_p pp_b in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_m1 mini;
-  F.fprintf ppf "%a@\n" pp_m2 maxi;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m1 mini;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m2 maxi;
 
-  F.fprintf ppf "%a@\n" pp_me1 min_ex;
-  F.fprintf ppf "%a@\n" pp_me2 max_ex;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_me1 min_ex;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_me2 max_ex;
 
-  F.fprintf ppf "%a@\n" pp_v value;
-  F.fprintf ppf "%a@\n" pp_vs vstatus;
-  F.fprintf ppf "%a@\n" pp_ed empty_dom;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v value;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_vs vstatus;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ed empty_dom;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let pp_sc_ss ppf = function
   | Sim.Core.UNK ->
     F.fprintf ppf "UNK"
   | Sim.Core.UNSAT r ->
-    F.fprintf ppf "UNSAT @[<hov 2>(%a)@]" X.print r
+    F.fprintf ppf "UNSAT (%a)" X.print r
   | Sim.Core.SAT ->
     F.fprintf ppf "SAT"
 
@@ -242,21 +242,21 @@ let pp_sc ppf Sim.Core.{
   let pp_np = Pp.add_p pp_i ~p:np_p  in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_b2 basic;
-  F.fprintf ppf "%a@\n" pp_nb non_basic;
-  F.fprintf ppf "%a@\n" pp_s1 slake;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_b2 basic;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nb non_basic;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s1 slake;
 
-  F.fprintf ppf "%a@\n" pp_f fixme;
-  F.fprintf ppf "%a@\n" pp_in is_int;
-  F.fprintf ppf "%a@\n" pp_s2 status;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_f fixme;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_in is_int;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s2 status;
 
-  F.fprintf ppf "%a@\n" pp_d debug;
-  F.fprintf ppf "%a@\n" pp_ci check_invs;
-  F.fprintf ppf "%a@\n" pp_np !nb_pivots;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d debug;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ci check_invs;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_np !nb_pivots;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let pp_vrb ppf {
     inequations; monomes; polynomes;
@@ -339,29 +339,29 @@ let pp_vrb ppf {
   let pp_sm = Pp.pp_list pp_l2 ~p:sm_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_i2 inequations;
-  F.fprintf ppf "%a@\n" pp_m monomes;
-  F.fprintf ppf "%a@\n" pp_p2 polynomes;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i2 inequations;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m monomes;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p2 polynomes;
 
-  F.fprintf ppf "%a@\n" pp_ub used_by;
-  F.fprintf ppf "%a@\n" pp_ke known_eqs;
-  F.fprintf ppf "%a@\n" pp_ip improved_p;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ub used_by;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ke known_eqs;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ip improved_p;
 
-  F.fprintf ppf "%a@\n" pp_ix improved_x;
-  F.fprintf ppf "%a@\n" pp_c classes;
-  F.fprintf ppf "%a@\n" pp_ss size_splits;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ix improved_x;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c classes;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ss size_splits;
 
-  F.fprintf ppf "%a@\n" pp_is int_sim;
-  F.fprintf ppf "%a@\n" pp_rs rat_sim;
-  F.fprintf ppf "%a@\n" pp_nu new_uf;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_is int_sim;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_rs rat_sim;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nu new_uf;
 
-  F.fprintf ppf "%a@\n" pp_ta th_axioms;
-  F.fprintf ppf "%a@\n" pp_ld linear_dep;
-  F.fprintf ppf "%a@\n" pp_sm syntactic_matching;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ta th_axioms;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ld linear_dep;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_sm syntactic_matching;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 module Sim_Wrap = struct
 

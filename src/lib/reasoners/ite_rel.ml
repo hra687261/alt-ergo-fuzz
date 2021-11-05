@@ -77,16 +77,16 @@ let pp_vrb ppf {
   let pp_anp = MEP.pp pp_e pp_ex ~p:anp_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_pg pending_deds;
-  F.fprintf ppf "%a@\n" pp_gpd guarded_pos_deds;
-  F.fprintf ppf "%a@\n" pp_gnd guarded_neg_deds;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_pg pending_deds;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gpd guarded_pos_deds;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gnd guarded_neg_deds;
 
-  F.fprintf ppf "%a@\n" pp_app assumed_pos_preds;
-  F.fprintf ppf "%a@\n" pp_anp assumed_neg_preds;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_app assumed_pos_preds;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_anp assumed_neg_preds;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let empty _ =
   { pending_deds  = ME2.empty;

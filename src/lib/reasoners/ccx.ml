@@ -119,13 +119,13 @@ module Main : S = struct
     let pp_uf = Pp.add_p Uf.pp_vrb ~p:uf_p in
     let pp_r = Pp.add_p Rel.pp_vrb ~p:r_p in
 
-    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "{";
 
-    F.fprintf ppf "%a@\n" pp_u use;
-    F.fprintf ppf "%a@\n" pp_uf uf;
-    F.fprintf ppf "%a@\n" pp_r relation;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_u use;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_uf uf;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_r relation;
 
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "}"
 
   let empty () = {
     use = Use.empty ;

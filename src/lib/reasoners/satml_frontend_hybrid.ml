@@ -230,18 +230,18 @@ module Make (Th : Theory.S) = struct
     let pp_p2 = Pp.pp_list pp_l2 ~p:p2_p in
 
 
-    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "{";
 
-    F.fprintf ppf "%a@\n" pp_s sat;
-    F.fprintf ppf "%a@\n" pp_a2 assumed;
-    F.fprintf ppf "%a@\n" pp_p1 proxies;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s sat;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a2 assumed;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p1 proxies;
 
-    F.fprintf ppf "%a@\n" pp_ip inv_proxies;
-    F.fprintf ppf "%a@\n" pp_he hcons_env;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ip inv_proxies;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_he hcons_env;
 
-    F.fprintf ppf "%a@\n" pp_d decisions;
-    F.fprintf ppf "%a@\n" pp_p2 pending;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d decisions;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_p2 pending;
 
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "}"
 
 end

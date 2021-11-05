@@ -236,13 +236,13 @@ let pp_root_dep ppf {name; f; loc} =
   let pp_f = Pp.add_p pp_e ~p:f_p in
   let pp_l = Pp.add_p pp_l ~p:l_p in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_n name;
-  F.fprintf ppf "%a@\n" pp_f f;
-  F.fprintf ppf "%a@\n" pp_l loc;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n name;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_f f;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_l loc;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let pp_exp_vrb ppf = function
   | Literal atom ->

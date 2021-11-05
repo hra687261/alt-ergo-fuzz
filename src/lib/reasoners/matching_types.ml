@@ -82,14 +82,14 @@ let pp_info ppf {age; lem_orig; t_orig; but} =
   let pp_to = Pp.pp_list pp_e ~p:to_p in
   let pp_b = Pp.add_p pp_b ~p:b_p in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_a age;
-  F.fprintf ppf "%a@\n" pp_lo lem_orig;
-  F.fprintf ppf "%a@\n" pp_to t_orig;
-  F.fprintf ppf "%a@\n" pp_b but;
+  F.fprintf ppf "@[%a; @,@]" pp_a age;
+  F.fprintf ppf "@[%a; @,@]" pp_lo lem_orig;
+  F.fprintf ppf "@[%a; @,@]" pp_to t_orig;
+  F.fprintf ppf "@[%a@,@]" pp_b but;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let pp_trigger_info ppf {
     trigger; trigger_age; trigger_orig;
@@ -120,17 +120,17 @@ let pp_trigger_info ppf {
   let pp_tig = Pp.add_p pp_e  ~p:tig_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_t trigger;
-  F.fprintf ppf "%a@\n" pp_ta trigger_age;
-  F.fprintf ppf "%a@\n" pp_to trigger_orig;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t trigger;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ta trigger_age;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_to trigger_orig;
 
-  F.fprintf ppf "%a@\n" pp_tf trigger_formula;
-  F.fprintf ppf "%a@\n" pp_td trigger_dep;
-  F.fprintf ppf "%a@\n" pp_tig trigger_increm_guard;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tf trigger_formula;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_td trigger_dep;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_tig trigger_increm_guard;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let pp_gsubst ppf {
     sbs; sty; gen;
@@ -164,17 +164,17 @@ let pp_gsubst ppf {
   let pp_slo = Pp.add_p pp_e  ~p:slo_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_sb sbs;
-  F.fprintf ppf "%a@\n" pp_st sty;
-  F.fprintf ppf "%a@\n" pp_ge gen;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sb sbs;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_st sty;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ge gen;
 
-  F.fprintf ppf "%a@\n" pp_go goal;
-  F.fprintf ppf "%a@\n" pp_sto s_term_orig;
-  F.fprintf ppf "%a@\n" pp_slo s_lem_orig;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_go goal;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sto s_term_orig;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_slo s_lem_orig;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 
 

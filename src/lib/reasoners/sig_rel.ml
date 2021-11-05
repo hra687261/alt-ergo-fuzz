@@ -43,13 +43,13 @@ let pp_fact pp_v ppf (lit, ex, th) =
   let pp_ex = Pp.add_p pp_ex ~p:ex_p in
   let pp_lo = Pp.add_p pp_th ~p:lo_p in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_l lit;
-  F.fprintf ppf "%a@\n" pp_ex ex;
-  F.fprintf ppf "%a@\n" pp_lo th;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l lit;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ex ex;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_lo th;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let pp_facts pp_v ppf {equas; diseqs; ineqs; touched} =
 
@@ -67,14 +67,14 @@ let pp_facts pp_v ppf {equas; diseqs; ineqs; touched} =
   let pp_i2 = Pp.pp_queue pp_f ~p:i_p in
   let pp_t = PMI.pp pp_i1 pp_v ~p:t_p in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_e equas;
-  F.fprintf ppf "%a@\n" pp_d diseqs;
-  F.fprintf ppf "%a@\n" pp_i2 ineqs;
-  F.fprintf ppf "%a@\n" pp_t touched;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_e equas;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d diseqs;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i2 ineqs;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_t touched;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 module type RELATION = sig
   type t

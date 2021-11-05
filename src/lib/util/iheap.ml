@@ -25,12 +25,12 @@ let pp_vrb ppf {heap; indices} =
   let pp_h = Pp.add_p pp_iv ~p:h_p in
   let pp_i = Pp.add_p pp_iv ~p:i_p in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_h heap;
-  F.fprintf ppf "%a@\n" pp_i indices;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_h heap;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_i indices;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let dummy = -100
 

@@ -17,10 +17,10 @@ let pp_sc_brk fmt () =
 
 
 let pp_list ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf l =
-  F.fprintf ppf "@[<hov 2>%s[%a]@]" p (F.pp_print_list ~pp_sep pp_v) l
+  F.fprintf ppf "%s[%a]" p (F.pp_print_list ~pp_sep pp_v) l
 
 let add_p ?(p = "") pp_v ppf v =
-  F.fprintf ppf "@[<hov 2>%s[%a]@]" p pp_v v
+  F.fprintf ppf "%s[%a]" p pp_v v
 
 let pp_array ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf a =
   let pp_a ppf a =
@@ -34,7 +34,7 @@ let pp_array ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf a =
       ) 0 a
     in ()
   in
-  F.fprintf ppf "@[<hov 2>%s[|%a|]@]" p pp_a a
+  F.fprintf ppf "%s[|%a|]" p pp_a a
 
 
 let pp_queue ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf q =
@@ -49,7 +49,7 @@ let pp_queue ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf q =
       ) 0 q
     in ()
   in
-  F.fprintf ppf "@[<hov 2>%s{|%a|}@]" p pp_q q
+  F.fprintf ppf "%s{|%a|}" p pp_q q
 
 
 let pp_stack ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf s =
@@ -64,41 +64,50 @@ let pp_stack ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf s =
       ) 0 s
     in ()
   in
-  F.fprintf ppf "@[<hov 2>%s{|%a|}@]" p pp_s s
+  F.fprintf ppf "%s{|%a|}" p pp_s s
 
 
 let pp_option ?(p = "") pp_v ppf = function
-  | None -> F.fprintf ppf "@[<hov 2>%sNone@]" p
-  | Some v -> F.fprintf ppf "@[<hov 2>%sSome %a@]" p pp_v v
+  | None -> F.fprintf ppf "%sNone" p
+  | Some v -> F.fprintf ppf "%sSome %a" p pp_v v
 
 
-let pp_doublet ?(p = "") ?(pp_sep1 = pp_c_spc)
+let pp_doublet ?(boxed = false) ?(p = "") ?(pp_sep1 = pp_c_spc)
     pp_v1 pp_v2 ppf (v1, v2) =
-  F.fprintf ppf "@[<hov 2>%s(%a%a%a)@]" p
-    pp_v1 v1 pp_sep1 () pp_v2 v2
+  ignore pp_sep1;
+  F.fprintf ppf (if boxed then "@[<hov 2>%s(%a, %a)@]" else "%s(%a, %a)") p
+    pp_v1 v1 (* pp_sep1 () *) pp_v2 v2
 
 
 let pp_triplet ?(p = "")
     ?(pp_sep1 = pp_c_spc) ?(pp_sep2 = pp_c_spc)
     pp_v1 pp_v2 pp_v3 ppf (v1, v2, v3) =
-  F.fprintf ppf "@[<hov 2>%s(%a%a%a%a%a)@]" p
-    pp_v1 v1 pp_sep1 () pp_v2 v2 pp_sep2 () pp_v3 v3
+  ignore (pp_sep1, pp_sep2);
+  F.fprintf ppf "%s(%a, %a, %a)" p
+    pp_v1 v1 (* pp_sep1 () *) pp_v2 v2 (* pp_sep2 () *) pp_v3 v3
 
 
 let pp_quadruplet ?(p = "")
     ?(pp_sep1 = pp_c_spc) ?(pp_sep2 = pp_c_spc) ?(pp_sep3 = pp_c_spc)
     pp_v1 pp_v2 pp_v3 pp_v4 ppf (v1, v2, v3, v4) =
-  F.fprintf ppf "@[<hov 2>%s(%a%a%a%a%a%a%a)@]" p
-    pp_v1 v1 pp_sep1 () pp_v2 v2 pp_sep2 () pp_v3 v3 pp_sep3 () pp_v4 v4
+  ignore (pp_sep1, pp_sep2, pp_sep3);
+  F.fprintf ppf "%s(%a, %a, %a, %a)" p
+    pp_v1 v1 (* pp_sep1 () *)
+    pp_v2 v2 (* pp_sep2 () *)
+    pp_v3 v3 (* pp_sep3 () *)
+    pp_v4 v4
 
 
 let pp_quintuplet ?(p = "")
     ?(pp_sep1 = pp_c_spc) ?(pp_sep2 = pp_c_spc)
     ?(pp_sep3 = pp_c_spc) ?(pp_sep4 = pp_c_spc)
     pp_v1 pp_v2 pp_v3 pp_v4 pp_v5 ppf (v1, v2, v3, v4, v5) =
-  F.fprintf ppf "@[<hov 2>%s(%a%a%a%a%a%a%a%a%a)@]" p
-    pp_v1 v1 pp_sep1 () pp_v2 v2 pp_sep2 ()
-    pp_v3 v3 pp_sep3 () pp_v4 v4 pp_sep4 ()
+  ignore (pp_sep1, pp_sep2, pp_sep3, pp_sep4);
+  F.fprintf ppf "%s(%a, %a, %a, %a, %a)" p
+    pp_v1 v1 (* pp_sep1 () *)
+    pp_v2 v2 (* pp_sep2 () *)
+    pp_v3 v3 (* pp_sep3 () *)
+    pp_v4 v4 (* pp_sep4 () *)
     pp_v5 v5
 
 
@@ -115,7 +124,7 @@ let pp_set (type a t) ?(p = "") ?(pp_sep = pp_sc_spc)
       ) s 0
     in ()
   in
-  F.fprintf ppf "@[<hov 2>%s{%a}@]" p pp_s s
+  F.fprintf ppf "%s{%a}" p pp_s s
 
 
 module type MS = sig
@@ -138,7 +147,7 @@ end
 module MapPrinter(M: MS):
 sig
   val pp:
-    ?p:string ->
+    ?boxed:bool -> ?p:string ->
     ?pp_kv_sep:(fmt -> unit -> unit) ->
     ?pp_sep:(fmt -> unit -> unit) ->
     (fmt -> M.key -> unit) ->
@@ -146,7 +155,7 @@ sig
     fmt -> 'a M.t -> unit
 end =
 struct
-  let pp ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
+  let pp ?(boxed = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
       pp_k pp_v ppf m =
     let pp_m ppf m =
       let card = M.cardinal m in
@@ -160,13 +169,13 @@ struct
         ) m 0
       in ()
     in
-    F.fprintf ppf "@[<hov 2>%s{%a}@]" p pp_m m
+    F.fprintf ppf (if boxed then "@[<hov 2>%s{%a}@]" else "%s{%a}") p pp_m m
 end
 
 module HTPrinter(M: HS) :
 sig
   val pp:
-    ?p:string ->
+    ?boxed:bool -> ?p:string ->
     ?pp_kv_sep:(fmt -> unit -> unit) ->
     ?pp_sep:(fmt -> unit -> unit) ->
     (fmt -> M.key -> unit) ->
@@ -174,7 +183,7 @@ sig
     fmt -> 'a M.t -> unit
 end =
 struct
-  let pp ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
+  let pp ?(boxed = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
       pp_k pp_v ppf m =
     let pp_m ppf m =
       let l = M.length m in
@@ -186,20 +195,5 @@ struct
           incr cnt
       ) m
     in
-    F.fprintf ppf "@[<hov 2>%s{%a}@]" p pp_m m
+    F.fprintf ppf (if boxed then "@[<hov 2>%s{%a}@]" else "%s{%a}") p pp_m m
 end
-
-(*
-  module Pp = Pp_utils
-  module F = Format
-
-  let _p = " = " in
-
-  let pp_ = ~p:_p in
-
-  F.fprintf ppf "@[<hov 2>{@\n";
-
-  F.fprintf ppf "%a@\n" pp_ ;
-
-  F.fprintf ppf "}@]@\n"
-*)

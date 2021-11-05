@@ -72,6 +72,8 @@ module type S = sig
 
   val pp_vrb : Format.formatter -> t -> unit
 
+  val pp_instances : Format.formatter -> (Expr.gformula * Explanation.t) list -> unit
+
 end
 
 module Make (X : Theory.S) : S with type tbox = X.t

@@ -110,20 +110,21 @@ let pp_vrb ppf {
   let pp_nt =  Pp.pp_set ~p:nt_p (module SE) pp_e in
   let pp_pd = Pp.pp_list pp_trl ~p:pd_p in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
-  F.fprintf ppf "%a@\n" pp_c classes;
-  F.fprintf ppf "%a@\n" pp_d domains;
-  F.fprintf ppf "%a@\n" pp_sd seen_destr;
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_sa seen_access;
-  F.fprintf ppf "%a@\n" pp_st seen_testers;
-  F.fprintf ppf "%a@\n" pp_s selectors;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c classes;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d domains;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sd seen_destr;
 
-  F.fprintf ppf "%a@\n" pp_ss size_splits;
-  F.fprintf ppf "%a@\n" pp_nt new_terms;
-  F.fprintf ppf "%a@\n" pp_pd pending_deds;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sa seen_access;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_st seen_testers;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s selectors;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ss size_splits;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nt new_terms;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_pd pending_deds;
+
+  F.fprintf ppf "}"
 
 (* ################################################################ *)
 (*BISECT-IGNORE-BEGIN*)

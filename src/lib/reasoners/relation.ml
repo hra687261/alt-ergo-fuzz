@@ -229,17 +229,17 @@ let pp_vrb ppf {
   let pp_r7 = Pp.add_p Rel7.pp_vrb ~p:r7_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_r1 r1;
-  F.fprintf ppf "%a@\n" pp_r2 r2;
-  F.fprintf ppf "%a@\n" pp_r3 r3;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r1 r1;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r2 r2;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r3 r3;
 
-  F.fprintf ppf "%a@\n" pp_r4 r4;
-  F.fprintf ppf "%a@\n" pp_r5 r5;
-  F.fprintf ppf "%a@\n" pp_r6 r6;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r4 r4;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r5 r5;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r6 r6;
 
-  F.fprintf ppf "%a@\n" pp_r7 r7;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_r7 r7;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 

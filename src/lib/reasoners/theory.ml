@@ -361,7 +361,7 @@ module Main_Default : S = struct
     | CNeg ->
       F.fprintf ppf "CNeg"
     | CPos x ->
-      F.fprintf ppf "CPos @[<hov 2>(%a)@]"
+      F.fprintf ppf "CPos (%a)"
         Ex.pp_exp_vrb x
 
   let pp_vrb ppf {
@@ -406,18 +406,18 @@ module Main_Default : S = struct
     let pp_c = Pp.pp_list pp_q ~p:c_p in
 
 
-    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "{@ ";
 
-    F.fprintf ppf "%a@\n" pp_as assumed_set;
-    F.fprintf ppf "%a@\n" pp_a assumed;
-    F.fprintf ppf "%a@\n" pp_cpf cs_pending_facts;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_as assumed_set;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a assumed;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cpf cs_pending_facts;
 
-    F.fprintf ppf "%a@\n" pp_t terms;
-    F.fprintf ppf "%a@\n" pp_g gamma;
-    F.fprintf ppf "%a@\n" pp_gf gamma_finite;
-    F.fprintf ppf "%a@\n" pp_c choices;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t terms;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g gamma;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gf gamma_finite;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_c choices;
 
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "}"
 
   let look_for_sat ?(bad_last=None) ch t base_env l ~for_model =
     let rec aux ch bad_last dl base_env li =
@@ -823,9 +823,9 @@ module Main_Empty : S = struct
     let p = "assumed_set = " in
     let pp = Pp.pp_set (module SE) E.pp_bis ~p in
 
-    F.fprintf ppf "@[<hov 2>{@\n";
-    F.fprintf ppf "%a@\n" pp assumed_set;
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "{";
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp assumed_set;
+    F.fprintf ppf "}"
 
   let empty () = { assumed_set = E.Set.empty }
 

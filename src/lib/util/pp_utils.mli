@@ -34,7 +34,7 @@ val pp_option:
   (F.formatter -> 'a -> unit) -> F.formatter -> 'a option -> unit
 
 val pp_doublet:
-  ?p:string ->
+  ?boxed:bool -> ?p:string ->
   ?pp_sep1:(F.formatter -> unit -> unit) ->
   (F.formatter -> 'a -> unit) ->
   (F.formatter -> 'b -> unit) -> F.formatter -> 'a * 'b -> unit
@@ -93,7 +93,7 @@ end
 
 module MapPrinter(M: MS) : sig
   val pp:
-    ?p:string ->
+    ?boxed:bool -> ?p:string ->
     ?pp_kv_sep:(fmt -> unit -> unit) ->
     ?pp_sep:(fmt -> unit -> unit) ->
     (fmt -> M.key -> unit) ->
@@ -102,7 +102,7 @@ end
 
 module HTPrinter(M: HS) : sig
   val pp:
-    ?p:string ->
+    ?boxed:bool -> ?p:string ->
     ?pp_kv_sep:(fmt -> unit -> unit) ->
     ?pp_sep:(fmt -> unit -> unit) ->
     (fmt -> M.key -> unit) ->

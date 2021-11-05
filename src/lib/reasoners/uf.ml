@@ -151,17 +151,17 @@ let pp_vrb ppf {
   let pp_ar = RSP.pp pp_sy pp_strl ~p:ar_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_m make;
-  F.fprintf ppf "%a@\n" pp_r repr;
-  F.fprintf ppf "%a@\n" pp_c classes;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m make;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r repr;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c classes;
 
-  F.fprintf ppf "%a@\n" pp_g gamma;
-  F.fprintf ppf "%a@\n" pp_n neqs;
-  F.fprintf ppf "%a@\n" pp_ar ac_rs;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g gamma;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n neqs;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ar ac_rs;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 exception Found_term of E.t
 

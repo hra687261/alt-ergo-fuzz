@@ -75,11 +75,11 @@ let pp_vrb ppf {mx; classes; size_splits} =
   let pp_c = Pp.pp_list ~p:c_p pp_se in
   let pp_ss = Pp.add_p ~p:ss_p Numbers.Q.print in
 
-  F.fprintf ppf "@[<hov 2>{@\n";
-  F.fprintf ppf "%a@\n" pp_m mx;
-  F.fprintf ppf "%a@\n" pp_c classes;
-  F.fprintf ppf "%a@\n" pp_ss size_splits;
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "{";
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m mx;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c classes;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ss size_splits;
+  F.fprintf ppf "}"
 
 (*BISECT-IGNORE-BEGIN*)
 module Debug = struct

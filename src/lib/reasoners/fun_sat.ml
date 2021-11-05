@@ -150,11 +150,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
       let pp_vi = Pp.add_p ~p:vi_p pp_f in
       let pp_vd = Pp.add_p ~p:vd_p pp_f in
 
-      F.fprintf ppf "@[<hov 2>{@\n";
-      F.fprintf ppf "%a@\n" pp_mp mp;
-      F.fprintf ppf "%a@\n" pp_vi var_inc;
-      F.fprintf ppf "%a@\n" pp_vd var_decay;
-      F.fprintf ppf "}@]@\n"
+      F.fprintf ppf "{";
+      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_mp mp;
+      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_vi var_inc;
+      F.fprintf ppf "@,@[<hov 2>%a@]" pp_vd var_decay;
+      F.fprintf ppf "}"
 
   end
 
@@ -220,11 +220,11 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     let pp_se = Pp.pp_stack ~p:se_p pp_er in
     let pp_g =MEP.pp ~p:cg_p pp_e pp_db1 in
 
-    F.fprintf ppf "@[<hov 2>{@\n";
-    F.fprintf ppf "%a@\n" pp_cg current_guard;
-    F.fprintf ppf "%a@\n" pp_se stack_elt;
-    F.fprintf ppf "%a@\n" pp_g guards;
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "{";
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cg current_guard;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_se stack_elt;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_g guards;
+    F.fprintf ppf "}"
 
 
   let pp_env ppf {
@@ -314,37 +314,37 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
     let pp_ufc = MEP.pp pp_e pp_db2 ~p:ufc_p in
 
-    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "{";
 
-    F.fprintf ppf "%a@\n" pp_g1 gamma;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g1 gamma;
 
-    F.fprintf ppf "%a@\n" pp_nrtg nb_related_to_goal;
-    F.fprintf ppf "%a@\n" pp_nrth nb_related_to_hypo;
-    F.fprintf ppf "%a@\n" pp_nrtb nb_related_to_both;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nrtg nb_related_to_goal;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nrth nb_related_to_hypo;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nrtb nb_related_to_both;
 
-    F.fprintf ppf "%a@\n" pp_nu nb_unrelated;
-    F.fprintf ppf "%a@\n" pp_c !cdcl;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nu nb_unrelated;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c !cdcl;
 
-    F.fprintf ppf "%a@\n" pp_tc tcp_cache;
-    F.fprintf ppf "%a@\n" pp_d1 delta;
-    F.fprintf ppf "%a@\n" pp_d2 decisions;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tc tcp_cache;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d1 delta;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d2 decisions;
 
-    F.fprintf ppf "%a@\n" pp_dl dlevel;
-    F.fprintf ppf "%a@\n" pp_pl plevel;
-    F.fprintf ppf "%a@\n" pp_il ilevel;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_dl dlevel;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_pl plevel;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_il ilevel;
 
-    F.fprintf ppf "%a@\n" pp_t tbox;
-    F.fprintf ppf "%a@\n" pp_ut unit_tbox;
-    F.fprintf ppf "%a@\n" pp_i inst;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t tbox;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ut unit_tbox;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i inst;
 
-    F.fprintf ppf "%a@\n" pp_h !heuristics;
-    F.fprintf ppf "%a@\n" pp_mdm !model_gen_mode;
-    F.fprintf ppf "%a@\n" pp_g2 guards;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_h !heuristics;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_mdm !model_gen_mode;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g2 guards;
 
     F.fprintf ppf "add_inst = fun@\n";
-    F.fprintf ppf "%a@\n" pp_ufc !unit_facts_cache;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_ufc !unit_facts_cache;
 
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "}"
 
   let all_models_sat_env = ref None
   let latest_saved_env = ref None

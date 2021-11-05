@@ -61,12 +61,12 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     let pp_cg = Pp.add_p pp_e ~p:cg_p in
     let pp_sg = Pp.pp_stack pp_e ~p:sg_p in
 
-    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "{";
 
-    F.fprintf ppf "%a@\n" pp_cg current_guard;
-    F.fprintf ppf "%a@\n" pp_sg stack_guard;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cg current_guard;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_sg stack_guard;
 
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "}"
 
 
   let pp_env ppf {
@@ -139,28 +139,28 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     let pp_g2 = Pp.add_p pp_guards ~p:g2_p in
 
 
-    F.fprintf ppf "@[<hov 2>{@\n";
+    F.fprintf ppf "{";
 
-    F.fprintf ppf "%a@\n" pp_s1 satml;
-    F.fprintf ppf "%a@\n" pp_ff2 ff_hcons_env;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s1 satml;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ff2 ff_hcons_env;
 
-    F.fprintf ppf "%a@\n" pp_nm nb_mrounds;
-    F.fprintf ppf "%a@\n" pp_lfn last_forced_normal;
-    F.fprintf ppf "%a@\n" pp_lfg last_forced_greedy;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nm nb_mrounds;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lfn last_forced_normal;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lfg last_forced_greedy;
 
-    F.fprintf ppf "%a@\n" pp_g1 gamma;
-    F.fprintf ppf "%a@\n" pp_c conj;
-    F.fprintf ppf "%a@\n" pp_aox abstr_of_axs;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g1 gamma;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c conj;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_aox abstr_of_axs;
 
-    F.fprintf ppf "%a@\n" pp_aoa axs_of_abstr;
-    F.fprintf ppf "%a@\n" pp_p proxies;
-    F.fprintf ppf "%a@\n" pp_i1 inst;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_aoa axs_of_abstr;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p proxies;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i1 inst;
 
-    F.fprintf ppf "%a@\n" pp_s2 skolems;
+    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s2 skolems;
     F.fprintf ppf "add_inst = fun@\n";
-    F.fprintf ppf "%a@\n" pp_g2 guards;
+    F.fprintf ppf "@,@[<hov 2>%a@]" pp_g2 guards;
 
-    F.fprintf ppf "}@]@\n"
+    F.fprintf ppf "}"
 
   let empty_guards () = {
     current_guard = Expr.vrai;

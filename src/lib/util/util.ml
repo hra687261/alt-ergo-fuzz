@@ -155,17 +155,17 @@ let pp_menv ppf {
   let pp_b2 = Pp.add_p pp_ik ~p:b2_p in
 
 
-  F.fprintf ppf "@[<hov 2>{@\n";
+  F.fprintf ppf "{";
 
-  F.fprintf ppf "%a@\n" pp_nt nb_triggers;
-  F.fprintf ppf "%a@\n" pp_tv triggers_var;
-  F.fprintf ppf "%a@\n" pp_ne no_ematching;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nt nb_triggers;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tv triggers_var;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ne no_ematching;
 
-  F.fprintf ppf "%a@\n" pp_g greedy;
-  F.fprintf ppf "%a@\n" pp_uc use_cs;
-  F.fprintf ppf "%a@\n" pp_b2 backward;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g greedy;
+  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_uc use_cs;
+  F.fprintf ppf "@,@[<hov 2>%a@]" pp_b2 backward;
 
-  F.fprintf ppf "}@]@\n"
+  F.fprintf ppf "}"
 
 let loop
     ~(f : int -> 'a -> 'b -> 'b)
