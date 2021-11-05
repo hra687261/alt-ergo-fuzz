@@ -502,10 +502,10 @@ module Make(X : Theory.S) : S with type tbox = X.t = struct
     let gp_p = "ground_preds = " in
     let m_p = "matching = " in
 
-    let pp_g = MEP.pp ~boxed:true ~p:g_p pp_e pp_l1 in
-    let pp_l = MEP.pp ~boxed:true ~p:l_p pp_e pp_tr1 in
-    let pp_p = MEP.pp ~boxed:true ~p:p_p pp_e pp_tr1 in
-    let pp_gp = MEP.pp ~boxed:true ~p:gp_p pp_e pp_tr2 in
+    let pp_g = MEP.pp ~enbox:true ~p:g_p pp_e pp_l1 in
+    let pp_l = MEP.pp ~enbox:true ~p:l_p pp_e pp_tr1 in
+    let pp_p = MEP.pp ~enbox:true ~p:p_p pp_e pp_tr1 in
+    let pp_gp = MEP.pp ~enbox:true ~p:gp_p pp_e pp_tr2 in
     let pp_m = Pp.add_p pp_em ~p:m_p in
 
     F.fprintf ppf "{";
@@ -519,7 +519,7 @@ module Make(X : Theory.S) : S with type tbox = X.t = struct
   let pp_instances ppf insts =
     let pp_eg = E.pp_gform in
     let pp_ex = Ex.pp_bis in
-    let pp_dbl = Pp.pp_doublet ~boxed:true pp_eg pp_ex in
+    let pp_dbl = Pp.pp_doublet ~enbox:true pp_eg pp_ex in
     Pp.pp_list pp_dbl ppf insts
 
 end

@@ -3,20 +3,47 @@ module F = Format
 
 type fmt = F.formatter
 
-let pp_sc_cut fmt () =
-  F.fprintf fmt ";@,"
+type box_type =
+  | Pp_hbox of int
+  | Pp_vbox of int
+  | Pp_hvbox of int
+  | Pp_hovbox of int
+  | Pp_box of int
 
-let pp_sc_spc fmt () =
-  F.fprintf fmt ";@ "
+let hbox n = Pp_hbox n
 
-let pp_c_spc fmt () =
-  F.fprintf fmt ",@ "
+let vbox n = Pp_vbox n
 
-let pp_sc_brk fmt () =
-  F.fprintf fmt ";@;<1 2>"
+let hvbox n = Pp_hvbox n
+
+let hovbox n = Pp_hovbox n
+
+let box n = Pp_box n
+
+let pp_sc_cut ppf () =
+  F.fprintf ppf ";@,"
+
+let pp_sc_spc ppf () =
+  F.fprintf ppf ";@ "
+
+let pp_c_spc ppf () =
+  F.fprintf ppf ",@ "
+
+let pp_sc_brk ppf () =
+  F.fprintf ppf ";@;<1 2>"
+
+let enbox_pp ?(bt = Pp_hovbox 2) pp ppf v =
+  match bt with
+  | Pp_hbox n when n > 0 -> F.fprintf ppf "@[<h %d>%a@]" n pp v
+  | Pp_vbox n when n > 0 -> F.fprintf ppf "@[<v %d>%a@]" n pp v
+  | Pp_hvbox n when n > 0 -> F.fprintf ppf "@[<hv %d>%a@]" n pp v
+  | Pp_hovbox n when n > 0 -> F.fprintf ppf "@[<hov %d>%a@]" n pp v
+  | Pp_box n when n > 0 -> F.fprintf ppf "@[<b %d>%a@]" n pp v
+  | _ -> raise (Invalid_argument "box_type with negative indentation")
 
 
-let pp_list ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf l =
+let pp_list ?(enbox = false) ?(p = "") ?(pp_sep = pp_sc_spc) pp_v ppf l =
+  let pp_v = if enbox then enbox_pp pp_v else pp_v in
   F.fprintf ppf "%s[%a]" p (F.pp_print_list ~pp_sep pp_v) l
 
 let add_p ?(p = "") pp_v ppf v =
@@ -72,10 +99,10 @@ let pp_option ?(p = "") pp_v ppf = function
   | Some v -> F.fprintf ppf "%sSome %a" p pp_v v
 
 
-let pp_doublet ?(boxed = false) ?(p = "") ?(pp_sep1 = pp_c_spc)
+let pp_doublet ?(enbox = false) ?(p = "") ?(pp_sep1 = pp_c_spc)
     pp_v1 pp_v2 ppf (v1, v2) =
   ignore pp_sep1;
-  F.fprintf ppf (if boxed then "@[<hov 2>%s(%a, %a)@]" else "%s(%a, %a)") p
+  F.fprintf ppf (if enbox then ("@[<hov 2>%s(%a, %a)@]") else "%s(%a, %a)") p
     pp_v1 v1 (* pp_sep1 () *) pp_v2 v2
 
 
@@ -147,7 +174,7 @@ end
 module MapPrinter(M: MS):
 sig
   val pp:
-    ?boxed:bool -> ?p:string ->
+    ?enbox:bool -> ?p:string ->
     ?pp_kv_sep:(fmt -> unit -> unit) ->
     ?pp_sep:(fmt -> unit -> unit) ->
     (fmt -> M.key -> unit) ->
@@ -155,7 +182,7 @@ sig
     fmt -> 'a M.t -> unit
 end =
 struct
-  let pp ?(boxed = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
+  let pp ?(enbox = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
       pp_k pp_v ppf m =
     let pp_m ppf m =
       let card = M.cardinal m in
@@ -169,13 +196,13 @@ struct
         ) m 0
       in ()
     in
-    F.fprintf ppf (if boxed then "@[<hov 2>%s{%a}@]" else "%s{%a}") p pp_m m
+    F.fprintf ppf (if enbox then "@[<hov 2>%s{%a}@]" else "%s{%a}") p pp_m m
 end
 
 module HTPrinter(M: HS) :
 sig
   val pp:
-    ?boxed:bool -> ?p:string ->
+    ?enbox:bool -> ?p:string ->
     ?pp_kv_sep:(fmt -> unit -> unit) ->
     ?pp_sep:(fmt -> unit -> unit) ->
     (fmt -> M.key -> unit) ->
@@ -183,7 +210,7 @@ sig
     fmt -> 'a M.t -> unit
 end =
 struct
-  let pp ?(boxed = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
+  let pp ?(enbox = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
       pp_k pp_v ppf m =
     let pp_m ppf m =
       let l = M.length m in
@@ -195,5 +222,5 @@ struct
           incr cnt
       ) m
     in
-    F.fprintf ppf (if boxed then "@[<hov 2>%s{%a}@]" else "%s{%a}") p pp_m m
+    F.fprintf ppf (if enbox then "@[<hov 2>%s{%a}@]" else "%s{%a}") p pp_m m
 end
