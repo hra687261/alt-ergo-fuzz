@@ -182,7 +182,8 @@ sig
     fmt -> 'a M.t -> unit
 end =
 struct
-  let pp ?(enbox = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
+  let pp ?(enbox = false) ?(p = "")
+      ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
       pp_k pp_v ppf m =
     let pp_m ppf m =
       let card = M.cardinal m in
@@ -210,7 +211,8 @@ sig
     fmt -> 'a M.t -> unit
 end =
 struct
-  let pp ?(enbox = false) ?(p = "") ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
+  let pp ?(enbox = false) ?(p = "")
+      ?(pp_kv_sep = pp_c_spc) ?(pp_sep = pp_sc_spc)
       pp_k pp_v ppf m =
     let pp_m ppf m =
       let l = M.length m in
