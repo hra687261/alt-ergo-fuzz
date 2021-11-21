@@ -408,14 +408,14 @@ module Main_Default : S = struct
 
     F.fprintf ppf "{@ ";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_as assumed_set;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a assumed;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cpf cs_pending_facts;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_as assumed_set;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a assumed;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cpf cs_pending_facts;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t terms;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g gamma;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gf gamma_finite;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_c choices;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t terms;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g gamma;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gf gamma_finite;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_c choices;
 
     F.fprintf ppf "}"
 
@@ -824,7 +824,7 @@ module Main_Empty : S = struct
     let pp = Pp.pp_set (module SE) E.pp_bis ~p in
 
     F.fprintf ppf "{";
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp assumed_set;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp assumed_set;
     F.fprintf ppf "}"
 
   let empty () = { assumed_set = E.Set.empty }

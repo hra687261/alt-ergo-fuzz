@@ -121,9 +121,9 @@ module Main : S = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_u use;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_uf uf;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_r relation;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_u use;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_uf uf;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_r relation;
 
     F.fprintf ppf "}"
 

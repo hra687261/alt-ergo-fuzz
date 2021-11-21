@@ -27,8 +27,8 @@ let pp_vrb ppf {heap; indices} =
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_h heap;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_i indices;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_h heap;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_i indices;
 
   F.fprintf ppf "}"
 

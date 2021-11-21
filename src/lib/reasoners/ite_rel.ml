@@ -79,12 +79,12 @@ let pp_vrb ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_pg pending_deds;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gpd guarded_pos_deds;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gnd guarded_neg_deds;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pg pending_deds;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gpd guarded_pos_deds;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gnd guarded_neg_deds;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_app assumed_pos_preds;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_anp assumed_neg_preds;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_app assumed_pos_preds;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_anp assumed_neg_preds;
 
   F.fprintf ppf "}"
 

@@ -505,16 +505,16 @@ module Atom : ATOM = struct
 
       F.fprintf ppf "{";
 
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v2 var;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l lit;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n neg;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v2 var;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l lit;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n neg;
 
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_w watched;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_it is_true;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t timp;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_w watched;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_it is_true;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t timp;
 
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ig is_guard;
-      F.fprintf ppf "@,@[<hov 2>%a@]" pp_a2 aid;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ig is_guard;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_a2 aid;
 
       F.fprintf ppf "}"
     end
@@ -559,14 +559,14 @@ module Atom : ATOM = struct
 
       F.fprintf ppf "{";
 
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n name;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a1 atoms;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a2 activity;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n name;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a1 atoms;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a2 activity;
 
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r removed;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l learnt;
-      F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cp cpremise;
-      F.fprintf ppf "@,@[<hov 2>%a@]" pp_f2 form;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r removed;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l learnt;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cp cpremise;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_f2 form;
 
       F.fprintf ppf "}"
     end
@@ -617,18 +617,18 @@ module Atom : ATOM = struct
       if vid > 0 then begin
         F.fprintf ppf "{";
 
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_vi vid;
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_pa pa;
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_na na;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi vid;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pa pa;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_na na;
 
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_w weight;
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sw sweight;
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s2 seen;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_w weight;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sw sweight;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 seen;
 
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l level;
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i2 index;
-        F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r reason;
-        F.fprintf ppf "@,@[<hov 2>%a@]" pp_vp vpremise;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l level;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 index;
+        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r reason;
+        F.fprintf ppf "@ @[<hov 2>%a@]" pp_vp vpremise;
 
         F.fprintf ppf "}"
       end else F.fprintf ppf "{vid=0}"
@@ -650,8 +650,8 @@ module Atom : ATOM = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t tbl;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_c !cpt;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tbl;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_c !cpt;
 
     F.fprintf ppf "}"
 
@@ -1238,9 +1238,9 @@ module Flat_Formula : FLAT_FORMULA = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v view;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t tag;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_n neg;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v view;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tag;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_n neg;
 
     F.fprintf ppf "}"
 
@@ -1261,9 +1261,9 @@ module Flat_Formula : FLAT_FORMULA = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t2 tbl;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c !cpt;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_a atoms;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t2 tbl;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c !cpt;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_a atoms;
 
     F.fprintf ppf "}"
 

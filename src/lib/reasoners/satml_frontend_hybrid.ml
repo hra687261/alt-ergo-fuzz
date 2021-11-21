@@ -232,15 +232,15 @@ module Make (Th : Theory.S) = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s sat;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a2 assumed;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p1 proxies;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s sat;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a2 assumed;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p1 proxies;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ip inv_proxies;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_he hcons_env;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ip inv_proxies;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_he hcons_env;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d decisions;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_p2 pending;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d decisions;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_p2 pending;
 
     F.fprintf ppf "}"
 

@@ -231,15 +231,15 @@ let pp_vrb ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r1 r1;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r2 r2;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r3 r3;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r1 r1;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r2 r2;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r3 r3;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r4 r4;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r5 r5;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r6 r6;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r4 r4;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r5 r5;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r6 r6;
 
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_r7 r7;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_r7 r7;
 
   F.fprintf ppf "}"
 

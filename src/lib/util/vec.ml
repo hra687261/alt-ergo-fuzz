@@ -30,9 +30,9 @@ let pp pp_v ppf {dummy; data; sz} =
 
   F.fprintf ppf "{";
   if sz > 0 then begin
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d1 dummy;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d2 data;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sz sz;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d1 dummy;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d2 data;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sz sz;
   end else F.fprintf ppf "sz=0";
   F.fprintf ppf "}"
 

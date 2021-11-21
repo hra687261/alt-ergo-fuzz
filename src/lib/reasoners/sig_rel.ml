@@ -45,9 +45,9 @@ let pp_fact pp_v ppf (lit, ex, th) =
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l lit;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ex ex;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_lo th;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l lit;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ex ex;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_lo th;
 
   F.fprintf ppf "}"
 
@@ -69,10 +69,10 @@ let pp_facts pp_v ppf {equas; diseqs; ineqs; touched} =
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_e equas;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d diseqs;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i2 ineqs;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_t touched;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_e equas;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d diseqs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 ineqs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_t touched;
 
   F.fprintf ppf "}"
 

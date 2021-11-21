@@ -178,15 +178,15 @@ let pp_sc_vi ppf Sim.Core.{
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m1 mini;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m2 maxi;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m1 mini;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m2 maxi;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_me1 min_ex;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_me2 max_ex;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_me1 min_ex;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_me2 max_ex;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v value;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_vs vstatus;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ed empty_dom;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v value;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vs vstatus;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ed empty_dom;
 
   F.fprintf ppf "}"
 
@@ -244,17 +244,17 @@ let pp_sc ppf Sim.Core.{
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_b2 basic;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nb non_basic;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s1 slake;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_b2 basic;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nb non_basic;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 slake;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_f fixme;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_in is_int;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s2 status;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_f fixme;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_in is_int;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 status;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d debug;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ci check_invs;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_np !nb_pivots;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d debug;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ci check_invs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_np !nb_pivots;
 
   F.fprintf ppf "}"
 
@@ -341,25 +341,25 @@ let pp_vrb ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i2 inequations;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m monomes;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p2 polynomes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 inequations;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m monomes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p2 polynomes;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ub used_by;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ke known_eqs;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ip improved_p;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ub used_by;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ke known_eqs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ip improved_p;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ix improved_x;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c classes;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ss size_splits;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ix improved_x;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c classes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ss size_splits;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_is int_sim;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_rs rat_sim;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nu new_uf;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_is int_sim;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rs rat_sim;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nu new_uf;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ta th_axioms;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ld linear_dep;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_sm syntactic_matching;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ta th_axioms;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ld linear_dep;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_sm syntactic_matching;
 
   F.fprintf ppf "}"
 

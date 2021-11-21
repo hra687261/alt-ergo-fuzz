@@ -111,10 +111,10 @@ let pp_gtype ppf {g; gt; gi; gty} =
   let pp_gty = Pp.add_p ~p:gty_p pp_ty in
 
   F.fprintf ppf "{";
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g g;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gt gt;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gi gi;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_gty gty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g g;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gt gt;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gi gi;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_gty gty;
   F.fprintf ppf "}"
 
 let pp_stype ppf {s; st; si; sv; sty} =
@@ -135,11 +135,11 @@ let pp_stype ppf {s; st; si; sv; sty} =
   let pp_sty = Pp.add_p ~p:sty_p pp_ty in
 
   F.fprintf ppf "{";
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s s;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_st st;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_si si;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sv sv;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_sty sty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s s;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_st st;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_si si;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sv sv;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_sty sty;
   F.fprintf ppf "}"
 
 let pp_vrb ppf {
@@ -182,15 +182,15 @@ let pp_vrb ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g gets;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tb tbset;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s1 split;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g gets;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tb tbset;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 split;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c conseq;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s2 seen;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nt new_terms;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c conseq;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 seen;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nt new_terms;
 
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ss size_splits;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ss size_splits;
 
   F.fprintf ppf "}"
 

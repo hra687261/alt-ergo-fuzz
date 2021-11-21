@@ -2030,75 +2030,75 @@ module Make (Th : Theory.S) : SAT_ML with type th = Th.t = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_iu is_unsat;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_uc unsat_core;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c1 clauses;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_iu is_unsat;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_uc unsat_core;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c1 clauses;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l1 learnts;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ci clause_inc;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_vi var_inc;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l1 learnts;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ci clause_inc;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi var_inc;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v1 vars;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t1 trail;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tl1 trail_lim;
-
-
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_q1 qhead;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sa1 simpDB_assigns;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sp1 simpDB_props;
-
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_o1 order;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_pe1 progress_estimate;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_rs1 remove_satisfied;
-
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_vd1 var_decay;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cd1 clause_decay;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_rf1 restart_first;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v1 vars;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t1 trail;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tl1 trail_lim;
 
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ri1 restart_inc;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lf1 learntsize_factor;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_li1 learntsize_inc;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_q1 qhead;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sa1 simpDB_assigns;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sp1 simpDB_props;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ec1 expensive_ccmin;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_pm1 polarity_mode;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s1 starts;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_o1 order;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pe1 progress_estimate;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rs1 remove_satisfied;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d1 decisions;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p1 propagations;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c2 conflicts;
-
-
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cl1 clauses_literals;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ll1 learnts_literals;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ml1 max_literals;
-
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tl2 tot_literals;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_niv nb_init_vars;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nic nb_init_clauses;
-
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m1 model;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t2 tenv;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ut1 unit_tenv;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vd1 var_decay;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cd1 clause_decay;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rf1 restart_first;
 
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tq1 tenv_queue;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tq2 tatoms_queue;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tt1 th_tableaux;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ri1 restart_inc;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lf1 learntsize_factor;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_li1 learntsize_inc;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ccp cpt_current_propagations;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p2 proxies;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lc1 lazy_cnf;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ec1 expensive_ccmin;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pm1 polarity_mode;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 starts;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lcq1 lazy_cnf_queue;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r1 relevants;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_rq1 relevants_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d1 decisions;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p1 propagations;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c2 conflicts;
 
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_fl1 ff_lvl;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lf2 lvl_ff;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ig1 increm_guards;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ndg1 next_dec_guard;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cl1 clauses_literals;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ll1 learnts_literals;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ml1 max_literals;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tl2 tot_literals;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_niv nb_init_vars;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nic nb_init_clauses;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m1 model;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t2 tenv;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ut1 unit_tenv;
+
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tq1 tenv_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tq2 tatoms_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tt1 th_tableaux;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ccp cpt_current_propagations;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p2 proxies;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lc1 lazy_cnf;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lcq1 lazy_cnf_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r1 relevants;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rq1 relevants_queue;
+
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_fl1 ff_lvl;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lf2 lvl_ff;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ig1 increm_guards;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_ndg1 next_dec_guard;
 
     F.fprintf ppf "}"
 

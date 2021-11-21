@@ -157,13 +157,13 @@ let pp_menv ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nt nb_triggers;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tv triggers_var;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ne no_ematching;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nt nb_triggers;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tv triggers_var;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ne no_ematching;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g greedy;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_uc use_cs;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_b2 backward;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g greedy;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_uc use_cs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_b2 backward;
 
   F.fprintf ppf "}"
 

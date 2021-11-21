@@ -103,8 +103,8 @@ module Make (X : Arg) : S with type theory = X.t = struct
     let mtd_p = "max_t_depth = " in
     let p_p = "pats = " in
 
-    let pp_f = MSP.pp ~enbox:true pp_sy pp_mep1 ~p:f_p in
-    let pp_i2 = MEP.pp ~enbox:true pp_e pp_pi ~p:i_p in
+    let pp_f = MSP.pp pp_sy pp_mep1 ~p:f_p in
+    let pp_i2 = MEP.pp pp_e pp_pi ~p:i_p in
     let pp_mtd = Pp.add_p pp_i1 ~p:mtd_p in
     let pp_p =
       Pp.pp_list Matching_types.pp_trigger_info ~p:p_p
@@ -112,10 +112,10 @@ module Make (X : Arg) : S with type theory = X.t = struct
 
     F.fprintf ppf "{@ ";
 
-    F.fprintf ppf "%a; @," pp_f fils;
-    F.fprintf ppf "%a; @," pp_i2 info;
-    F.fprintf ppf "%a; @," pp_mtd max_t_depth;
-    F.fprintf ppf "%a@," pp_p pats;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_f fils;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 info;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_mtd max_t_depth;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_p pats;
 
     F.fprintf ppf "}"
 

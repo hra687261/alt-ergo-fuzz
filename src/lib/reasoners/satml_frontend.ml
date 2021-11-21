@@ -63,8 +63,8 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
 
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_cg current_guard;
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_sg stack_guard;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cg current_guard;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_sg stack_guard;
 
     F.fprintf ppf "}"
 
@@ -138,27 +138,28 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     let pp_s2 = MEP.pp pp_e pp_gf ~p:s2_p in
     let pp_g2 = Pp.add_p pp_guards ~p:g2_p in
 
-
+    ignore (pp_ff2, ff_hcons_env);
     F.fprintf ppf "{";
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s1 satml;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ff2 ff_hcons_env;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 satml;
+    F.fprintf ppf "@ @[<hov 2>%s;@]" ff_p;
+    (* F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ff2 ff_hcons_env; *)
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nm nb_mrounds;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lfn last_forced_normal;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lfg last_forced_greedy;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nm nb_mrounds;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lfn last_forced_normal;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lfg last_forced_greedy;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g1 gamma;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c conj;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_aox abstr_of_axs;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g1 gamma;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c conj;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_aox abstr_of_axs;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_aoa axs_of_abstr;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p proxies;
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_i1 inst;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_aoa axs_of_abstr;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p proxies;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i1 inst;
 
-    F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s2 skolems;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 skolems;
     F.fprintf ppf "add_inst = fun@\n";
-    F.fprintf ppf "@,@[<hov 2>%a@]" pp_g2 guards;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_g2 guards;
 
     F.fprintf ppf "}"
 
@@ -1211,6 +1212,10 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     {gf with E.ff = E.mk_imp current_guard gf.E.ff 1}
 
   let unsat env gf =
+    printf "\nenv = \n%a@."
+      pp_env env;
+    printf "gf = \n%a@."
+      E.pp_gform gf;
     checks_implemented_features ();
     let gf = add_guard env gf in
     Debug.unsat gf;

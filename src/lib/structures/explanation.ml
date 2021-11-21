@@ -238,9 +238,9 @@ let pp_root_dep ppf {name; f; loc} =
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n name;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_f f;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_l loc;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_f f;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_l loc;
 
   F.fprintf ppf "}"
 

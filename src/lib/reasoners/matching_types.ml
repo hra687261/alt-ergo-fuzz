@@ -122,13 +122,13 @@ let pp_trigger_info ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t trigger;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ta trigger_age;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_to trigger_orig;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t trigger;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ta trigger_age;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_to trigger_orig;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tf trigger_formula;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_td trigger_dep;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_tig trigger_increm_guard;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tf trigger_formula;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_td trigger_dep;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_tig trigger_increm_guard;
 
   F.fprintf ppf "}"
 
@@ -166,13 +166,13 @@ let pp_gsubst ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sb sbs;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_st sty;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ge gen;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sb sbs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_st sty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ge gen;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_go goal;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sto s_term_orig;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_slo s_lem_orig;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_go goal;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sto s_term_orig;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_slo s_lem_orig;
 
   F.fprintf ppf "}"
 

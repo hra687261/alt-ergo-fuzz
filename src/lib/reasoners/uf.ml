@@ -153,13 +153,13 @@ let pp_vrb ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m make;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_r repr;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c classes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m make;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r repr;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c classes;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_g gamma;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n neqs;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ar ac_rs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g gamma;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n neqs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ar ac_rs;
 
   F.fprintf ppf "}"
 

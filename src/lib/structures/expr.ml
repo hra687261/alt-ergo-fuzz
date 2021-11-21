@@ -644,17 +644,17 @@ and pp_quantified ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_n name;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_m main;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t toplevel;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m main;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t toplevel;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ut user_trs;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_b2 binders;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sv1 sko_v;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ut user_trs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_b2 binders;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sv1 sko_v;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_sv2 sko_vty;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l loc;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_k kind;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sv2 sko_vty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l loc;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_k kind;
 
   F.fprintf ppf  "}"
 
@@ -678,11 +678,11 @@ and pp_letin ppf {let_v; let_e; in_e; let_sko; is_bool} =
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_lv let_v;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_le let_e;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ie in_e;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ls let_sko;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ib is_bool;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lv let_v;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_le let_e;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ie in_e;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ls let_sko;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ib is_bool;
 
   F.fprintf ppf  "}"
 
@@ -729,13 +729,13 @@ and pp_trg ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_c content;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_s semantic;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_h hyp;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c content;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s semantic;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_h hyp;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_td t_depth;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_fu from_user;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_g guard;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_td t_depth;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_fu from_user;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_g guard;
 
   F.fprintf ppf  "}"
 
@@ -789,20 +789,20 @@ and pp_vrb ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_f f;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_xs xs;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ty ty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_f f;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_xs xs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ty ty;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_b2 bind;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_t tag;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v1 vars;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_b2 bind;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tag;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v1 vars;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_v2 vty;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_d depth;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nn nb_nodes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v2 vty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d depth;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nn nb_nodes;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_p pure;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_n neg;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p pure;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_n neg;
 
   F.fprintf ppf  "}"
 
@@ -2988,11 +2988,11 @@ let pp_th_elt ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_tn th_name;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_an ax_name;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_af ax_form;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ex extends;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_ak2 axiom_kind;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tn th_name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_an ax_name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_af ax_form;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ex extends;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ak2 axiom_kind;
 
   F.fprintf ppf  "}"
 
@@ -3045,20 +3045,20 @@ let pp_gform ppf {
 
   F.fprintf ppf "{";
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ff ff;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_nr nb_reductions;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_td trigger_depth;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ff ff;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nr nb_reductions;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_td trigger_depth;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_a age;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_l lem;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_on origin_name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a age;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l lem;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_on origin_name;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_ft from_terms;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_mf mf;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gf gf;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ft from_terms;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_mf mf;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gf gf;
 
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_gd gdist;
-  F.fprintf ppf "@,@[<hov 2>%a; @]" pp_hd hdist;
-  F.fprintf ppf "@,@[<hov 2>%a@]" pp_te theory_elim;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gd gdist;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_hd hdist;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_te theory_elim;
 
   F.fprintf ppf  "}"
