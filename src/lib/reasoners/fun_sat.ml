@@ -1952,9 +1952,9 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
       ~init:env
 
   let unsat env gf =
-    printf "\nenv = \n%a@."
+    printf "\nenv = \n%a\n@."
       pp_env env;
-    printf "gf = \n%a@."
+    printf "@[<hov 2>gf = %a@]\n@."
       E.pp_gform gf;
     Debug.is_it_unsat gf;
     try

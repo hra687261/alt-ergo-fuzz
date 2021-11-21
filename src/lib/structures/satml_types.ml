@@ -1240,7 +1240,9 @@ module Flat_Formula : FLAT_FORMULA = struct
 
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v view;
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tag;
-    F.fprintf ppf "@ @[<hov 2>%a@]" pp_n neg;
+    F.fprintf ppf "@ @[<hov 2>%s@]" n_p;
+    (* F.fprintf ppf "@ @[<hov 2>%a@]" pp_n neg; *)
+    ignore (pp_n, neg);
 
     F.fprintf ppf "}"
 

@@ -138,12 +138,10 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     let pp_s2 = MEP.pp pp_e pp_gf ~p:s2_p in
     let pp_g2 = Pp.add_p pp_guards ~p:g2_p in
 
-    ignore (pp_ff2, ff_hcons_env);
     F.fprintf ppf "{";
 
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 satml;
-    F.fprintf ppf "@ @[<hov 2>%s;@]" ff_p;
-    (* F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ff2 ff_hcons_env; *)
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ff2 ff_hcons_env;
 
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nm nb_mrounds;
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lfn last_forced_normal;
@@ -158,7 +156,7 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i1 inst;
 
     F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 skolems;
-    F.fprintf ppf "add_inst = fun@\n";
+    F.fprintf ppf "@ @[<hov 2>add_inst = fun;@]";
     F.fprintf ppf "@ @[<hov 2>%a@]" pp_g2 guards;
 
     F.fprintf ppf "}"
@@ -1212,9 +1210,9 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     {gf with E.ff = E.mk_imp current_guard gf.E.ff 1}
 
   let unsat env gf =
-    printf "\nenv = \n%a@."
+    printf "\nenv = \n%a\n@."
       pp_env env;
-    printf "gf = \n%a@."
+    printf "@[<hov 2>gf = %a@]\n@."
       E.pp_gform gf;
     checks_implemented_features ();
     let gf = add_guard env gf in
