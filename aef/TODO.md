@@ -1,7 +1,7 @@
 
-- Write a better executable that uses Cmdliner
-- Use less shell scripts
-- Add a test to make sure that there are no divisions by zero
-- rewrite the pr_answers function in utils.ml
-- merge fuzz to fuzz-debug, and update fuzz-debug
-- add doc to every function
+- Use less shell scripts.
+- Add a test to make sure that there are no divisions by zero.
+- Write better, more detailed docs.
+- Replace the current AST with [Dolmen](https://github.com/Gbury/dolmen)'s typed AST.
+- Add a shrinking functionality to have simpler/smaller test cases when bugs are found.
+- Replace the bug_info type to something more flexible.

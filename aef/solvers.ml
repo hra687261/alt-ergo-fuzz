@@ -36,10 +36,10 @@ let get_cvc5_response () =
         | "unsat" -> Utils.Unsat
         | "unknown" -> Utils.Unknown
         | "cvc5 interrupted by timeout." ->
-          Format.printf "\nCVC5.process_stmts <1> %s@." x;
+          Format.printf "\nCVC5|Timeout: %s@." x;
           raise Utils.Timeout
         | _ ->
-          Format.printf "\nCVC5.process_stmts <2> %s@." x;
+          Format.printf "\nCVC5|Other: %s@." x;
           raise (Utils.Other x)
     ) lines
   | None -> assert false

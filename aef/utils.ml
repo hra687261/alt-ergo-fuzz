@@ -24,13 +24,6 @@ type bug_info = {
 let mk_bi id exn stmtcs ae_c ae_ct ae_t ae_tc cvc5 =
   {id; exn; stmtcs; ae_c; ae_ct; ae_t; ae_tc; cvc5}
 
-(*
-let ans_to_str = function
-  | Sat -> "sat"
-  | Unsat -> "unsat"
-  | Unknown -> "unknown"
-*)
-
 let exn_to_str = function
   | Unsoundness -> "Failure [Unsoundness]"
   | InternalCrash -> "Failure [Internal Crash]"
@@ -62,8 +55,8 @@ let handle_unsoundness_bug ?(verbose = false)
   in
   let bi = mk_bi id (Some exn) stmtcs ae_c ae_ct ae_t ae_tc cvc5 in
   let of_path =
-    Format.sprintf "%s/%s/%d_%.22f.txt" output_folder_path
-      (exn_str exn) (Unix.getpid ()) (Unix.gettimeofday ())
+    Format.sprintf "%s/%s/%.22f_%d.txt" output_folder_path
+      (exn_str exn) (Unix.gettimeofday ()) (Unix.getpid ())
   in
   data_to_file bi of_path;
 

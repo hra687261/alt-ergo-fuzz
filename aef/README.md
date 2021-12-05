@@ -1,66 +1,69 @@
 
-## Compiling:
+This subrepo contains the code of Alt-Ergo-Fuzz, a fuzzer for the Alt-Ergo SMT solver.
+
+### Requirements:
+  - [CVC5](https://github.com/cvc5/cvc5).
+  - [AFL](https://github.com/google/AFL).
+  - Alt-Ergo's compilation requirements + the [crowbar](https://github.com/stedolan/crowbar) OCaml library.
+
+(P.S: The following commands assume that you're placed at the root of the repo)
+
+# Compiling:
 ```
 make
+./aef/init.sh #to generate necessary folders/files for the fuzzer
 ```
 ---
-## Running:
-In afl mode:
+# Running:
+To run the fuzzer:
 ```
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/ ./_build/default/aef/main.exe @@
+./aef/fuzz.sh
 ```
+Optional command line arguments:
+```
+  -tf, --to-files
+    Doesn't open a terminal but redirects the output to a file in
+    "./fuzz_output/fop{num}.txt".
+
+  -pm NBCORES, --parallel-mode=NBCORES
+    Runs the fuzzer in the parallel mode using NBCORES cores (if they are
+    availabe).
+
+  -t TIMEOUT, --timeout=TIMEOUT
+    Sets the timeout of every run to TIMEOUT (in milliseconds).
+
+  -m MEMLIMIT, --memory=MEMLIMIT
+    Sets the memory consumption limit of every run to MEMLIMIT (in
+    megabytes).
+
+```
+
 When a crash happens : ```(aka: total crashes > 0)```
 
-For each crash a file is created under: ```alt-ergo/aef/store/```
+For each crash a file is created under: ```./aef/store/{foldername}/```
 
-Containing the marshalled bug_info of the statements whose satisfiability check caused the exception to be raised either by making Alt-Ergo crash, or by giving an unsound response (one which is contradictory to CVC5's reponse).
+Containing information about what caused the crash in a marshalled file.
 
----
-## Bug reproduction:
-
-
-By running:
-
-```
-./_build/default/aef/rerun.exe ./aef/store/{sym}{num}_XXXXXXXXXX.txt
-```
-Where {sym} is one of the following symbols:
-  - i (internal crash)
-  - u (unsoundness)
-  - t (timeout)
-  - o (other)
-
-And {num} is the id of the crash
-
-The exception and the statements that caused the crash are read from the file ```op_XXXXXXXXXX.txt``` in which they were written after the crash, they are printed and then the solving loop is called on it to reproduce the bug.
-
-
-To rerun all of the outputs:
-```
-for f in ./aef/store/[uiot]* ; do  ./_build/default/aef/rerun.exe "$f"; done;
-```
-
+```{foldername}``` is the name of the subfolder under which the crash file is stored, and it represents the type of error that caused the crash, it can be one of the following: ```[internalcrash|outofmemory|stackoverflow|timeout|other]```.
 
 ---
-## Parallel execution:
 
-To run alf-fuzz in parallel mode (using more than one core), a primary instance has to be started:
-```
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -M fuzzer01  ./_build/default/aef/main.exe  @@
-```
-And then the secondary instances:
-```
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer02  ./_build/default/aef/main.exe  @@
+# Bug reproduction:
 
-afl-fuzz -t 2000 -m 250 -i ./aef/input/ -o ./aef/output/sync_dir/ -S fuzzer03  ./_build/default/aef/main.exe  @@
-```
+It can be done by running:
 
-
----
-## Quickcheck mode:
-
-To run ```main.exe``` in quickcheck mode:
 ```
-./_build/default/aef/main.exe
+./_build/default/aef/main.exe [-r|--rerun] [-i|--input] {ipf}
 ```
-the workflow to reproduce the bug is the same, but in this case, the exception stack trace and the output file are printed in stdout.
+Which reruns the solvers on the list of SMT statements that caused the crash.
+
+If the option ```[-v|--verbose]``` is provided, then it will print the original answers and the exception that was raised during the crash, as well as the new answers.
+
+# Translation of crash files:
+
+The list of SMT statements that caused some crash can be translated to the
+SMT-LIB2 standard or Alt-Ergo's native langauge and printed into a file by
+running:
+```
+./_build/default/aef/main.exe [-t|--translate] [alt-ergo|smt-lib2] [-i|--input] {ipf} [-o|--output] {opf[.ae|.smt2]}
+```
