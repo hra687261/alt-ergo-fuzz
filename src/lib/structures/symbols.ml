@@ -314,9 +314,12 @@ let to_string s = to_string ~show_vars:true s
 
 let to_string_bis ?(show_vars=true) x =
   match x with
-  | Name (n,Ac) -> "(AcName) "^ Hstring.view n
-  | Name (n,Other) -> "(OtherName) "^ Hstring.view n
-  | Var v when show_vars -> "(Varsv) "^Format.sprintf "'%s'" (Var.to_string v)
+  | Name (n,Ac) ->
+    Format.asprintf "(AcName)%a" Hstring.print n
+  | Name (n,Other) ->
+    Format.asprintf "(OtherName)%a" Hstring.print n
+  | Var v when show_vars ->
+    "(Varsv) "^Format.asprintf "%a" Var.pp_vrb v
   | Var v -> "(Var) "^Var.to_string v
   | Int n -> Hstring.view n
   | Real n -> Hstring.view n
@@ -326,10 +329,12 @@ let to_string_bis ?(show_vars=true) x =
   | Op Mult -> "*"
   | Op Div -> "/"
   | Op Modulo -> "%"
-  | Op (Access s) -> "@Access_"^(Hstring.view s)
-  | Op (Constr s) -> (Hstring.view s)
+  | Op (Access s) ->
+    Format.asprintf "@Access_%a" Hstring.print s
+  | Op (Constr s) ->
+    Format.asprintf "Constr_%a" Hstring.print s
   | Op (Destruct (s,g)) ->
-    Format.sprintf "%s%s" (if g then "" else "!") (Hstring.view s)
+    Format.asprintf "%s%a" (if g then "" else "!") Hstring.print s
 
   | Op Record -> "@Record"
   | Op Get -> "get"

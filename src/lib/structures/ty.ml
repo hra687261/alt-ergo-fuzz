@@ -87,7 +87,7 @@ let print_generic body_of =
     | Tbool -> fprintf fmt "bool"
     | Tunit -> fprintf fmt "unit"
     | Tbitv n -> fprintf fmt "bitv[%d]" n
-    | Tvar{v=v ; value = None} -> fprintf fmt "'a_%d" v
+    | Tvar{v=v ; value = None} -> fprintf fmt "'atv_%d" v
     | Tvar{v=v ; value = Some (Trecord { args = l; name = n; _ } as t) } ->
       if Hashtbl.mem h v then
         fprintf fmt "%a %s" print_list l (Hstring.view n)
@@ -95,10 +95,9 @@ let print_generic body_of =
         (Hashtbl.add h v ();
          (*fprintf fmt "('a_%d->%a)" v print t *)
          print body_of fmt t)
-    | Tvar{ value = Some t; _ } ->
-      (*fprintf fmt "('a_%d->%a)" v print t *)
-      print body_of fmt t
-    | Text(l, s) -> fprintf fmt "%a <ext>%s" print_list l (Hstring.view s)
+    | Tvar{ value = Some t; v } ->
+      fprintf fmt "('atv_%d->%a)" v (print body_of) t
+    | Text(l, s) -> fprintf fmt "[%a]<ext>%s" print_list l (Hstring.view s)
     | Tfarray (t1, t2) ->
       fprintf fmt "(%a,%a) farray" (print body_of) t1 (print body_of) t2
     | Tsum(s, _) -> fprintf fmt "<sum>%s" (Hstring.view s)
@@ -116,7 +115,7 @@ let print_generic body_of =
         fprintf fmt "}"
       end
     | Tadt (n, lv) ->
-      fprintf fmt "%a <adt>%s" print_list lv (Hstring.view n);
+      fprintf fmt "[%a]%d <adt>%s" print_list lv (List.length lv) (Hstring.view n);
       begin match body_of with
         | None -> ()
         | Some type_body ->

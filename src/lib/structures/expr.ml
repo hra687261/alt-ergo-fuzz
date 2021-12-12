@@ -748,8 +748,9 @@ and pp_vrb ppf {
 
   let pp_i = F.pp_print_int in
   let pp_b1 = F.pp_print_bool in
-  let pp_ty = Ty.print in
-  let pp_sy = Sy.print in
+  let pp_ty = Ty.print_full in
+  let pp_sy = Sy.pp_vrb in
+  let pp_ev = pp_vrb in
   let pp_e = pp_bis in
   let pp_db = Pp.pp_doublet pp_ty pp_i in
 
@@ -772,7 +773,7 @@ and pp_vrb ppf {
 
 
   let pp_f = Pp.add_p pp_sy ~p:f_p in
-  let pp_xs = Pp.pp_list pp_e ~p:xs_p in
+  let pp_xs = Pp.pp_list pp_ev ~p:xs_p in
   let pp_ty = Pp.add_p pp_ty ~p:ty_p in
 
   let pp_b2 =  Pp.add_p pp_bind_kind ~p:b_p in

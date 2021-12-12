@@ -43,6 +43,9 @@ module S =
       Format.fprintf ppf "@[<hov 2>{%s; %d}@]" content id
   end)
 
+let pp_vrb fmt v =
+  Format.fprintf fmt "HS:{%s,%d}" v.content v.id
+
 let make s = S.make {content = s; id = - 1}
 
 let view s = s.content

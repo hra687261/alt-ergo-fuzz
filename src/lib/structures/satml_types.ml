@@ -465,7 +465,7 @@ module Atom : ATOM = struct
       watched; is_true; timp;
       is_guard; aid
     } as a) =
-    if true then () else
+
     if is_dummy_atom a then F.fprintf ppf "dummy_atom" else begin
 
       let pp_v1 = pp_var_vrb in
@@ -524,8 +524,6 @@ module Atom : ATOM = struct
       removed; learnt; cpremise; form
     } as c) =
 
-
-    if true then () else
     if is_dummy_clause c then F.fprintf ppf "dummy_clause" else begin
 
       let pp_a1 = Debug.atom in
@@ -577,7 +575,6 @@ module Atom : ATOM = struct
       level; index; reason; vpremise
     } as v) =
 
-    if true then () else
     if is_dummy_var v then F.fprintf ppf "dummy_var" else begin
 
       let pp_a1 = Debug.atom in
@@ -614,24 +611,22 @@ module Atom : ATOM = struct
       let pp_r = Pp.pp_option pp_c ~p:r_p in
       let pp_vp = Pp.pp_list pp_c ~p:vp_p in
 
-      if vid > 0 then begin
-        F.fprintf ppf "{";
+      F.fprintf ppf "{";
 
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi vid;
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pa pa;
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_na na;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi vid;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pa pa;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_na na;
 
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_w weight;
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sw sweight;
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 seen;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_w weight;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sw sweight;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 seen;
 
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l level;
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 index;
-        F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r reason;
-        F.fprintf ppf "@ @[<hov 2>%a@]" pp_vp vpremise;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l level;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 index;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r reason;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_vp vpremise;
 
-        F.fprintf ppf "}"
-      end else F.fprintf ppf "{vid=0}"
+      F.fprintf ppf "}"
     end
 
   let pp_env_vrb ppf {tbl; cpt} =

@@ -49,5 +49,8 @@ let to_string {hs ; id} =
 let print fmt v =
   fprintf fmt "%s" (to_string v)
 
+let pp_vrb fmt {hs; id} =
+  fprintf fmt "Var:{%a; %d}" Hstring.print hs id
+
 module Set = Set.Make(struct type t = view let compare = compare end)
 module Map = Map.Make(struct type t = view let compare = compare end)

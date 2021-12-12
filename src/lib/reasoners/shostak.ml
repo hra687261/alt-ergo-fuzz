@@ -75,18 +75,26 @@ struct
 
   type r = {v : rview ; id : int}
 
-  let print_rview fmt rv =
+  let pp_rview fmt rv =
     match rv with
-    | Term  e -> Expr.pp_bis fmt e
-    | Ac    e -> AC.print fmt e
-    | X1    e -> X1.print fmt e
-    | X2    e -> X2.print fmt e
-    | X3    e -> X3.print fmt e
-    | X4    e -> X4.print fmt e
-    | X5    e -> X5.print fmt e
-    | X6    e -> X6.print fmt e
-    | X7    e -> X7.print fmt e
-
+    | Term  e ->
+      Format.fprintf fmt "{Term;%a}" Expr.pp_bis e
+    | Ac    e ->
+      Format.fprintf fmt "{Ac;%a}" AC.print e
+    | X1    e ->
+      Format.fprintf fmt "{X1;%a}" X1.print e
+    | X2    e ->
+      Format.fprintf fmt "{X2;%a}" X2.print e
+    | X3    e ->
+      Format.fprintf fmt "{X3;%a}" X3.print e
+    | X4    e ->
+      Format.fprintf fmt "{X4;%a}" X4.print e
+    | X5    e ->
+      Format.fprintf fmt "{X5;%a}" X5.print e
+    | X6    e ->
+      Format.fprintf fmt "{X6;%a}" X6.print e
+    | X7    e ->
+      Format.fprintf fmt "{X7;%a}" X7.print e
   (* begin: Hashconsing modules and functions *)
 
   module View = struct
@@ -94,7 +102,7 @@ struct
     type elt = r
 
     let pp_vrb fmt ({v ; id}: elt) =
-      Format.fprintf fmt "{%a; %d}" print_rview v id
+      Format.fprintf fmt "{%a; %d}" pp_rview v id
 
     let set_id tag r = { r with id=tag }
 

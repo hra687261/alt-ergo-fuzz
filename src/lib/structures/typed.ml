@@ -204,6 +204,22 @@ let print_binder fmt (s, t) =
 let print_binders fmt l =
   List.iter (fun c -> fprintf fmt "%a, " print_binder c) l
 
+let print_patterm fmt p  =
+  let pp_vars fmt l =
+    match l with
+      [] -> ()
+    | [e,_,_] -> Var.print fmt e
+    | (e,_,_) :: l ->
+      fprintf fmt "(%a" Var.print e;
+      List.iter (fun (e,_,_) -> fprintf fmt ", %a" Var.print e) l;
+      fprintf fmt ")"
+  in
+  match p with
+  | Constr {name = n; args = l} ->
+    fprintf fmt "%a %a" Hstring.print n pp_vars l
+  | Var x ->
+    fprintf fmt "%a" Var.print x
+
 let rec print_term fmt t = match t.c.tt_desc with
   | TTconst Ttrue ->
     fprintf fmt "true"
@@ -443,8 +459,8 @@ let rec print_atdecl ppf d =
     F.fprintf ppf "TFunction_def(_, %s, %a, %a, %a)"
       n pp_stl _args Ty.print _rety print_formula f
 
-  | TTypeDecl _ ->
-    F.fprintf ppf "TTypeDecl _"
+  | TTypeDecl (_, b) ->
+    F.fprintf ppf "TTypeDecl %a" Ty.print_full b
 
   | TLogic _ ->
     F.fprintf ppf "TLogic _"

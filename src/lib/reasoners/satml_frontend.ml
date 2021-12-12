@@ -1210,10 +1210,6 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     {gf with E.ff = E.mk_imp current_guard gf.E.ff 1}
 
   let unsat env gf =
-    printf "\nenv = \n%a\n@."
-      pp_env env;
-    printf "@[<hov 2>gf = %a@]\n@."
-      E.pp_gform gf;
     checks_implemented_features ();
     let gf = add_guard env gf in
     Debug.unsat gf;
