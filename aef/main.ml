@@ -103,7 +103,7 @@ let translate_and_write stmtcs opl destf =
   close_out oc
 
 let rerun ?(verbose = false)
-    {stmtcs; exn; ae_c; ae_ct; ae_t; ae_tc; cvc5; _} =
+    {stmtcs; exn; answers; _ } =
 
   if verbose then begin
     begin match exn with
@@ -120,32 +120,24 @@ let rerun ?(verbose = false)
     end;
 
     Format.printf "\nOriginal answers:@.";
-    Format.printf "%d %d %d %d %d@."
-      (List.length ae_c)
-      (List.length ae_ct)
-      (List.length ae_t)
-      (List.length ae_tc)
-      (List.length cvc5);
-    pp_answers ae_c ae_ct ae_t ae_tc cvc5;
+    pp_answers answers;
   end;
 
+  let ansl = [] in
   Solvers.call_cvc5 stmtcs;
-  let ae_c = Solvers.solve_with_ae_c stmtcs in
-  let ae_ct = Solvers.solve_with_ae_c stmtcs in
-  let ae_t = Solvers.solve_with_ae_t stmtcs in
-  let ae_tc = Solvers.solve_with_ae_t stmtcs in
-  let cvc5 = Solvers.get_cvc5_response () in
+
+  let ansl = (AE_C, (Solvers.solve_with_ae_c stmtcs)) :: ansl in
+  let ansl = (AE_CT, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
+  let ansl = (AE_T, (Solvers.solve_with_ae_t stmtcs)) :: ansl in
+  let ansl = (AE_TC, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
+
+  let ansl = (CVC5, (Solvers.get_cvc5_response ())) :: ansl in
+  let n_answers = mk_im ansl in
   if verbose then begin
     Format.printf "\nRerunning answers:@.";
-    Format.printf "%d %d %d %d %d@."
-      (List.length ae_c)
-      (List.length ae_ct)
-      (List.length ae_t)
-      (List.length ae_tc)
-      (List.length cvc5);
-    pp_answers ae_c ae_ct ae_t ae_tc cvc5
+    pp_answers n_answers
   end;
-  cmp_answers ae_c ae_ct ae_t ae_tc cvc5
+  cmp_answers n_answers (solver_to_sid CVC5)
 
 let test_fun =
   let cnt = ref 0 in
@@ -153,22 +145,24 @@ let test_fun =
     Cr.check (
       try
         incr cnt;
+        let ansl = [] in
         Solvers.call_cvc5 stmtcs;
 
-        let ae_c = Solvers.solve_with_ae_c stmtcs in
-        let ae_ct = Solvers.solve_with_ae_c stmtcs in
-        let ae_t = Solvers.solve_with_ae_t stmtcs in
-        let ae_tc = Solvers.solve_with_ae_t stmtcs in
+        let ansl = (AE_C, (Solvers.solve_with_ae_c stmtcs)) :: ansl in
+        let ansl = (AE_CT, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
+        let ansl = (AE_T, (Solvers.solve_with_ae_t stmtcs)) :: ansl in
+        let ansl = (AE_TC, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
 
-        let cvc5 = Solvers.get_cvc5_response () in
+        let ansl = (CVC5, (Solvers.get_cvc5_response ())) :: ansl in
+        let n_answers = mk_im ansl in
         if verbose then
-          pp_answers ae_c ae_ct ae_t ae_tc cvc5;
+          pp_answers n_answers;
         try
-          cmp_answers ae_c ae_ct ae_t ae_tc cvc5;
+          cmp_answers n_answers (solver_to_sid CVC5);
           true
         with
         | exp ->
-          handle_unsoundness_bug !cnt exp stmtcs ae_c ae_ct ae_t ae_tc cvc5;
+          handle_unsoundness_bug !cnt exp stmtcs n_answers;
           false
       with
       | exp ->

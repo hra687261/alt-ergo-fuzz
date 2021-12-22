@@ -8,22 +8,24 @@ let test_fun =
     Cr.check (
       try
         incr cnt;
+        let ansl = [] in
         Solvers.call_cvc5 stmtcs;
 
-        let ae_c = Solvers.solve_with_ae_c stmtcs in
-        let ae_ct = Solvers.solve_with_ae_c stmtcs in
-        let ae_t = Solvers.solve_with_ae_t stmtcs in
-        let ae_tc = Solvers.solve_with_ae_t stmtcs in
+        let ansl = (AE_C, (Solvers.solve_with_ae_c stmtcs)) :: ansl in
+        let ansl = (AE_CT, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
+        let ansl = (AE_T, (Solvers.solve_with_ae_t stmtcs)) :: ansl in
+        let ansl = (AE_TC, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
 
-        let cvc5 = Solvers.get_cvc5_response () in
+        let ansl = (CVC5, (Solvers.get_cvc5_response ())) :: ansl in
+        let n_answers = mk_im ansl in
         if verbose || true then
-          pp_answers ae_c ae_ct ae_t ae_tc cvc5;
+          pp_answers n_answers;
         try
-          cmp_answers ae_c ae_ct ae_t ae_tc cvc5;
+          cmp_answers n_answers (solver_to_sid CVC5);
           true
         with
         | exp ->
-          handle_unsoundness_bug !cnt exp stmtcs ae_c ae_ct ae_t ae_tc cvc5;
+          handle_unsoundness_bug !cnt exp stmtcs n_answers;
           false
       with
       | exp ->
