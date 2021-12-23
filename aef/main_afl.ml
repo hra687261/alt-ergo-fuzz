@@ -14,7 +14,7 @@ let test_fun =
         let ansl = (AE_C, (Solvers.solve_with_ae_c stmtcs)) :: ansl in
         let ansl = (AE_CT, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
         let ansl = (AE_T, (Solvers.solve_with_ae_t stmtcs)) :: ansl in
-        let ansl = (AE_TC, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
+        let ansl = (AE_TC, (Solvers.solve_with_ae_tc stmtcs)) :: ansl in
 
         let ansl = (CVC5, (Solvers.get_cvc5_response ())) :: ansl in
         let n_answers = mk_im ansl in
