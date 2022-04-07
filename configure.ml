@@ -7,8 +7,6 @@
    - parse command line options
    - compute actual config options
    - output these config options in Makefile.config
-   - check dune is present
-   - ask dune to check the external deps
 *)
 
 (* configuration options *)
@@ -57,8 +55,8 @@ let () =
     match !pkg with
     | "" -> pkg := s
     | _ ->
-        Format.eprintf "Anonymous argument ignored: '%s'@." s;
-        exit 1
+      Format.eprintf "Anonymous argument ignored: '%s'@." s;
+      exit 1
   in
   let usage = "./configure [options]" in
   Arg.parse args anon_fun usage
@@ -86,8 +84,7 @@ let opam_check = lazy (
     Format.eprintf "ERROR: Couldn't find opam in env.@\n%a@."
       Format.pp_print_text "To solve this, you can either install opam, \
                             provide an explicit value to the `--prefix` argument \
-                            of this script, or provide explicit values to both \
-                            the `--libdir` and `--mandir` options of this script.";
+                            of this script.";
     exit 1
 )
 
@@ -113,12 +110,19 @@ let opam_var v =
 
 (* Compute actual values for config options *)
 let () =
-  let prefix_set = !prefix <> "" in
-  update "prefix" prefix (fun () -> opam_var "prefix");
-  update "libdir" libdir (fun () ->
-      if prefix_set then Filename.concat !prefix "lib" else opam_var "lib");
-  update "mandir" mandir (fun () ->
-      if prefix_set then Filename.concat !prefix "man" else opam_var "man");
+  if !prefix <> "" then begin
+    update "prefix" prefix (fun () -> assert false); (* used to print info *)
+    update "libdir" libdir (fun () -> Filename.concat !prefix "lib");
+    update "mandir" mandir (fun () -> Filename.concat !prefix "man");
+    ()
+  end else begin
+    update "prefix" prefix (fun () -> opam_var "prefix");
+    update "libdir" libdir (fun () -> opam_var "lib");
+    update "mandir" mandir (fun () -> opam_var "man");
+    ()
+  end;
+  assert (!libdir <> "");
+  assert (!mandir <> "");
   ()
 
 (* Output config options into lib/util/config.ml *)
@@ -136,7 +140,7 @@ let () =
 
   let () = Format.fprintf fmt {|type numbers_lib = | Nums | Zarith@.|} in
   let () = Format.fprintf fmt {|let numbers_lib = %s@.|}
-    (print_numbers_lib !numbers_lib) in
+      (print_numbers_lib !numbers_lib) in
 
   let () = Format.fprintf fmt {|
 (* Dynamic configuration, relative to the executable path *)
@@ -194,30 +198,5 @@ let () =
   let () = Format.printf "done.@." in
   ()
 
-(* check that dune is present *)
-let () =
-  let cmd = Format.asprintf "which dune" in
-  let ch = Unix.open_process_in cmd in
-  let _ = read_all ch in
-  let res = Unix.close_process_in ch in
-  match res with
-  | Unix.WEXITED 0 -> Format.printf "Found dune in path.@."
-  | _ -> Format.eprintf "ERROR: Couldn't find dune in env@.";
-    exit 1
-
-(* run dune to check that dependencies are installed *)
-let () =
-  let p_opt = match !pkg with "" -> "" | s -> Format.asprintf "-p %s" s in
-  let cmd =
-    Format.asprintf
-      "dune external-lib-deps --display=quiet --missing %s @install" p_opt
-  in
-  let ch = Unix.open_process_in cmd in
-  let _ = read_all ch in
-  let res = Unix.close_process_in ch in
-  match res with
-  | Unix.WEXITED 0 -> Format.printf "All deps are installed.@."
-  (* dune already prints the missing libs on stderr *)
-  | _ -> exit 2
-
 let () = Format.printf "Good to go!@."
+
