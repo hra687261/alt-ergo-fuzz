@@ -78,8 +78,7 @@ let cmd_line_args =
       output_file $
       verbose
     )
-  ),
-  Term.info "alt-ergo-fuzz"
+  )
 
 let get_bug_info ipf =
   let ic = open_in ipf in
@@ -171,8 +170,10 @@ let test_fun =
     )
 
 let () =
-  match Cmdliner.Term.(eval cmd_line_args) with
-  | `Ok (true, None, Some ipf, None, verbose) ->
+  let open Cmdliner in
+  let i = Cmd.info "alt-ergo-fuzz" in
+  match Cmd.eval_value (Cmd.v i cmd_line_args) with
+  | Ok (`Ok (true, None, Some ipf, None, verbose)) ->
     (* rerun *)
     begin
       try
@@ -181,12 +182,12 @@ let () =
         Format.printf "Rerunning failure:\n%s@." (exn_to_str exn)
     end
 
-  | `Ok (false, Some opl, Some ipf, Some opf, _) ->
+  | Ok (`Ok (false, Some opl, Some ipf, Some opf, _)) ->
     (* translate *)
     let bi = get_bug_info ipf in
     translate_and_write bi.stmtcs opl opf
 
-  | `Ok (true, Some opl, Some ipf, Some opf, verbose) ->
+  | Ok (`Ok (true, Some opl, Some ipf, Some opf, verbose)) ->
     (* rerun and translate *)
     let bi = get_bug_info ipf in
     begin
@@ -197,8 +198,15 @@ let () =
     end;
     translate_and_write bi.stmtcs opl opf
 
-  | `Ok (false, None, None, None, verbose) ->
+  | Ok (`Ok (false, None, None, None, verbose)) ->
     (* run the fuzzing loop *)
     Cr.add_test ~name:"ae" [Generator.stmts_gen ()] (test_fun ~verbose)
 
-  | _ -> assert false
+  | Ok `Version | Ok `Help -> exit 0
+  | Error `Parse -> exit Cmd.Exit.cli_error
+  | Error `Term -> exit Cmd.Exit.internal_error
+  | Error `Exn -> exit Cmd.Exit.internal_error
+  | _ ->
+    assert false
+
+
