@@ -4,7 +4,7 @@ module Cr = Crowbar
 
 let test_fun =
   let cnt = ref 0 in
-  fun ?(verbose = false) stmtcs ->
+  fun ?(verbose = true) stmtcs ->
     Cr.check (
       try
         incr cnt;
@@ -18,20 +18,16 @@ let test_fun =
 
         let ansl = (CVC5, (Solvers.get_cvc5_response ())) :: ansl in
         let n_answers = mk_im ansl in
-        if verbose || true then
-          pp_answers n_answers;
+        if verbose then pp_answers n_answers;
         try
           cmp_answers n_answers (solver_to_sid CVC5);
           true
         with
         | exp ->
-          handle_unsoundness_bug !cnt exp stmtcs n_answers;
+          handle_unsoundness_bug ~verbose !cnt exp stmtcs n_answers;
           false
       with
       | exp ->
         handle_failure_bug !cnt exp stmtcs;
         false
     )
-
-let () =
-  Cr.add_test ~name:"ae" [Generator.stmts_gen ()] test_fun

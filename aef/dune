@@ -1,6 +1,6 @@
 (executables
- (names main main_afl)
- (public_names main main_afl)
+ (names main)
+ (public_names main)
  (libraries alt-ergo-lib crowbar)
  (modules_without_implementation translater)
  (package alt-ergo-lib)
