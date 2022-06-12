@@ -8,6 +8,8 @@ type solver =
   | AE_TC
   | CVC5
 
+type output_lang = Native | Smtlib2
+
 exception Unsoundness
 exception InternalCrash
 exception Timeout
@@ -15,12 +17,16 @@ exception Other of string
 
 module IM: Map.S with type key = int
 
+val pp_output_lang: Format.formatter -> output_lang -> unit
+
 type bug_info = {
   id: int;
   exn: exn option;
   stmtcs: Ast.stmt_c list;
   answers: answer list IM.t;
 }
+
+val get_bug_info: string -> bug_info
 
 val solver_to_sid : solver -> int
 

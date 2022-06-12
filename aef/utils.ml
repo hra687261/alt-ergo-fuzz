@@ -9,12 +9,19 @@ type solver =
   | AE_TC
   | CVC5
 
+type output_lang = Native | Smtlib2
+
 (* When the response of Alt-Ergo is different from the other solvers*)
 exception Unsoundness
 (* Assert failure or something similar *)
 exception InternalCrash
 exception Timeout
 exception Other of string
+
+let pp_output_lang fmt opl =
+  match opl with
+  | Native -> Format.fprintf fmt "native"
+  | Smtlib2 -> Format.fprintf fmt "smtlib2"
 
 let print_solver fmt = function
   | AE_C -> Format.fprintf fmt "Alt-Ergo(CDCL)"
@@ -51,6 +58,12 @@ type bug_info = {
   stmtcs: Ast.stmt_c list;
   answers: answer list IM.t;
 }
+
+let get_bug_info ipf =
+  let ic = open_in ipf in
+  let str = really_input_string ic (in_channel_length ic) in
+  close_in ic;
+  (Marshal.from_string str 0: bug_info)
 
 let mk_im (answers: (solver * answer list) list) =
   List.fold_left (

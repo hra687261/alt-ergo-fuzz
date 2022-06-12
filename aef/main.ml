@@ -1,10 +1,68 @@
 open Utils
-open Cmdliner
 
-type output_lang = Native | Smtlib2
+module Run = struct
+  let cmd =
+    let open Cmdliner in
+    let aux verbose =
+      Crowbar.add_test
+        ~name:"alt-ergo-fuzz" [Generator.stmts_gen ()]
+        (Common.test_fun ~verbose)
+    in
+    let verbose =
+      Arg.(value & flag & info ["v";"verbose"]
+             ~doc:"Set verbose printing to true")
+    in
+    let doc =
+      "Run AEF with AFL or in quickcheck mode"
+    in
+    Cmd.v (Cmd.info ~doc "run")
+      (Term.(const aux $ verbose))
+end
 
-let output_lang_list =
-  [ "ae", Native;
+module Rerun = struct
+  let cmd =
+    let open Cmdliner in
+    let aux verbose ipfl =
+      match ipfl with
+      | [] ->
+        failwith "rerun: provide the path to at least one file containig \
+                  hashconsed bug info to reproduce"
+      | _ ->
+        let bil = List.map get_bug_info ipfl in
+        List.iter (Rerun.rerun ~verbose) bil
+    in
+    let verbose =
+      Arg.(value & flag & info ["v";"verbose"]
+             ~doc:"Set verbose printing to true")
+    and ipfl =
+      Arg.(value & pos_all string [] & info []
+             ~doc:"Path to a file containing marshalled information about a \
+                   detected bug")
+    in
+    let doc =
+      "Rerun AEF to reproduce a detected bug"
+    in
+    Cmd.v (Cmd.info ~doc "rerun")
+      (Term.(const aux $ verbose $ ipfl))
+end
+
+module Translate = struct
+  let translate_and_write stmtcs opl destf =
+    let module Tr = (
+      val (
+        match opl with
+        | Native -> (module Tr_altergo)
+        | Smtlib2 -> (module Smtlib2_tr)
+      ): Translater.T
+    )
+    in
+    let oc = open_out destf in
+    let fmt = Format.formatter_of_out_channel oc in
+    Format.fprintf fmt "%a" Tr.print_stmts stmtcs;
+    close_out oc
+
+  let output_lang_list = [
+    "ae", Native;
     "native", Native;
     "altergo", Native;
     "alt-ergo", Native;
@@ -13,168 +71,96 @@ let output_lang_list =
     "smt-lib2", Smtlib2;
   ]
 
-let output_lang_parser s =
-  try
-    Ok (List.assoc s output_lang_list)
-  with
-    Not_found ->
-    let msg =
-      Format.sprintf
-        "The output language %s is not supported" s
-    in
-    Error (`Msg msg)
+  let output_lang_parser s =
+    try
+      Ok (List.assoc s output_lang_list)
+    with
+      Not_found ->
+      let msg =
+        Format.sprintf
+          "The output language %s is not supported" s
+      in
+      Error (`Msg msg)
 
-let output_lang_printer fmt opl =
-  match opl with
-  | Native -> Format.fprintf fmt "native"
-  | Smtlib2 -> Format.fprintf fmt "smtlib2"
-
-let output_lang_conv =
-  Arg.conv (
-    output_lang_parser,
-    output_lang_printer
-  )
-
-let cmd_line_args =
-  let rerun =
-    let doc = "Reruns the solvers on the provided hashconsed file." in
-    Arg.(value & flag & info ["r"; "rerun"] ~doc)
-  in
-  let trfile =
-    let doc = Format.sprintf
-        "Set the output format to %s."
-        (Arg.doc_alts (fst @@ List.split output_lang_list)) in
-    Arg.(
-      value &
-      opt (some output_lang_conv) None &
-      info ["t"; "translate"] ~doc
+  let output_lang_conv =
+    let open Cmdliner in
+    Arg.conv (
+      output_lang_parser,
+      pp_output_lang
     )
-  in
-  let input_file =
-    let doc = "The hashconsed input file" in
-    Arg.(value & opt (some string) None & info ["i"; "input"] ~doc)
-  in
-  let output_file =
+
+  let cmd =
+    let open Cmdliner in
+    let aux ipf_opt opf_opt opl_opt =
+      match ipf_opt with
+      | None -> assert false
+      | Some ipf ->
+        let opl =
+          match opl_opt with
+          | Some Smtlib2 -> Smtlib2
+          | Some Native | None -> Native
+        in
+        let opf =
+          match opf_opt with
+          | Some opf -> opf
+          | None ->
+            Filename.remove_extension ipf ^
+            (match opl with Smtlib2 -> ".smt2" | Native -> ".ae")
+        in
+        let bi = get_bug_info ipf in
+        translate_and_write bi.stmtcs opl opf
+    in
+    let ipf_opt =
+      Arg.(value & pos 0 (some string) None & info [] ~docv:"PATH"
+             ~doc:"Path to a file containing marshalled information about a \
+                   detected bug.")
+    and opf_opt =
+      Arg.(value & opt (some string) None  & info ["o";"output"]
+             ~doc:"Path to the destination file in which to store the
+             translated smt statements.")
+    and trlang =
+      let doc = Format.sprintf
+          "Set the output format to %s, default is native."
+          (Arg.doc_alts (fst @@ List.split output_lang_list))
+      in
+      Arg.(
+        value &
+        opt (some output_lang_conv) None &
+        info ["t"; "translate"] ~doc
+      )
+    in
     let doc =
-      "The output file in which the translated statements will be printed"
+      "Translate a file containig hashconsed bug information into a \".ae\" \
+       or \".smt2\" file containig the smt statement that caused the bug."
     in
-    Arg.(value & opt (some string) None & info ["o"; "output"] ~doc)
+    Cmd.v (Cmd.info ~doc "translate")
+      (Term.(const aux $ ipf_opt $ opf_opt $ trlang))
+end
+
+let parse_opt () =
+  let open Cmdliner in
+  let default, info =
+    let doc = "A fuzzer for the Alt-Ergo SMT solver." in
+    let man = [
+      `S "DESCRIPTION";
+      `P "$(b,alt-ergo-fuzz) is a tool to automatically generate tests cases \
+          on which to run the Alt-Ergo smt solver.";
+      `S "COMMANDS";
+      `S "OPTIONS";
+    ] in
+    let def = Term.(const (fun () -> `Help (`Pager, None)) $ const ()) in
+    Term.(ret def),
+    Cmd.info ~version:"dev" ~man ~doc "alt-ergo-fuzz"
   in
-  let verbose =
-    let doc = "Output information about what is done." in
-    Arg.(value & flag & info ["v"; "verbose"] ~doc)
-  in
-  let f rr tr ipf opf vrb =
-    `Ok (rr, tr, ipf, opf, vrb)
-  in
-  Term.(
-    ret (
-      const f $
-      rerun $
-      trfile $
-      input_file $
-      output_file $
-      verbose
-    )
-  )
-
-let get_bug_info ipf =
-  let ic = open_in ipf in
-  let str = really_input_string ic (in_channel_length ic) in
-  close_in ic;
-  (Marshal.from_string str 0: bug_info)
-
-let translate_and_write stmtcs opl destf =
-  let module Tr = (
-    val (
-      match opl with
-      | Native -> (module Tr_altergo)
-      | Smtlib2 -> (module Smtlib2_tr)
-    ): Translater.T
-  )
-  in
-
-  let oc = open_out destf in
-  let fmt = Format.formatter_of_out_channel oc in
-  Format.fprintf fmt "%a" Tr.print_stmts stmtcs;
-  close_out oc
-
-let rerun ?(verbose = false)
-    {stmtcs; exn; answers; _ } =
-
-  if verbose then begin
-    begin match exn with
-      | None -> Format.printf "\nNo exception.@."
-      | Some exn ->
-        Format.printf "\nException: %s@." (exn_to_str exn);
-        Format.printf "\nCaused by: \n%a@."
-          ( fun fmt stmts ->
-              List.iter (
-                fun Ast.{stmt;_} ->
-                  Format.fprintf fmt "\n### %a@." Ast.print_stmt stmt;
-              ) stmts
-          ) stmtcs
-    end;
-
-    Format.printf "\nOriginal answers:@.";
-    pp_answers answers;
-  end;
-
-  let ansl = [] in
-  Solvers.call_cvc5 stmtcs;
-
-  let ansl = (AE_C, (Solvers.solve_with_ae_c stmtcs)) :: ansl in
-  let ansl = (AE_CT, (Solvers.solve_with_ae_ct stmtcs)) :: ansl in
-  let ansl = (AE_T, (Solvers.solve_with_ae_t stmtcs)) :: ansl in
-  let ansl = (AE_TC, (Solvers.solve_with_ae_tc stmtcs)) :: ansl in
-
-  let ansl = (CVC5, (Solvers.get_cvc5_response ())) :: ansl in
-  let n_answers = mk_im ansl in
-  if verbose then begin
-    Format.printf "\nRerunning answers:@.";
-    pp_answers n_answers
-  end;
-  cmp_answers n_answers (solver_to_sid CVC5)
+  let cmds = [
+    Run.cmd;
+    Rerun.cmd;
+    Translate.cmd;
+  ] in
+  let v = Cmd.eval_value (Cmd.group info ~default cmds) in
+  v
 
 let () =
-  let open Cmdliner in
-  let i = Cmd.info "alt-ergo-fuzz" in
-  match Cmd.eval_value (Cmd.v i cmd_line_args) with
-  | Ok (`Ok (true, None, Some ipf, None, verbose)) ->
-    (* rerun *)
-    begin
-      try
-        rerun ~verbose (get_bug_info ipf)
-      with exn ->
-        Format.printf "Rerunning failure:\n%s@." (exn_to_str exn)
-    end
-
-  | Ok (`Ok (false, Some opl, Some ipf, Some opf, _)) ->
-    (* translate *)
-    let bi = get_bug_info ipf in
-    translate_and_write bi.stmtcs opl opf
-
-  | Ok (`Ok (true, Some opl, Some ipf, Some opf, verbose)) ->
-    (* rerun and translate *)
-    let bi = get_bug_info ipf in
-    begin
-      try
-        rerun ~verbose bi
-      with exn ->
-        Format.printf "Rerunning failure:\n%s@." (exn_to_str exn)
-    end;
-    translate_and_write bi.stmtcs opl opf
-
-  | Ok (`Ok (false, None, None, None, verbose)) ->
-    (* run the fuzzing loop *)
-    Crowbar.add_test
-      ~name:"ae" [Generator.stmts_gen ()] (Common.test_fun ~verbose)
-
-  | Ok `Version | Ok `Help -> exit 0
-  | Error `Parse -> exit Cmd.Exit.cli_error
-  | Error `Term -> exit Cmd.Exit.internal_error
-  | Error `Exn -> exit Cmd.Exit.internal_error
-  | _ ->
-    assert false
-
-
+  match parse_opt () with
+  | Error (`Parse | `Term | `Exn) -> exit 2
+  | Ok (`Ok () | `Version | `Help) -> ()
