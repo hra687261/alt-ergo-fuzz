@@ -11,6 +11,42 @@ type solver =
 
 type output_lang = Native | Smtlib2
 
+type terminal =
+  | GnomeTerminal
+  | XTerm
+  | Konsole
+
+let pp_terminal fmt term =
+  match term with
+  | GnomeTerminal ->
+    Format.fprintf fmt "gnome-terminal"
+  | XTerm ->
+    Format.fprintf fmt "xterm"
+  | Konsole ->
+    Format.fprintf fmt "konsole"
+
+let terminal_wrap_cmd term cmd =
+  match term with
+  | GnomeTerminal ->
+    Format.sprintf "gnome-terminal -- bash -c \"%s; exec bash\"" cmd
+  | XTerm ->
+    Format.sprintf "xterm -hold -e \"%s\"" cmd
+  | Konsole ->
+    Format.sprintf "konsole --hold -e \"%s\"" cmd
+
+let (<+>) v_opt default =
+  match v_opt with
+  | Some v -> v
+  | None -> default
+
+let opt_app f ~default v_opt =
+  match v_opt with
+  | Some v -> f v
+  | None -> default
+
+let opt_app_fmt fmt fmtter v_opt =
+  opt_app (Format.fprintf fmtter fmt) ~default:() v_opt
+
 (* When the response of Alt-Ergo is different from the other solvers*)
 exception Unsoundness
 (* Assert failure or something similar *)
@@ -250,3 +286,17 @@ let pp_answers  =
     in
     Format.printf "\n";
     pp_aux (List.rev rev_ans_llist)
+
+let cpu_count () =
+  try match Sys.os_type with
+    | "Win32" -> int_of_string (Sys.getenv "NUMBER_OF_PROCESSORS")
+    | _ ->
+      let i = Unix.open_process_in "getconf _NPROCESSORS_ONLN" in
+      let close () = ignore (Unix.close_process_in i) in
+      try
+        Scanf.bscanf (Scanf.Scanning.from_channel i) "%d"
+          (fun n -> close (); n)
+      with e -> close (); raise e
+  with
+  | Not_found | Sys_error _ | Failure _ | Scanf.Scan_failure _
+  | End_of_file | Unix.Unix_error (_, _, _) -> 1

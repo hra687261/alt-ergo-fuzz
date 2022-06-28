@@ -1,4 +1,11 @@
 
+(** default subprocess memory limit in megabytes *)
+val _MEM_LIMIT_ : int
+
+(** default execution timout in milliseconds *)
+val _TIME_LIMIT_ : int
+
+
 type interval = {lb: int; ub: int}
 
 (** Query (goal) max depth *)
