@@ -1,5 +1,7 @@
 open Utils
 
+(* TODO: add the init, cleanup, kill_all and rename commands. *)
+
 module Run = struct
   let cmd =
     let open Cmdliner in
@@ -200,7 +202,47 @@ module Translate = struct
       (Term.(const aux $ ipf_opt $ opf_opt $ trlang))
 end
 
-(* TODO: add the init, cleanup, kill_all and rename commands. *)
+module Init = struct
+  let cmd: unit Cmdliner.Cmd.t =
+    let open Cmdliner in
+    Cmd.v (Cmd.info "init")
+      (Term.(const (Commands.init ())))
+end
+
+module Cleanup = struct
+  let cmd: unit Cmdliner.Cmd.t =
+    let open Cmdliner in
+    Cmd.v (Cmd.info "cleanup")
+      (Term.(const (Commands.cleanup ())))
+end
+
+module Kill_all = struct
+  let cmd: unit Cmdliner.Cmd.t =
+    let open Cmdliner in
+    Cmd.v (Cmd.info "kill_all")
+      (Term.(const (Commands.kill_all ())))
+end
+
+module Rename = struct
+  let rename: unit Cmdliner.Cmd.t =
+    let open Cmdliner in
+    let aux src dest_opt move =
+      Commands.rename src dest_opt move
+    in
+    let file =
+      Arg.(value & pos 0 (some string) None & info [] ~doc:"Path to the file to rename")
+    and move =
+      Arg.(value & flag & info ["m"; "move"]
+             ~doc:"Move the file to the destination file (if a file is provided instead of a file name as destination)")
+    and dest_opt =
+      Arg.(value & pos 0 (some string) None & info [] ~docv:"PATH"
+             ~doc:"The new name to give the file or the path to which it should be moved (if -m is given)")
+
+    in
+    Cmd.v (Cmd.info "rename")
+      (Term.(const aux $ file $ dest_opt $ move))
+end
+
 let parse_opt () =
   let open Cmdliner in
   let default, info =
