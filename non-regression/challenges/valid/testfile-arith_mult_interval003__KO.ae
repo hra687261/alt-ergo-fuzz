@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 goal WP_parameter_def1 :
 forall x1, y1, z1 : real.
   0. <= x1 <= 180. ->

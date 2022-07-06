@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 logic a,b,c:prop
 goal g9 : not ((a->(a or b or c) and (not a or not b or not c))

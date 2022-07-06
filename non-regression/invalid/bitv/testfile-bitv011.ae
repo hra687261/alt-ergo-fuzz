@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 logic f : 'a -> bitv[2]
 

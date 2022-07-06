@@ -1,4 +1,5 @@
+(*(set-info :status unknown)*)
 
-goal g1 : 
+goal g1 :
      (exists x:int. x=2) -> (exists x:int. x=3) -> false
 

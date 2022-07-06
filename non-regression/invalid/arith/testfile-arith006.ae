@@ -1,4 +1,5 @@
+(*(set-info :status unknown)*)
 
 logic P: prop
-goal g6: 
+goal g6:
   forall x:int. x=1 and (3<x -> P) -> P

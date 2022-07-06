@@ -1,8 +1,9 @@
+(*(set-info :status valid)*)
 
 logic ac f,g,h : int,int -> int
 logic a,b,c,d,e,x,y,z,t,m,n,alpha,beta,gamma,delta : int
 
-goal g57 : 
+goal g57 :
   f(a+x+y, b+z) = gamma ->
   f(a+x+1, c+y) = beta  ->
   h(f(f(a+x+1,b),c+1),d+z) = f(beta,f(a+x+y, b+z)) ->

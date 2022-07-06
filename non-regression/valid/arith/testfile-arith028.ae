@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 logic q : int
 logic p : int

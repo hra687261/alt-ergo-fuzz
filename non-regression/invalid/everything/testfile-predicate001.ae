@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 logic f : int -> prop
 logic r : int -> prop
 

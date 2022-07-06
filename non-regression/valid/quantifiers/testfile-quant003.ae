@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type t
 logic Q: prop
@@ -10,8 +11,8 @@ logic g: 'a,'a -> 'a
 
 axiom a7: forall x:'a. forall y:'a. not toto(x,y)
 
-axiom a8: 
+axiom a8:
   forall x:'a. (forall y:'a. toto(x,y) -> x=y) -> predi(x)
 
-goal g5: 
+goal g5:
   predi(a)

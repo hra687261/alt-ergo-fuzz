@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 logic f: int -> int
@@ -5,5 +6,5 @@ logic a, b:int
 
 goal g11:
   a = b ->
-  f(f(a) - f(b)) = f(f(b)-f(a)) 
+  f(f(a) - f(b)) = f(f(b)-f(a))
 

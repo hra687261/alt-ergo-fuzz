@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 (* this is a prelude for Alt-Ergo*)
 (* this is a prelude for Alt-Ergo integer arithmetic *)
 logic safe_comp_div: int, int -> int

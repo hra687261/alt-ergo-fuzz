@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type memory
 type uint16
 logic integer_of_uint16 : uint16 -> int

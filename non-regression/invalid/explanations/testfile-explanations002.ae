@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 type 'a list
 
@@ -11,7 +12,7 @@ axiom length_def_1 : length(nil) = 0
 logic mem : 'a, 'a list -> prop
 
 
-axiom mem_def_2 : 
+axiom mem_def_2 :
   forall x:'a. forall y:'a. forall l:'a list[mem(x,l),cons(y,l)].
   mem(x, cons(y,l))  <->   (x = y or mem(x,l))
 

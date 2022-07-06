@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type s = A of { a1 : int; a2 : int ; a3 : bool}
 and  t = B of { b1 : int ; b2 : int; b3 : real}
 

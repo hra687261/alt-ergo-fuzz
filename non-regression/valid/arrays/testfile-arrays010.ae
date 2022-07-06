@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 goal g10 :
@@ -7,5 +8,5 @@ goal g10 :
   i = 2 ->
   j = 2 ->
   b = a[j<-v] ->
-  v = b[i] 
+  v = b[i]
 

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 logic a : (int,int) farray
 logic i, j : int
 logic v, w : int

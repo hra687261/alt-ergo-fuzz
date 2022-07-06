@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 type t = A | B | C | D
 
 goal g1 : forall a : ('a,t) farray.

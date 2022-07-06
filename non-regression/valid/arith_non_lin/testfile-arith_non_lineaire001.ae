@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 goal sum_po_7:
   forall n,i,s:int.

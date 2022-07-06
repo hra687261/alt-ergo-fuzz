@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type ('a, 'b) s =
        A of { sel_A1 : 'a ; sel_A2 : int }
      | B of { sel_B1 : 'b }

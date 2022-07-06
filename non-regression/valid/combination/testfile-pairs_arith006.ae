@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type 'a pair = {fst : 'a ; snd : 'a}
 type elt

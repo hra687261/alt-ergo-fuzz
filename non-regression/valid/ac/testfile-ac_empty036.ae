@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 type a
@@ -5,8 +6,8 @@ type a
 logic a,b,c, beta,gamma : a
 logic ac f : a,a -> a
 
-goal g36 : 
-  f(a,b) = gamma ->  
-  beta   = f(a,c) -> 
-  f(c,gamma) = f(b,beta) 
+goal g36 :
+  f(a,b) = gamma ->
+  beta   = f(a,c) ->
+  f(c,gamma) = f(b,beta)
 

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type a
 logic fi : int -> a
@@ -12,5 +13,5 @@ goal g7 :
   i = fi(2) ->
   j = fi(1) ->
   b = a[j<-v] ->
-  a[i] = b[i] 
+  a[i] = b[i]
 

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 (* [BugFix#5] in Formula.mk_forall: when we reuse existing lemmas ==>
 buggy because some additional tests were missing *)
 

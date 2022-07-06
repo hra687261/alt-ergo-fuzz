@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type 'a pointer
 type 'a pset
@@ -7,8 +8,8 @@ logic Q : int , int -> prop
 
 axiom a:
   (forall x:int.
-     (P(x) <-> 
-	(exists i:int. 
+     (P(x) <->
+	(exists i:int.
 	   exists r: int. Q(r,i))))
 
 goal g8: Q(1,2) -> P(4)

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type a
 logic fi : int -> a
 logic ti : a -> int

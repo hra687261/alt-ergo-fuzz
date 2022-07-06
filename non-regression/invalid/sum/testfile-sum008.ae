@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 
 type t = A | B
@@ -9,4 +10,4 @@ goal g8:
   exists y:int.
   f(x,y) = f(A,y) and f(x,y) = f(B,y)
 
-    
+

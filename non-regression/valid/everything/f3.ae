@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type t
 logic f : t -> t
 logic x0 : t
@@ -14,5 +15,5 @@ logic dist : int, int -> int
 
 
 goal g :
-exists t1:int. f(x0) = iter(t1, x0) 
+exists t1:int. f(x0) = iter(t1, x0)
 

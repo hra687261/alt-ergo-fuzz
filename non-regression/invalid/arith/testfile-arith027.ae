@@ -1,7 +1,8 @@
+(*(set-info :status unknown)*)
 logic x : real
 
 goal g :
-  x <= 1. -> 
+  x <= 1. ->
   x > 0. ->
   1. <= x ->
   false

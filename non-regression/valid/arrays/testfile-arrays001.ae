@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 goal g1:
   forall t1: int farray.

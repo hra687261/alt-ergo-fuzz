@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 goal g15 :
   forall a1,a2,a3,a4,b1,b2 : int farray.

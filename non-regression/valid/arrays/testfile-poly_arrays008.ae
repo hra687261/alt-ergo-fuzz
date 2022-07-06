@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 goal g8 :
   forall i,j:'a.

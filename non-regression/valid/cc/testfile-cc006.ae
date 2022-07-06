@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 logic f, g : int -> int
 logic h: int,int -> int

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type 'a tableau
 
 logic acc : 'a tableau, int -> 'a
@@ -24,7 +25,7 @@ axiom not_not_in_singleton:
 axiom a1:
   forall m1: 'a tableau.
   forall m2: 'a tableau.
-  forall l: pset. 
+  forall l: pset.
   ( forall p:int.
     (not_in_pset(p, l) -> (acc(m2, p) = acc(m1, p)))) -> not_assigns(m1,m2,l)
 
@@ -33,5 +34,5 @@ goal g:
   forall a:'a.
   forall t1:'a tableau.
   forall t2:'a tableau.
-  t2 = upd(t1,i,a) -> 
+  t2 = upd(t1,i,a) ->
   not_assigns(t1,t2,pset_singleton(i))

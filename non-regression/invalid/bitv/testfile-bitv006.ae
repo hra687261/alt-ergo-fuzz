@@ -1,2 +1,3 @@
+(*(set-info :status unknown)*)
 
 goal g6: forall x:bitv[3].  x^{0,1} = [|01|]

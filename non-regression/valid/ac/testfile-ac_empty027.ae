@@ -1,11 +1,12 @@
+(*(set-info :status valid)*)
 
 
 logic aa,a,b,c, beta,gamma : int
 logic ac f : int,int -> int
 
-goal g27 : 
-  f(a,b) = gamma ->  
-  beta   = f(aa,c) -> 
+goal g27 :
+  f(a,b) = gamma ->
+  beta   = f(aa,c) ->
   a = aa ->
-  f(c,gamma) = f(b,beta) 
+  f(c,gamma) = f(b,beta)
 

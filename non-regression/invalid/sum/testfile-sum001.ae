@@ -1,6 +1,7 @@
+(*(set-info :status unknown)*)
 
 type t = A | B | C
 
-goal g1: 
-  A = B or B = C or A = C 
-    
+goal g1:
+  A = B or B = C or A = C
+

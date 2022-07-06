@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 logic t1,t2,t3,t4,t5 : int farray
 logic P: 'a -> prop
 logic x:int

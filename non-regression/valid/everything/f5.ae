@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type list
 
 logic a : list
@@ -5,7 +6,7 @@ logic a : list
 logic f : list , list -> list
 
 axiom f_def :
-  forall l1, l2:list [f(l1, l2)]. 
+  forall l1, l2:list [f(l1, l2)].
   f(a, a) = l2 and
   forall x:list[x]. x = a
 

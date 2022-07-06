@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 logic ac v,u : int,int -> int
 logic f: int -> int

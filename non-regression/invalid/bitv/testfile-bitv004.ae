@@ -1,2 +1,3 @@
+(*(set-info :status unknown)*)
 
 goal g4: [|01|]=[|1001|]^{2,3}

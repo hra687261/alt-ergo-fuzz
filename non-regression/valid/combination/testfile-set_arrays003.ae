@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type b
 logic is_true : b -> prop

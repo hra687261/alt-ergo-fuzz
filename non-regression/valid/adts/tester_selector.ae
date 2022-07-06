@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type t =
   A of { a_1 : int} | B of {b_11 : int ; b_12 : real } | C | D | E
 

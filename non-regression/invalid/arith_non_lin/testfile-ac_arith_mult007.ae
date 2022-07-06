@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 logic a, b, x, y:int
 logic a1,b1 , x1, y1:int
 

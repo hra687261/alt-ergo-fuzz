@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 type 'a list
 logic nil : 'a list
 logic length: 'a list -> int

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 logic P,Q,R : int -> prop
 
 axiom a1: forall x:int[P(x)]. P(x) -> R(x)

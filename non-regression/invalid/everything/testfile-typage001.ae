@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 axiom a2: forall x,y:unit [x,y]. x=y
 

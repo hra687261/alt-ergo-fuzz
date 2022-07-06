@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type  ilist
 logic ICons : int, ilist -> ilist
@@ -9,6 +10,6 @@ axiom a :
 	(ICons (x1, x2) = x) or (INil = x))
    and
      (forall y : int.forall x1 : ilist.(not (INil = ICons (y, x1)))))
-  
+
 goal g10 : (not (INil = ICons (1, INil)))
 

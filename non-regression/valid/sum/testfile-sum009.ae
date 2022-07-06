@@ -1,5 +1,6 @@
+(*(set-info :status valid)*)
 
-type t = A | B 
+type t = A | B
 
 logic ac u : t, t -> t
 
@@ -8,4 +9,4 @@ forall x,y : t.
   x = u(A,y) ->
   y <> B ->
   x = u(A,A)
-    
+

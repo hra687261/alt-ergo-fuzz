@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 logic p, q : int -> prop
 
 axiom a: forall x : int. not p(x) or forall y:int. q(y)

@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 logic x, y : int
 axiom a : x = 10
 axiom b : y = 100

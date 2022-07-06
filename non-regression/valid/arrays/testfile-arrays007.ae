@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 goal g7 :
@@ -7,5 +8,5 @@ goal g7 :
   i = 2 ->
   j = 1 ->
   b = a[j<-v] ->
-  a[i] = b[i] 
+  a[i] = b[i]
 

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 goal g18 :
@@ -5,6 +6,6 @@ goal g18 :
   forall v1,v2 : 'a.
   forall a : 'a farray.
   i = 1 ->
-  j = 2 -> 
+  j = 2 ->
   a[i<-v1, j<-v2] = a[j<-v2, i<-v1]
 

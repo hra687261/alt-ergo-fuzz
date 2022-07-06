@@ -1,6 +1,6 @@
+(*(set-info :status unknown)*)
 goal g:
   let x = 1 in
   (forall x : int[x].
     x = 1
   )
-  

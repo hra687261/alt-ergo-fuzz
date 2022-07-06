@@ -1,5 +1,6 @@
+(*(set-info :status unknown)*)
 
 logic x:int
-goal g5 : x/x = 1 
+goal g5 : x/x = 1
 
 

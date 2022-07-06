@@ -1,4 +1,5 @@
-axiom a: 
+(*(set-info :status valid)*)
+axiom a:
       exists x : int. x = 1 and -x = 0
 
 

@@ -1,4 +1,5 @@
- 
+(*(set-info :status unknown)*)
+
 
 type t
 logic P : int -> prop

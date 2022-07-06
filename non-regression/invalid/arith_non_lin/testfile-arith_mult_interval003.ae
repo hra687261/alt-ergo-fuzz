@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 (* There was a bug in Intervals.root (an explanation
 was lost when removing an empty interval) =>
 fixed (temporarily ?) by adding a global explanation

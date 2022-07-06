@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 type t = A | B

@@ -1,4 +1,5 @@
+(*(set-info :status unknown)*)
 
 logic x:int
-goal g6 : 0/0 = 1 
+goal g6 : 0/0 = 1
 

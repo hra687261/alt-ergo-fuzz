@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 logic A,B : prop
 
 goal g1: A -> (A -> not A)

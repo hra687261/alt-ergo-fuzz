@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 goal g17 :
@@ -6,7 +7,7 @@ goal g17 :
   forall b : 'a farray.
   b = b[j<-b[i],k<-w] ->
   i = 1 ->
-  j = 2 -> 
-  k = 1 -> 
+  j = 2 ->
+  k = 1 ->
   b[i] = b[j]
 

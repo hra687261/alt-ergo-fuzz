@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 goal g:
   (let x = 1 in
   (forall x : int.
@@ -6,4 +7,3 @@ goal g:
    2 * x = 206
   ) and
   x = 103)
-  

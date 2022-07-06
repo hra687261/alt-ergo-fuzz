@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type b = T | F
 (*type 'a set = ('a,b) farray*)
 

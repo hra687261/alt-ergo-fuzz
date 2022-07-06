@@ -1,4 +1,5 @@
+(*(set-info :status unknown)*)
 
 goal g19 : forall x,y,z,t:int.  30*x = 15*y + 10*z + t ->
-     t = 5 -> false 
+     t = 5 -> false
 

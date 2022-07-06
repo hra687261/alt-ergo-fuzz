@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 (* this is the prelude for Alt-Ergo, any versions *)
 (* this is a prelude for Alt-Ergo integer arithmetic *)
 logic match_bool : bool, 'a, 'a -> 'a

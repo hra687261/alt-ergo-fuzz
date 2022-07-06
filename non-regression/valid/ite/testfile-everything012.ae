@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 logic ite : bool, 'a1, 'a1 -> 'a1
 

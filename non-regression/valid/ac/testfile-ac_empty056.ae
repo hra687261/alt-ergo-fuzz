@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 logic a,b,c,x,gamma,beta,delta,omega : int

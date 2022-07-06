@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 goal g39 (*sqrt_po_8*):
   forall x,y:int.

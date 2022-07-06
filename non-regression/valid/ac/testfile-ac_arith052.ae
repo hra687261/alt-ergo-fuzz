@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 logic a,b,c,gamma,beta,t2,t4:int
@@ -9,4 +10,4 @@ goal g52 :
   1 = t2 ->
   t4 = 2 * t2->
   f(beta,c+2)= gamma
-  
+

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type 'a pair = {fst : 'a ; snd : 'a}
 
@@ -6,7 +7,7 @@ logic ac u : set, set -> set
 
 logic a,b,c,d,e,f:set
 
-goal g1 : 
-  {fst=u(a,b); snd=c}= {fst=u(a,b);snd=d} -> 
+goal g1 :
+  {fst=u(a,b); snd=c}= {fst=u(a,b);snd=d} ->
   c = d
 

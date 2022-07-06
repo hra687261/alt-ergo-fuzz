@@ -1,9 +1,10 @@
+(*(set-info :status valid)*)
 
 
 logic a,b,c,d,e,f,g,h,x,y,z,t : int
 logic ac k : int, int -> int
- 
-goal g67: 
+
+goal g67:
   k(a,b)  =x ->
   k(b,g)  =y ->
   k(k(a,c),e)=z ->

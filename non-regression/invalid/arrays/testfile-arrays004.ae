@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 goal g4:
   forall t1: int farray.

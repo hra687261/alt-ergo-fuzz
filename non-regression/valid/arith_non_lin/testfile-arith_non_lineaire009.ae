@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 logic min : int, int -> int
 logic P, Q : int -> prop
 
@@ -32,4 +33,3 @@ y - (j * E) = y - (j * E)  ->
 
  (* 1 , 5 *)  P(y) ) ->
 false
- 

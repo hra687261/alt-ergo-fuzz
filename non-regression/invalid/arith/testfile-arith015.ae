@@ -1,5 +1,6 @@
+(*(set-info :status unknown)*)
 
 logic x,y : int
- 
+
 goal g15 : x > 0 -> y > 0 -> x/y >0
 

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 logic f, g : int -> int
@@ -6,5 +7,5 @@ logic a, b:int
 
 goal g7:
   h(g(a),g(b)) = g(b) ->
-  g(f(h(g(a),g(b))) - f(g(b))) = g(0) 
+  g(f(h(g(a),g(b))) - f(g(b))) = g(0)
 

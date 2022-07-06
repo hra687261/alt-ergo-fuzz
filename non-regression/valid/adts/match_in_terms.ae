@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type ('a, 'b) t =
   A of {a_1 : 'a}
   | B of {b_11 : 'a ; b12 : 'b}

@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type foo = Foo_A | Foo_B | Foo_C of { c_field : foo } (* recursive *)
 
 type bar = Bar_X of { xxx : foo } | Bar_Y

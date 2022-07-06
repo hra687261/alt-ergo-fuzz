@@ -1,4 +1,5 @@
+(*(set-info :status valid)*)
 goal g:
-   forall a:real. 
+   forall a:real.
    1. / a > 0. ->
    a >= 0.

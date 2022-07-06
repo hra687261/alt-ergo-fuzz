@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 logic f : int -> prop
 logic r : int -> prop
 

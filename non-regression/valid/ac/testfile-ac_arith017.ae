@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 logic ac f : int,int -> int
@@ -5,7 +6,7 @@ logic a,b,c,gamma,beta,x:int
 
 goal g17:
   f(a,b) = gamma ->
-  x = 0 -> 
-  f(a,c) = beta + x -> 
+  x = 0 ->
+  f(a,c) = beta + x ->
   f(c,gamma) = f(b,beta)
 

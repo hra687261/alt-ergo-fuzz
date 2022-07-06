@@ -1,4 +1,5 @@
 (set-logic ALL)
+(set-info :status unknown)
 (declare-fun a () Int)
 (declare-fun b () Int)
 (declare-fun c () Int)

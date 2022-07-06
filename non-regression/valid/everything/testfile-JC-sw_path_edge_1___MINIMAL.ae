@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type loc
 
 type 'a list

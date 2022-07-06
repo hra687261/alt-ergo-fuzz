@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 
@@ -5,6 +6,6 @@ goal g13 :
   forall i,j:int.
   forall v : 'a.
   forall b : 'a farray.
-  i = j -> 
+  i = j ->
   b = b[j <- b[i]]
 

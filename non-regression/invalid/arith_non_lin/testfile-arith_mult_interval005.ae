@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 (* this should be invalid (model below) *)
 goal g:
 forall a, b, b1, y, y1 : int.
@@ -24,4 +25,4 @@ b1 >= 1 ->
 y >= 0 ->
 y1 <= 0 ->
 
-false 
+false

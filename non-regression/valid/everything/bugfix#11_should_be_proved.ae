@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 type t
 
 logic g : t -> t
@@ -13,7 +14,7 @@ g(f(a,z)) <> a  ->
 a = g(f(b,z))  ->
 
 (*
-Here although the pivot is a |-> g(f(b,z)), 
+Here although the pivot is a |-> g(f(b,z)),
 f(a,z) |-> f(g(f(b,z)),z) should also be considered as a pivot
 to correctly update use table. In fact, entry
 f(a,z) ---> { g(f(a,z)) } should become

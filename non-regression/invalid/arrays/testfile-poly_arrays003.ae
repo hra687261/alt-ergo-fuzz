@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 goal g3 :
   forall i,j:'a.

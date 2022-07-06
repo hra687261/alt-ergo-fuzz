@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 
 goal g4: forall x,y,z:int.

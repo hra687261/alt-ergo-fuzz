@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 logic match_bool : bool, 'a, 'a -> 'a
 
 type ('a1,
@@ -150,7 +151,7 @@ function lenr(u: 'a24 queue) : int = match_queue(u, Q_proj_4(u))
 
 
 function rear(u: 'a24 queue) : 'a24 list = match_queue(u, Q_proj_3(u))
-      
+
 
 predicate inv(q: 'a26 queue) = ((length(front(q)) = lenf(q)) and
   ((length(rear(q)) = lenr(q)) and (lenr(q) <= lenf(q))))

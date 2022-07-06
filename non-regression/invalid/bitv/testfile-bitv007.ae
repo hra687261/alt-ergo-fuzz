@@ -1,2 +1,3 @@
+(*(set-info :status unknown)*)
 
 goal g7: forall x,y:bitv[2]. x=[|10|] -> y=[|01|] -> y@x=[|1001|]

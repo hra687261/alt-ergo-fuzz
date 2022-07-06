@@ -1,10 +1,11 @@
+(*(set-info :status unknown)*)
 
 
 goal g6 :
   forall i,j:int.
   forall v : 'a.
   forall a,b : 'a farray.
-  i = 1 -> 
+  i = 1 ->
   b = a[j<-v] ->
   a[i] = b[i]
 

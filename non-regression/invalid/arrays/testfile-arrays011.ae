@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 
 goal g11 :
   forall i,j:int.

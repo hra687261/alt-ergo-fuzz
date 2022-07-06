@@ -1,4 +1,6 @@
+(*(set-info :status unknown)*)
 logic b1, b2, b3 : bool
+logic g: bool -> int
 
 goal g:
    g(b1) = 1 ->

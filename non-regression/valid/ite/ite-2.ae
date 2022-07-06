@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 (*** There are now builtin ****
 axiom tmp_before_builtin_1:
  forall y, z : 'a[if true then y else z].

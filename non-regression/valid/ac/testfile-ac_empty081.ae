@@ -1,6 +1,7 @@
+(*(set-info :status valid)*)
 
 
-logic ac f : int,int -> int 
+logic ac f : int,int -> int
 logic a,b,c,beta,gamma : int
 
 goal g81 :

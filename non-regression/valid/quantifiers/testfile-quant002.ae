@@ -1,3 +1,4 @@
+(*(set-info :status valid)*)
 
 type t
 logic P,R,T,H,Q: 'a -> prop
@@ -8,5 +9,5 @@ logic g: 'a,'a -> 'a
 
 axiom a5: forall x:'a. P(x) -> forall y:'a. Q(g(x,y))
 
-goal g4: 
+goal g4:
   P(a) -> Q(g(a,b))

@@ -1,3 +1,4 @@
+(*(set-info :status unknown)*)
 logic div : int, int -> int
 
 predicate in_range(x: int) =
