@@ -1,4 +1,6 @@
 
+(* Command line utils *)
+
 type answer = Sat | Unsat | Unknown
 
 type solver =
@@ -10,14 +12,31 @@ type solver =
 
 type output_lang = Native | Smtlib2
 
+val pp_output_lang: Format.formatter -> output_lang -> unit
+
+type terminal = GnomeTerminal | XTerm | Konsole
+
+val pp_terminal: Format.formatter -> terminal -> unit
+
+(* Helpers *)
+
+val terminal_wrap_cmd: terminal -> string -> string
+
+val (<+>): 'a option -> 'a -> 'a
+
+val opt_app: ('a -> 'b) -> default:'b -> 'a option -> 'b
+
+val opt_app_fmt: ('a -> unit, Format.formatter, unit) format ->
+  Format.formatter -> 'a option -> unit
+
+(* Testing utils *)
+
 exception Unsoundness
 exception InternalCrash
 exception Timeout
 exception Other of string
 
 module IM: Map.S with type key = int
-
-val pp_output_lang: Format.formatter -> output_lang -> unit
 
 type bug_info = {
   id: int;
@@ -36,21 +55,14 @@ val im_to_list: answer list IM.t -> (solver * answer list) list
 
 val exn_to_str: exn -> string
 
-val handle_unsoundness_bug:
-  ?verbose:bool ->
-  ?output_folder_path:string ->
-  int ->
-  exn ->
-  Ast.stmt_c list ->
-  answer list IM.t -> unit
+val handle_unsoundness_bug: ?verbose:bool -> ?output_folder_path:string ->
+  int -> exn -> Ast.stmt_c list -> answer list IM.t -> unit
 
-val handle_failure_bug:
-  ?verbose:bool ->
-  ?output_folder_path:string ->
-  int -> exn -> Ast.stmt_c list -> unit
+val handle_failure_bug: ?verbose:bool -> ?output_folder_path:string -> int ->
+  exn -> Ast.stmt_c list -> unit
 
-val cmp_answers:
-  answer list IM.t -> int -> unit
+val cmp_answers: answer list IM.t -> int -> unit
 
-val pp_answers:
-  answer list IM.t -> unit
+val pp_answers: answer list IM.t -> unit
+
+val cpu_count: unit -> int
