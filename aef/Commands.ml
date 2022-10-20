@@ -60,7 +60,7 @@ let rec rmrf path =
 let init () =
   List.iter mkdir dirs;
   let oc = open_out input_file in
-  Format.fprintf (Format.formatter_of_out_channel oc) "000000";
+  Format.fprintf (Format.formatter_of_out_channel oc) "000000@.";
   close_out oc
 
 let cleanup () =
