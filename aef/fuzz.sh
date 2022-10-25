@@ -7,7 +7,7 @@ TERM=gnome-terminal
 DIR=$(dirname "$BASH_SOURCE")
 INPUTDIR="$DIR"/input/
 OUTPUTDIR="$DIR"/output/
-EXEC="$DIR"/../_build/default/aef/main.exe
+EXEC="$DIR"/../_build/default/aef/alt_ergo_fuzz.exe
 
 PARAMS=""
 NBCORES=0

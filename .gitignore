@@ -20,6 +20,7 @@ AB-Why3-plugin.cmxs
 fm-simplex-plugin.cma
 fm-simplex-plugin.cmxs
 rsc/extra/ocpchecker/ocp-checker
+alt_ergo_fuzz.exe
 
 # Generated documentation files
 rsc/extra/index.html
@@ -41,7 +42,6 @@ _opam
 alt-ergo.js
 alt-ergo-worker.js
 www/
-
 
 # Generated fuzzing output files
 aef/fuzz_output

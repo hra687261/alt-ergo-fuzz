@@ -1,25 +1,5 @@
 open Utils
 
-(* TODO: add the init, cleanup, kill_all and rename commands. *)
-
-module Run = struct
-  let cmd =
-    let open Cmdliner in
-    let aux verbose =
-      Crowbar.add_test
-        ~name:"alt-ergo-fuzz" [Generator.stmts_gen ()]
-        (Common.test_fun ~verbose)
-    in
-    let doc =
-      "Run AEF in QuickCheck mode"
-    and verbose =
-      Arg.(value & flag & info ["v";"verbose"]
-             ~doc:"Set verbose printing to true")
-    in
-    Cmd.v (Cmd.info ~doc "run")
-      (Term.(const aux $ verbose))
-end
-
 module Fuzz = struct
 
   let term_list = [
@@ -44,7 +24,8 @@ module Fuzz = struct
       string option -> bool -> bool -> terminal option -> unit  =
       fun verbose parallel timeout memory input output tofiles print
         terminal ->
-        Commands.run verbose parallel timeout memory input output tofiles print
+        ignore print;
+        Commands.run verbose parallel timeout memory input output tofiles true
           terminal
     in
     let doc =
@@ -227,7 +208,7 @@ module Kill_all = struct
     let open Cmdliner in
     let doc =
       "Kill the instances of AFL, the output of which was redirected to files \
-       the files in $DATA_DIR/afl_out/"
+       the files in DATA_DIR/afl_out/"
     in
     Cmd.v (Cmd.info ~doc "kill_all")
       (Term.(const Commands.kill_all $ const ()))
@@ -268,12 +249,22 @@ let parse_opt () =
       `S "COMMANDS";
       `S "OPTIONS";
     ] in
-    let def = Term.(const (fun () -> `Help (`Pager, None)) $ const ()) in
-    Term.(ret def),
+    Term.(
+      let open Cmdliner in
+      let aux verbose =
+        Crowbar.add_test
+          ~name:"alt-ergo-fuzz" [Generator.stmts_gen ()]
+          (Common.test_fun ~verbose)
+      in
+      let verbose =
+        Arg.(value & flag & info ["v";"verbose"]
+               ~doc:"Set verbose printing to true")
+      in
+      const aux $ verbose
+    ),
     Cmd.info ~version:"dev" ~man ~doc "alt-ergo-fuzz"
   in
   let cmds = [
-    Run.cmd;
     Fuzz.cmd;
     Rerun.cmd;
     Translate.cmd;

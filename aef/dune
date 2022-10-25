@@ -1,8 +1,21 @@
-(executables
- (names main)
- (public_names main)
+(executable
+ (name alt_ergo_fuzz)
+ (public_name alt-ergo-fuzz)
+ (package alt-ergo-fuzz)
  (libraries alt-ergo-lib crowbar)
  (modules_without_implementation translater)
- (package alt-ergo-lib)
+ (promote
+  (into ../)
+  (until-clean))
  ;(instrumentation (backend bisect_ppx))
  )
+
+(rule
+ (with-stdout-to
+  alt-ergo-fuzz.1
+  (run ./alt_ergo_fuzz.exe --help=groff)))
+
+(install
+ (section man)
+ (package alt-ergo-fuzz)
+ (files alt-ergo-fuzz.1))
