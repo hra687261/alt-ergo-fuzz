@@ -231,61 +231,54 @@ let cmp_answers m cmp_to =
   in
   ()
 
-let pp_answers  =
-  let _FIELD_WIDTH_ = 12 in
-  let print_answer fmt ans =
-    match ans with
-    | Sat ->
-      Format.fprintf fmt "Sat%s"
-        (String.init (_FIELD_WIDTH_ - 3) (fun _ -> ' '))
-    | Unsat -> Format.fprintf fmt "Unsat%s"
-                 (String.init (_FIELD_WIDTH_ - 5) (fun _ -> ' '))
-    | Unknown -> Format.fprintf fmt "Unknown%s"
-                   (String.init (_FIELD_WIDTH_ - 6) (fun _ -> ' '))
-  in
+let mk_str_mid l s =
+  let sl = String.length s in
+  if sl >= l
+  then
+    failwith (Format.sprintf "Field width(%d) larger than expected(%d)" sl l)
+  else
+    let slml = l - sl in
+    let ld2,lm2 = slml / 2, slml mod 2 in
+    Format.sprintf "%s%s%s"
+      (String.init ld2 (fun _ -> ' ')) s
+      (String.init (ld2 + lm2) (fun _ -> ' '))
+
+let pp_answers =
+  let _FIELD_WIDTH_ = 24 in
   let rec pp_aux (ll: answer list list) =
-    let rr, rll =
-      List.fold_left (
-        fun (b, acc) l ->
-          if not b then false, []
-          else
+    if not (List.for_all (fun l -> List.length l = 0) ll) then
+      let rll =
+        List.fold_left (
+          fun acc l ->
             match l with
             | h :: t ->
-              Format.printf "%a" print_answer h;
-              true, t :: acc
-            | [] -> false, []
-      ) (true, []) ll
-    in
-    Format.printf "\n";
-    if rr
-    then pp_aux (List.rev rll)
-    else ()
+              Format.printf "%s" (
+                match h with
+                | Sat -> mk_str_mid _FIELD_WIDTH_ "Sat"
+                | Unsat -> mk_str_mid _FIELD_WIDTH_ "Unsat"
+                | Unknown -> mk_str_mid _FIELD_WIDTH_ "Unknown"
+              );
+              t :: acc
+            | [] -> [] :: acc
+        ) [] ll
+      in
+      Format.printf "@.";
+      pp_aux (List.rev rll)
   in
   fun (_m: answer list IM.t) ->
     let bindings = IM.bindings _m in
-    let rev_ans_llist =
+    let rev_ans_ll =
       List.rev_map (
         fun (solv, ansl) ->
-          (* Apparently OCaml doesn't support the precision field *)
-          (* Format.printf "%.*s" 5
-             (Format.asprintf "%a" print_solver (sid_to_solver s)); *)
-          let solvstr =
+          Format.printf "%s" (
+            mk_str_mid _FIELD_WIDTH_ @@
             Format.asprintf "%a" print_solver (sid_to_solver solv)
-          in
-          let slen = String.length solvstr in
-          if slen > _FIELD_WIDTH_ then
-            failwith (
-              Format.sprintf
-                "Field width(%d) larger than expected(%d)"
-                slen _FIELD_WIDTH_
-            );
-          Format.printf "%s%s" solvstr
-            (String.init (_FIELD_WIDTH_ - slen) (fun _ -> ' '));
+          );
           ansl
       ) bindings
     in
-    Format.printf "\n";
-    pp_aux (List.rev rev_ans_llist)
+    Format.printf "@.";
+    pp_aux (List.rev rev_ans_ll)
 
 let cpu_count () =
   try match Sys.os_type with
