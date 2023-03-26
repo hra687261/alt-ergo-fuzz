@@ -26,6 +26,8 @@ val hash : t -> int
 
 val print : Format.formatter -> t -> unit
 
+val pp_vrb : Format.formatter -> t -> unit
+
 val to_string : t -> string
 
 val save_cnt: unit -> unit

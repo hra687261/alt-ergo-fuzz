@@ -43,6 +43,47 @@ type t =
     assumed_neg_preds : Ex.t ME.t;
   }
 
+module Pp = Pp_utils
+module F = Format
+
+let pp_vrb ppf {
+    pending_deds; guarded_pos_deds; guarded_neg_deds;
+    assumed_pos_preds; assumed_neg_preds
+  } =
+  let pp_e = E.pp_bis in
+  let pp_ex = Ex.pp_bis in
+  let pp_dex = Pp.pp_doublet pp_e pp_e in
+
+  let module MEP = Pp.MapPrinter(ME) in
+  let module ME2P = Pp.MapPrinter(ME2) in
+
+  let pp_se2 = Pp.pp_set (module SE2) pp_dex in
+
+  let pg_p = "pending_deds = " in
+  let gpd_p = "guarded_pos_deds = " in
+  let gnd_p = "guarded_neg_deds = " in
+
+  let app_p = "assumed_pos_preds = " in
+  let anp_p = "assumed_neg_preds = " in
+
+  let pp_pg = ME2P.pp pp_dex pp_ex ~p:pg_p in
+  let pp_gpd = MEP.pp pp_e pp_se2 ~p:gpd_p in
+  let pp_gnd = MEP.pp pp_e pp_se2 ~p:gnd_p in
+
+  let pp_app = MEP.pp pp_e pp_ex ~p:app_p in
+  let pp_anp = MEP.pp pp_e pp_ex ~p:anp_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pg pending_deds;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gpd guarded_pos_deds;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gnd guarded_neg_deds;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_app assumed_pos_preds;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_anp assumed_neg_preds;
+
+  F.fprintf ppf "}"
+
 let empty _ =
   { pending_deds  = ME2.empty;
     guarded_pos_deds  = ME.empty;

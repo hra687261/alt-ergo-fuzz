@@ -26,6 +26,9 @@
 (*                                                                            *)
 (******************************************************************************)
 
+open Format
+open Options
+
 module Sy = Symbols
 module SMap = Sy.Map
 module SSet = Sy.Set
@@ -259,53 +262,6 @@ module TSet : Set.S with type elt = expr =
 
 module TMap : Map.S with type key = expr =
   Map.Make (struct type t = expr let compare = compare end)
-
-module H = struct
-  type elt = t
-  type t = elt
-
-  let eq t1 t2 = try
-      Sy.equal t1.f t2.f
-      && List.for_all2 (==) t1.xs t2.xs
-      && Ty.equal t1.ty t2.ty
-      &&
-      Util.compare_algebraic t1.bind t2.bind
-        (function
-          | B_lemma q1, B_lemma q2
-          | B_skolem q1, B_skolem q2 -> compare_quant q1 q2
-          | B_let a, B_let b -> compare_let a b
-          | _, (B_none | B_lemma _ | B_skolem _ | B_let _) -> assert false
-        ) = 0
-    with Invalid_argument _ -> false
-
-  let equal = eq
-
-  let hash t =
-    abs @@
-    List.fold_left
-      (fun acc x-> acc * 23 + x.tag)
-      (7 * Hashtbl.hash t.bind + 5 * Sy.hash t.f + Ty.hash t.ty)
-      t.xs
-
-  let set_id tag x = {x with tag = tag}
-
-  let initial_size = 9001
-
-  let disable_weaks () = Options.get_disable_weaks ()
-end
-
-module Labels = Hashtbl.Make(H)
-module HC = Hconsing.Make(H)
-module Hsko = Hashtbl.Make(H)
-
-module F_Htbl : Hashtbl.S with type key = t =
-  Hashtbl.Make(struct
-    type t'=t
-    type t = t'
-    let hash = hash
-    let equal = equal
-  end)
-
 
 (** pretty printing *)
 
@@ -697,6 +653,443 @@ let print_list_sep sep = Util.print_list ~sep ~pp:print
 
 let print_list fmt = print_list_sep "," fmt
 
+module H = struct
+  type elt = t
+  type t = elt
+
+  let eq t1 t2 = try
+      Sy.equal t1.f t2.f
+      && List.for_all2 (==) t1.xs t2.xs
+      && Ty.equal t1.ty t2.ty
+      &&
+      Util.compare_algebraic t1.bind t2.bind
+        (function
+          | B_lemma q1, B_lemma q2
+          | B_skolem q1, B_skolem q2 -> compare_quant q1 q2
+          | B_let a, B_let b -> compare_let a b
+          | _, (B_none | B_lemma _ | B_skolem _ | B_let _) -> assert false
+        ) = 0
+    with Invalid_argument _ -> false
+
+  let equal = eq
+
+  let hash t =
+    abs @@
+    List.fold_left
+      (fun acc x-> acc * 23 + x.tag)
+      (7 * Hashtbl.hash t.bind + 5 * Sy.hash t.f + Ty.hash t.ty)
+      t.xs
+
+  let set_id tag x = {x with tag = tag}
+
+  let initial_size = 9001
+
+  let disable_weaks () = Options.get_disable_weaks ()
+  let pp_vrb = print
+end
+
+module Labels = Hashtbl.Make(H)
+module HC = Hconsing.Make(H)
+module Hsko = Hashtbl.Make(H)
+
+module F_Htbl : Hashtbl.S with type key = t =
+  Hashtbl.Make(struct
+    type t'=t
+    type t = t'
+    let hash = hash
+    let equal = equal
+  end)
+
+let[@inline always] term_view t = t
+
+module Pp = Pp_utils
+module F = Format
+
+let rec pp_list_bis ppf = pp_list_sep_bis "," ppf
+
+and pp_list_sep_bis sep ppf = function
+  | [] -> ()
+  | [t] -> pp_bis ppf t
+  | t::l ->
+    Format.fprintf ppf "%a%s%a" pp_bis t sep
+      (pp_list_sep_bis sep) l
+
+and pp_bis ppf {f ; xs ; ty; bind; _ } =
+  match f, xs with
+  (* Formulas *)
+  | Sy.Form form, xs ->
+    begin
+      match form, xs, bind with
+      | Sy.F_Unit _, [f1; f2], _ ->
+        fprintf ppf "(%a /\\ %a)" pp_bis f1 pp_bis f2
+
+      | Sy.F_Iff, [f1; f2], _ ->
+        fprintf ppf "(%a <-> %a)" pp_bis f1 pp_bis f2
+
+      | Sy.F_Xor, [f1; f2], _ ->
+        fprintf ppf "(%a xor %a)" pp_bis f1 pp_bis f2
+
+      | Sy.F_Clause _, [f1; f2], _ ->
+        fprintf ppf "(%a \\/ %a)" pp_bis f1 pp_bis f2
+
+      | Sy.F_Lemma, [], B_lemma { user_trs ; main ; name ; binders; _ } ->
+        (*if get_verbose () then*)
+        fprintf ppf "(lemma: %s forall %a%a %a)"
+          name
+          print_binders binders
+          print_triggers user_trs
+          pp_bis main
+      (*else
+        fprintf ppf "(lem %s)" name*)
+
+      | Sy.F_Skolem, [], B_skolem { main; binders; _ } ->
+        fprintf ppf "(<sko exists %a.> %a)"
+          print_binders binders pp_bis main
+
+      | _ -> assert false
+    end
+
+  | Sy.Let, [] ->
+    let x = match bind with B_let x -> x | _ -> assert false in
+    fprintf ppf
+      "(let%a %a = %a in %a)"
+      (fun ppf x -> ignore (ppf, x) (*
+             fprintf ppf
+               "(sko = %a)" pp_bis x.let_sko*) ) x
+      Sy.print x.let_v pp_bis x.let_e pp_bis x.in_e
+
+  (* Literals *)
+  | Sy.Lit lit, xs ->
+    begin
+      match lit, xs with
+      | Sy.L_eq, a::l ->
+        fprintf ppf "(%a%a)"
+          pp_bis a (fun ppf -> List.iter (fprintf ppf " = %a" pp_bis)) l
+
+      | Sy.L_neg_eq, [a; b] ->
+        fprintf ppf "(%a <> %a)" pp_bis a pp_bis b
+
+      | Sy.L_neg_eq, a::l ->
+        fprintf ppf "distinct(%a%a)"
+          pp_bis a (fun ppf -> List.iter (fprintf ppf ", %a" pp_bis)) l
+
+      | Sy.L_built Sy.LE, [a;b] ->
+        fprintf ppf "(%a <= %a)" pp_bis a pp_bis b
+
+      | Sy.L_built Sy.LT, [a;b] ->
+        fprintf ppf "(%a < %a)" pp_bis a pp_bis b
+
+      | Sy.L_neg_built Sy.LE, [a; b] ->
+        fprintf ppf "(%a > %a)" pp_bis a pp_bis b
+
+      | Sy.L_neg_built Sy.LT, [a; b] ->
+        fprintf ppf "(%a >= %a)" pp_bis a pp_bis b
+
+      | Sy.L_neg_pred, [a] ->
+        fprintf ppf "(not %a)" pp_bis a
+
+      | Sy.L_built (Sy.IsConstr hs), [e] ->
+        fprintf ppf "(%a ? %a)" pp_bis e Hstring.print hs
+
+      | Sy.L_neg_built (Sy.IsConstr hs), [e] ->
+        fprintf ppf "not (%a ? %a)" pp_bis e Hstring.print hs
+
+      | (Sy.L_built (Sy.LT | Sy.LE) | Sy.L_neg_built (Sy.LT | Sy.LE)
+        | Sy.L_neg_pred | Sy.L_eq | Sy.L_neg_eq
+        | Sy.L_built (Sy.IsConstr _)
+        | Sy.L_neg_built (Sy.IsConstr _)) , _ ->
+        assert false
+    end
+
+  | Sy.Op Sy.Get, [e1; e2] ->
+    fprintf ppf "%a[%a]" pp_bis e1 pp_bis e2
+
+  | Sy.Op Sy.Set, [e1; e2; e3] ->
+    fprintf ppf "%a[%a<-%a]" pp_bis e1 pp_bis e2 pp_bis e3
+
+  | Sy.Op Sy.Concat, [e1; e2] ->
+    fprintf ppf "%a%@%a" pp_bis e1 pp_bis e2
+
+  | Sy.Op Sy.Extract, [e1; e2; e3] ->
+    fprintf ppf "%a^{%a,%a}" pp_bis e1 pp_bis e2 pp_bis e3
+
+  | Sy.Op (Sy.Access field), [e] ->
+    fprintf ppf "%a.%s" pp_bis e (Hstring.view field)
+
+  | Sy.Op (Sy.Record), _ ->
+    begin match ty with
+      | Ty.Trecord { Ty.lbs = lbs; _ } ->
+        assert (List.length xs = List.length lbs);
+        fprintf ppf "{";
+        ignore (List.fold_left2 (fun first (field,_) e ->
+            fprintf ppf "%s%s = %a"  (if first then "" else "; ")
+              (Hstring.view field) pp_bis e;
+            false
+          ) true lbs xs);
+        fprintf ppf "}";
+      | _ -> assert false
+    end
+
+  (* TODO: introduce PrefixOp in the future to simplify this ? *)
+  | Sy.Op op, [e1; e2] when op == Sy.Pow || op == Sy.Integer_round ||
+                            op == Sy.Max_real || op == Sy.Max_int ||
+                            op == Sy.Min_real || op == Sy.Min_int ->
+    fprintf ppf "%a(%a,%a)" Sy.print f pp_bis e1 pp_bis e2
+
+  (* TODO: introduce PrefixOp in the future to simplify this ? *)
+  | Sy.Op (Sy.Constr hs), ((_::_) as l) ->
+    fprintf ppf "%a(%a)" Hstring.print hs print_list l
+
+  | Sy.Op _, [e1; e2] ->
+    fprintf ppf "(%a %a %a)" pp_bis e1 Sy.print f pp_bis e2
+
+  | Sy.Op Sy.Destruct (hs, grded), [e] ->
+    fprintf ppf "%a#%s%a"
+      pp_bis e (if grded then "" else "!") Hstring.print hs
+
+  | Sy.In(lb, rb), [t] ->
+    fprintf ppf "(%a in %a, %a)"
+      pp_bis t Sy.print_bound lb Sy.print_bound rb
+
+  | _, [] ->
+    fprintf ppf "%a" Sy.print f
+
+  | _, _ ->
+    fprintf ppf "%a(%a)" Sy.print f pp_list_bis xs
+
+let rec pp_decl_kind ppf kind =
+  match kind with
+  | Dtheory -> F.fprintf ppf "Dtheory"
+  | Daxiom -> F.fprintf ppf "Daxiom"
+  | Dgoal -> F.fprintf ppf "Dgoal"
+  | Dpredicate e ->
+    F.fprintf ppf "Dpredicate @[<hov 2>(%a)@]"
+      pp_bis e
+  | Dfunction e ->
+    F.fprintf ppf "Dfunction @[<hov 2>(%a)@]"
+      pp_bis e
+
+and pp_binders ppf =
+  let pp_ty = Ty.print in
+  let pp_sy = Sy.print in
+  let pp_i = F.pp_print_int in
+  let pp_dbl = Pp.pp_doublet pp_ty pp_i in
+  let module SMP = Pp.MapPrinter(Sy.Map) in
+  SMP.pp pp_sy pp_dbl ppf
+
+and pp_quantified ppf {
+    name; main; toplevel;
+    user_trs; binders; sko_v;
+    sko_vty; loc; kind
+  } =
+  let pp_s = F.pp_print_string in
+  let pp_e = pp_bis in
+  let pp_b1 = F.pp_print_bool in
+  let pp_ty = Ty.print in
+
+  let n_p = "name = " in
+  let m_p = "main = " in
+  let t_p = "toplevel = " in
+
+  let ut_p = "user_trs = " in
+  let b_p2 = "binders = " in
+  let sv1_p = "sko_v = " in
+
+  let sv2_p = "sko_vty = " in
+  let l_p = "loc = " in
+  let k_p = "kind = " in
+
+  let pp_n = Pp.add_p pp_s ~p:n_p in
+  let pp_m = Pp.add_p pp_e ~p:m_p in
+  let pp_t = Pp.add_p pp_b1 ~p:t_p in
+
+  let pp_ut = Pp.pp_list pp_trg ~p:ut_p in
+  let pp_b2 = Pp.add_p pp_binders ~p:b_p2 in
+  let pp_sv1 = Pp.pp_list pp_e ~p:sv1_p in
+
+  let pp_sv2 = Pp.pp_list pp_ty ~p:sv2_p in
+  let pp_l = Pp.add_p Loc.report ~p:l_p in
+  let pp_k = Pp.add_p pp_decl_kind ~p:k_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m main;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t toplevel;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ut user_trs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_b2 binders;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sv1 sko_v;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sv2 sko_vty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l loc;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_k kind;
+
+  F.fprintf ppf  "}"
+
+and pp_letin ppf {let_v; let_e; in_e; let_sko; is_bool} =
+  let pp_sy = Sy.pp_vrb in
+  let pp_b = F.pp_print_bool in
+  let pp_e = pp_bis in
+
+  let lv_p = "let_v = " in
+  let le_p = "let_e = " in
+  let ie_p = "in_e = " in
+  let ls_p = "let_sko = " in
+  let ib_p = "is_bool = " in
+
+  let pp_lv = Pp.add_p pp_sy ~p:lv_p in
+  let pp_le = Pp.add_p pp_e ~p:le_p in
+  let pp_ie = Pp.add_p pp_e ~p:ie_p in
+  let pp_ls = Pp.add_p pp_e ~p:ls_p in
+  let pp_ib = Pp.add_p pp_b ~p:ib_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lv let_v;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_le let_e;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ie in_e;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ls let_sko;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ib is_bool;
+
+  F.fprintf ppf  "}"
+
+and pp_bind_kind ppf = function
+  | B_none -> F.fprintf ppf "B_none"
+  | B_lemma quantified ->
+    F.fprintf ppf "B_lemma @[<hov 2>(%a)@]"
+      pp_quantified quantified
+  | B_skolem quantified ->
+    F.fprintf ppf "B_skolem @[<hov 2>(%a)@]"
+      pp_quantified quantified
+  | B_let letin ->
+    F.fprintf ppf "B_let @[<hov 2>(%a)@]"
+      pp_letin letin
+
+and pp_trg ppf {
+    content; semantic; hyp;
+    t_depth; from_user; guard
+  } =
+  let pp_b = F.pp_print_bool in
+  let pp_i = F.pp_print_int in
+  let pp_e = pp_bis in
+  let pp_st = pp_strg in
+
+  let c_p = "content = " in
+  let s_p = "semantic = " in
+  let h_p = "hyp = " in
+
+  let td_p = "t_depth = " in
+  let fu_p = "from_user = " in
+  let g_p = "guard = " in
+
+  let pp_c = Pp.pp_list pp_e ~p:c_p in
+  let pp_s = Pp.pp_list pp_st ~p:s_p in
+  let pp_h = Pp.pp_list pp_e ~p:h_p in
+
+  let pp_td = Pp.add_p pp_i ~p:td_p in
+  let pp_fu = Pp.add_p pp_b ~p:fu_p in
+  let pp_g = Pp.pp_option pp_e ~p:g_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c content;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s semantic;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_h hyp;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_td t_depth;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_fu from_user;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_g guard;
+
+  F.fprintf ppf  "}"
+
+and pp_vrb ppf {
+    f; xs; ty;
+    bind; tag; vars;
+    vty; depth; nb_nodes;
+    pure; neg
+  } =
+  let pp_i = F.pp_print_int in
+  let pp_b1 = F.pp_print_bool in
+  let pp_ty = Ty.print_full in
+  let pp_sy = Sy.pp_vrb in
+  let pp_ev = pp_vrb in
+  let pp_e = pp_bis in
+  let pp_db = Pp.pp_doublet pp_ty pp_i in
+
+  let module SMP = Pp.MapPrinter(SMap) in
+
+  let f_p = "f = " in
+  let xs_p = "xs = " in
+  let ty_p = "ty = " in
+
+  let b_p = "bind = " in
+  let t_p = "tag = " in
+  let v1_p = "vars = " in
+
+  let v2_p = "vty = " in
+  let d_p = "depth = " in
+  let nn_p = "nb_nodes = " in
+
+  let p_p = "pure = " in
+  let n_p = "neg = " in
+
+  let pp_f = Pp.add_p pp_sy ~p:f_p in
+  let pp_xs = Pp.pp_list pp_ev ~p:xs_p in
+  let pp_ty = Pp.add_p pp_ty ~p:ty_p in
+
+  let pp_b2 =  Pp.add_p pp_bind_kind ~p:b_p in
+  let pp_t = Pp.add_p pp_i ~p:t_p in
+  let pp_v1 = SMP.pp pp_sy pp_db ~p:v1_p in
+
+  let pp_v2 = Pp.pp_set (module Ty.Svty) pp_i ~p:v2_p in
+  let pp_d = Pp.add_p pp_i ~p:d_p in
+  let pp_nn = Pp.add_p pp_i ~p:nn_p in
+
+  let pp_p = Pp.add_p pp_b1 ~p:p_p in
+  let pp_n = Pp.pp_option pp_e ~p:n_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_f f;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_xs xs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ty ty;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_b2 bind;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tag;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v1 vars;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v2 vty;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d depth;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nn nb_nodes;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p pure;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_n neg;
+
+  F.fprintf ppf  "}"
+
+and pp_strg ppf st =
+  let pp_e = pp_bis in
+  let pp_b = Sy.print_bound in
+  let pp_v = Var.print in
+
+  match st with
+  | Interval (e, syb1, syb2) ->
+    F.fprintf ppf "Interval @[<hov 2>(%a, %a, %a)@]"
+      pp_e e pp_b syb1 pp_b syb2
+  | MapsTo (v, e) ->
+    F.fprintf ppf "MapsTo @[<hov 2>(%a, %a)@]"
+      pp_v v pp_e e
+  | NotTheoryConst e ->
+    F.fprintf ppf "NotTheoryConst @[<hov 2>(%a)@]"
+      pp_e e
+  | IsTheoryConst e ->
+    F.fprintf ppf "IsTheoryConst @[<hov 2>(%a)@]"
+      pp_e e
+  | LinearDependency (e1, e2) ->
+    F.fprintf ppf "LinearDependency @[<hov 2>(%a, %a)@]"
+      pp_e e1 pp_e e2
+
 (** different views of an expression *)
 
 let lit_view t =
@@ -739,8 +1132,6 @@ let form_view t =
     | Sy.Let, [], B_let ({ is_bool = true; _ } as x) -> Let x
 
     | _ -> Literal t
-
-let[@inline always] term_view t = t
 
 (** Some auxiliary functions *)
 
@@ -2795,7 +3186,7 @@ type th_elt =
   }
 
 let print_th_elt fmt t =
-  Format.fprintf fmt "%s/%s: @[<hov>%a@]" t.th_name t.ax_name print t.ax_form
+  Format.fprintf fmt "%s/%s: @[<hov 2>%a@]" t.th_name t.ax_name print t.ax_form
 
 let save_cache () =
   HC.save_cache ()
@@ -2805,3 +3196,103 @@ let reinit_cache () =
   clear_subst_cache ();
   Labels.clear labels;
   HC.reinit_cache ()
+
+let pp_th_elt ppf {
+    th_name; ax_name; ax_form;
+    extends; axiom_kind
+  } =
+  let pp_s = F.pp_print_string in
+  let pp_e = pp_bis in
+  let pp_te =
+    fun ppf x ->
+      F.fprintf ppf "%s" (Util.string_of_th_ext x)
+  in
+  let pp_ak1 =
+    fun ppf x ->
+      F.fprintf ppf "%s" (Util.string_of_axiom_kind x)
+  in
+
+  let tn_p = "th_name = " in
+  let an_p = "ax_name = " in
+  let af_p = "ax_form = " in
+  let ex_p = "extends = " in
+  let ak2_p = "axiom_kind = " in
+
+  let pp_tn = Pp.add_p pp_s ~p:tn_p in
+  let pp_an = Pp.add_p pp_s ~p:an_p in
+  let pp_af = Pp.add_p pp_e ~p:af_p in
+  let pp_ex = Pp.add_p pp_te ~p:ex_p in
+  let pp_ak2 = Pp.add_p pp_ak1 ~p:ak2_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tn th_name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_an ax_name;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_af ax_form;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ex extends;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ak2 axiom_kind;
+
+  F.fprintf ppf  "}"
+
+let pp_gform ppf {
+    ff; nb_reductions; trigger_depth;
+    age; lem; origin_name;
+    from_terms; mf; gf;
+    gdist; hdist; theory_elim
+  } =
+  let pp_s = F.pp_print_string in
+  let pp_i = F.pp_print_int in
+  let pp_b = F.pp_print_bool in
+  let pp_e = pp_bis in
+
+  let ff_p = "ff = " in
+  let nr_p = "nb_reductions = " in
+  let td_p = "trigger_depth = " in
+
+  let a_p = "age = " in
+  let l_p = "lem = " in
+  let on_p = "origin_name = " in
+
+  let ft_p = "from_terms = " in
+  let mf_p = "mf = " in
+  let gf_p = "gf = " in
+
+  let gd_p = "gdist = " in
+  let hd_p = "hdist = " in
+  let te_p = "theory_elim = " in
+
+  let pp_ff = Pp.add_p pp_e ~p:ff_p in
+  let pp_nr = Pp.add_p pp_i ~p:nr_p in
+  let pp_td = Pp.add_p pp_i ~p:td_p in
+
+  let pp_a = Pp.add_p pp_i ~p:a_p in
+  let pp_l = Pp.pp_option pp_e ~p:l_p in
+  let pp_on = Pp.add_p pp_s ~p:on_p in
+
+  let pp_ft = Pp.pp_list pp_e ~p:ft_p in
+  let pp_mf = Pp.add_p pp_b ~p:mf_p in
+  let pp_gf = Pp.add_p pp_b ~p:gf_p in
+
+  let pp_gd = Pp.add_p pp_i ~p:gd_p in
+  let pp_hd = Pp.add_p pp_i ~p:hd_p in
+  let pp_te = Pp.add_p pp_b ~p:te_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ff ff;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nr nb_reductions;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_td trigger_depth;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a age;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l lem;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_on origin_name;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ft from_terms;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_mf mf;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gf gf;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gd gdist;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_hd hdist;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_te theory_elim;
+
+  F.fprintf ppf  "}"

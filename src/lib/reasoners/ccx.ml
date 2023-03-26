@@ -39,6 +39,8 @@ module type S = sig
   type t
   type r = Shostak.Combine.r
 
+  val pp_vrb : Format.formatter -> t -> unit
+
   val empty : unit -> t
 
   val empty_facts : unit -> r Sig_rel.facts
@@ -104,6 +106,24 @@ module Main : S = struct
   }
 
   type r = Shostak.Combine.r
+
+  let pp_vrb ppf {use; uf; relation} =
+    let module Pp = Pp_utils in
+    let module F = Format in
+
+    let u_p = "use = " in
+    let uf_p = "uf = " in
+    let r_p = "relation = " in
+
+    let pp_u = Pp.add_p Use.pp_vrb ~p:u_p in
+    let pp_uf = Pp.add_p Uf.pp_vrb ~p:uf_p in
+    let pp_r = Pp.add_p Rel.pp_vrb ~p:r_p in
+
+    F.fprintf ppf "{";
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_u use;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_uf uf;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_r relation;
+    F.fprintf ppf "}"
 
   let empty () = {
     use = Use.empty ;

@@ -26,9 +26,19 @@
 (*                                                                            *)
 (******************************************************************************)
 
+module Pp = Pp_utils
+module F = Format
+
 type builtin = Symbols.builtin =
     LE | LT | (* arithmetic *)
     IsConstr of Hstring.t (* ADT tester *)
+
+let print_builtin fmt = function
+  | LE -> Format.fprintf fmt "{LE}"
+  | LT -> Format.fprintf fmt "{LT}"
+  | IsConstr hs ->
+    Format.fprintf fmt "{IsConstr %a}"
+      Hstring.print hs
 
 type 'a view =
   | Eq of 'a * 'a
@@ -55,6 +65,8 @@ end
 module type S = sig
   type elt
   type t
+
+  val pp_vrb : Format.formatter -> t -> unit
 
   val make : elt view -> t
   val view : t -> elt view
@@ -141,6 +153,28 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   type t = { at : atom; neg : bool; tpos : int; tneg : int }
 
+  let print_atom_view pp_v ppf = function
+    | EQ (a, b) ->
+      Format.fprintf ppf "EQ @[<hov 2>(%a, %a)@]"
+        pp_v a pp_v b
+    | BT (b, al) ->
+      Format.fprintf ppf "BT @[<hov 2>(%a, %a)@]"
+        print_builtin b (Pp.pp_list pp_v) al
+    | PR a ->
+      Format.fprintf ppf "PR @[<hov 2>(%a)@]"
+        pp_v a
+    | EQ_LIST al ->
+      Format.fprintf ppf "PR @[<hov 2>(%a)@]"
+        (Pp.pp_list pp_v) al
+
+  let pp_atom ppf {value; uid} =
+    Format.fprintf ppf "@[<hov 2>{%a; %d}@]"
+      (print_atom_view X.print) value uid
+
+  let pp_vrb ppf {at : atom; neg; tpos; tneg} =
+    Format.fprintf ppf "@[<hov 2>(atom, %a, %b, %d, %d)@]"
+      pp_atom at neg tpos tneg
+
   let compare a1 a2 = Stdlib.compare a1.tpos a2.tpos
   let equal a1 a2 = a1.tpos = a2.tpos (* XXX == *)
   let hash a1 = a1.tpos
@@ -189,6 +223,8 @@ module Make (X : OrderedType) : S with type elt = X.t = struct
 
   module V = struct
     type elt = atom
+
+    let pp_vrb = pp_atom
 
     let eq a1 a2 =
       match a1.value, a2.value with

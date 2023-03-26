@@ -95,6 +95,12 @@ module type ATOM = sig
 
   module Set : Set.S with type elt = atom
   module Map : Map.S with type key = atom
+
+  val pp_atom_vrb : Format.formatter -> atom -> unit
+  val pp_clause_vrb : Format.formatter -> clause -> unit
+  val pp_var_vrb : Format.formatter -> var -> unit
+  val pp_env_vrb : Format.formatter -> hcons_env -> unit
+
 end
 
 module Atom : ATOM
@@ -149,6 +155,11 @@ module type FLAT_FORMULA = sig
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t
+
+  val pp_view_vrb : Format.formatter -> view -> unit
+  val pp_vrb : Format.formatter -> t -> unit
+  val pp_env_vrb : Format.formatter -> hcons_env -> unit
+
 end
 
 module Flat_Formula : FLAT_FORMULA

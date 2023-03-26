@@ -54,6 +54,7 @@ type axiom_kind = Default | Propagator
 
 val th_ext_of_string : string -> theories_extensions option
 val string_of_th_ext : theories_extensions -> string
+val string_of_axiom_kind : axiom_kind -> string
 
 (**
    generic function for comparing algebraic data types.
@@ -74,6 +75,8 @@ type matching_env =
     use_cs : bool;
     backward : inst_kind
   }
+
+val pp_menv: Format.formatter -> matching_env -> unit
 
 (** Loops from 0 to [max] and returns
     [(f max elt ... (f 1 elt (f 0 elt init)))...)].

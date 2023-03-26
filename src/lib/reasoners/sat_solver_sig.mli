@@ -71,6 +71,7 @@ module type S = sig
 
   (** [reinit_ctx ()] reinitializes the solving context. *)
   val reinit_ctx : unit -> unit
+  val pp_env : Format.formatter -> t -> unit
 
 end
 

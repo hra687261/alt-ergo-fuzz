@@ -56,6 +56,62 @@ let empty classes = {
   pending_deds = [];
 }
 
+module Pp = Pp_utils
+module F = Format
+
+let pp_vrb ppf {
+    classes; domains; seen_destr;
+    seen_access; seen_testers; selectors;
+    size_splits; new_terms; pending_deds
+  } =
+
+  let pp_e = E.pp_bis in
+  let pp_ex = Ex.pp_bis in
+  let pp_x = X.pp_vrb in
+  let pp_hs = Hs.print in
+
+  let module MXP = Pp.MapPrinter(MX) in
+  let module MHP = Pp.MapPrinter(MHs) in
+
+  let pp_se = Pp.pp_set (module SE) pp_e in
+  let pp_hss = Pp.pp_set (module HSS) pp_hs in
+  let pp_eexl = Pp.pp_list (Pp.pp_doublet pp_e pp_ex) in
+  let mhppr = MHP.pp pp_hs pp_eexl in
+  let pp_lo = Th_util.pp_lit_origin in
+  let pp_l = Sig_rel.pp_literal pp_x in
+  let pp_trl = Pp.pp_triplet pp_l pp_ex pp_lo in
+
+  let c_p = "classes = " in
+  let d_p = "domains = " in
+  let sd_p = "seen_destr = " in
+  let sa_p = "seen_access = " in
+  let st_p = "seen_testers = " in
+  let s_p = "selectors = " in
+  let ss_p = "size_splits = " in
+  let nt_p = "new_terms = " in
+  let pd_p = "pending_deds = " in
+
+  let pp_c = Pp.pp_list ~p:c_p pp_se in
+  let pp_d = MXP.pp pp_x ~p:d_p (Pp.pp_doublet pp_hss pp_ex) in
+  let pp_sd = Pp.pp_set ~p:sd_p (module SE) pp_e in
+  let pp_sa = Pp.pp_set ~p:sa_p (module SE) pp_e in
+  let pp_st = MXP.pp ~p:st_p pp_x pp_hss  in
+  let pp_s = MXP.pp ~p:s_p pp_x mhppr in
+  let pp_ss = Pp.add_p ~p:ss_p Numbers.Q.print in
+  let pp_nt = Pp.pp_set ~p:nt_p (module SE) pp_e in
+  let pp_pd = Pp.pp_list pp_trl ~p:pd_p in
+
+  F.fprintf ppf "{";
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c classes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d domains;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sd seen_destr;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sa seen_access;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_st seen_testers;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s selectors;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ss size_splits;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nt new_terms;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_pd pending_deds;
+  F.fprintf ppf "}"
 
 (* ################################################################ *)
 (*BISECT-IGNORE-BEGIN*)

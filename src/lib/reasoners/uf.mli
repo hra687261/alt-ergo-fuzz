@@ -32,6 +32,8 @@ type t
 
 type r = Shostak.Combine.r
 
+val pp_vrb : Format.formatter -> t -> unit
+
 module LX : Xliteral.S with type elt = r
 
 val empty : unit -> t

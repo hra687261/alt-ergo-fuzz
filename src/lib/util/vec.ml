@@ -11,6 +11,29 @@
 
 type 'a t = { mutable dummy: 'a; mutable data : 'a array; mutable sz : int }
 
+module Pp = Pp_utils
+module F = Format
+
+let pp pp_v ppf {dummy; data; sz} =
+
+  let pp_i = F.pp_print_int in
+
+  let d1_p = "dummy = " in
+  let d2_p = "data = " in
+  let sz_p = "sz = " in
+
+  let pp_d1 = Pp.add_p pp_v ~p:d1_p in
+  let pp_d2 = Pp.pp_array pp_v ~p:d2_p in
+  let pp_sz = Pp.add_p pp_i ~p:sz_p in
+
+  F.fprintf ppf "{";
+  if sz > 0 then begin
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d1 dummy;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d2 data;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sz sz;
+  end else F.fprintf ppf "sz=0";
+  F.fprintf ppf "}"
+
 let make capa d = {data = Array.make capa d; sz = 0; dummy = d}
 
 let init capa f d =

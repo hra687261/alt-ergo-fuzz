@@ -31,6 +31,7 @@ module SA : Set.S with type elt = Expr.t * Explanation.t
 type t
 type r = Shostak.Combine.r
 
+val pp_vrb : Format.formatter -> t -> unit
 val empty : t
 val find : r -> t -> Expr.Set.t * SA.t
 val add : r -> Expr.Set.t * SA.t -> t -> t

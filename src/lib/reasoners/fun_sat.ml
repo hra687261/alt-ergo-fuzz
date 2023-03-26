@@ -31,6 +31,9 @@ module SE = E.Set
 module ME = E.Map
 module Ex = Explanation
 
+module Pp = Pp_utils
+module F = Format
+
 module Make (Th : Theory.S) : Sat_solver_sig.S = struct
   module Inst = Instances.Make(Th)
   module CDCL = Satml_frontend_hybrid.Make(Th)
@@ -131,6 +134,25 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
         in
         e, delta
 
+    let pp_vrb ppf {mp; var_inc; var_decay} =
+      let pp_e = E.pp_bis in
+      let module MEP = Pp.MapPrinter(E.Map) in
+      let pp_f = F.pp_print_float in
+
+      let mp_p = "mp = " in
+      let vi_p = "var_inc = " in
+      let vd_p = "var_decay = " in
+
+      let pp_mp = MEP.pp ~p:mp_p pp_e pp_f in
+      let pp_vi = Pp.add_p ~p:vi_p pp_f in
+      let pp_vd = Pp.add_p ~p:vd_p pp_f in
+
+      F.fprintf ppf "{";
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_mp mp;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi var_inc;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_vd var_decay;
+      F.fprintf ppf "}"
+
   end
 
   type refs = {
@@ -174,6 +196,151 @@ module Make (Th : Theory.S) : Sat_solver_sig.S = struct
     add_inst: E.t -> bool;
     unit_facts_cache : (E.gformula * Ex.t) ME.t ref;
   }
+
+  let pp_guards ppf {current_guard; stack_elt; guards} =
+
+    let pp_e = E.pp_bis in
+    let pp_ex = Ex.pp_bis in
+    let pp_gf = E.pp_gform in
+    let pp_db1 = Pp.pp_doublet pp_gf pp_ex in
+
+    let module MEP = Pp.MapPrinter(E.Map) in
+
+    let pp_refs ppf refs = MEP.pp pp_e pp_db1 ppf refs.unit_facts in
+    let pp_er = Pp.pp_doublet pp_e pp_refs in
+
+    let cg_p = "current_guard = " in
+    let se_p = "stack_elt = " in
+    let g_p = "guards = " in
+
+    let pp_cg = Pp.add_p ~p:g_p pp_e in
+    let pp_se = Pp.pp_stack ~p:se_p pp_er in
+    let pp_g =MEP.pp ~p:cg_p pp_e pp_db1 in
+
+    F.fprintf ppf "{";
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cg current_guard;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_se stack_elt;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_g guards;
+    F.fprintf ppf "}"
+
+
+  let pp_env ppf {
+      gamma;
+      nb_related_to_goal; nb_related_to_hypo; nb_related_to_both;
+      nb_unrelated; cdcl;
+      tcp_cache; delta; decisions;
+      dlevel; plevel; ilevel;
+      tbox; unit_tbox; inst;
+      heuristics; model_gen_mode; guards;
+      add_inst = _; unit_facts_cache
+    } =
+
+    let pp_i1 = F.pp_print_int in
+    let pp_b = F.pp_print_bool in
+    let pp_e = E.pp_bis in
+    let pp_ex = Ex.pp_bis in
+    let pp_gf = E.pp_gform in
+
+    let pp_qd1 = Pp.pp_quadruplet pp_gf pp_ex pp_i1 pp_i1 in
+    let pp_se = Pp.pp_set (module E.Set) pp_e in
+    let pp_sel = Pp.pp_list pp_se in
+    let pp_db1 = Pp.pp_doublet pp_ex pp_sel in
+    let pp_qd2 = Pp.pp_quadruplet pp_gf pp_gf pp_ex pp_b in
+
+    let pp_th = Th.pp_vrb in
+    let pp_i2 = Inst.pp_vrb in
+    let pp_h = Heuristics.pp_vrb in
+    let pp_db2 = Pp.pp_doublet pp_gf pp_ex in
+
+    let module MEP = Pp.MapPrinter(E.Map) in
+
+    let g1_p = "gamma = " in
+
+    let nrtg_p = "nb_related_to_goal = " in
+    let nrth_p = "nb_related_to_hypo = " in
+    let nrtb_p = "nb_related_to_both = " in
+
+    let nu_p = "nb_unrelated = " in
+    let c_p = "cdcl = " in
+
+    let tc_p = "tcp_cache = " in
+    let d1_p = "delta = " in
+    let d2_p = "decisions = " in
+
+    let dl_p = "dlevel = " in
+    let pl_p = "plevel = " in
+    let il_p = "ilevel = " in
+
+    let t_p = "tbox = " in
+    let ut_p = "unit_tbox = " in
+    let i_p = "inst = " in
+
+    let h_p = "heuristics = " in
+    let mdm_p = "model_gen_mode = " in
+    let g2_p = "guards = " in
+
+    let ufc_p = "unit_facts_cache = " in
+
+
+    let pp_g1 = MEP.pp pp_e pp_qd1 ~p:g1_p in
+
+    let pp_nrtg = Pp.add_p pp_i1 ~p:nrtg_p in
+    let pp_nrth = Pp.add_p pp_i1 ~p:nrth_p in
+    let pp_nrtb = Pp.add_p pp_i1 ~p:nrtb_p in
+
+    let pp_nu = Pp.add_p pp_i1 ~p:nu_p in
+    let pp_c = Pp.add_p CDCL.pp_env ~p:c_p in
+
+    let pp_o = Pp.pp_option pp_db1 in
+    let pp_tc = MEP.pp pp_e pp_o ~p:tc_p in
+    let pp_d1 = Pp.pp_list pp_qd2 ~p:d1_p in
+    let pp_d2 = MEP.pp pp_e pp_i1 ~p:d2_p in
+
+    let pp_dl = Pp.add_p pp_i1 ~p:dl_p in
+    let pp_pl = Pp.add_p pp_i1 ~p:pl_p in
+    let pp_il = Pp.add_p pp_i1 ~p:il_p in
+
+    let pp_t = Pp.add_p pp_th ~p:t_p in
+    let pp_ut = Pp.add_p pp_th ~p:ut_p in
+    let pp_i = Pp.add_p pp_i2 ~p:i_p in
+
+    let pp_h = Pp.add_p pp_h ~p:h_p in
+    let pp_mdm = Pp.add_p pp_b ~p:mdm_p in
+    let pp_g2 = Pp.add_p pp_guards ~p:g2_p in
+
+    let pp_ufc = MEP.pp pp_e pp_db2 ~p:ufc_p in
+
+    F.fprintf ppf "{";
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g1 gamma;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nrtg nb_related_to_goal;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nrth nb_related_to_hypo;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nrtb nb_related_to_both;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nu nb_unrelated;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c !cdcl;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tc tcp_cache;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d1 delta;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d2 decisions;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_dl dlevel;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pl plevel;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_il ilevel;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tbox;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ut unit_tbox;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i inst;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_h !heuristics;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_mdm !model_gen_mode;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g2 guards;
+
+    F.fprintf ppf "add_inst = fun@\n";
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_ufc !unit_facts_cache;
+
+    F.fprintf ppf "}"
 
   let latest_saved_env = ref None
   let terminated_normally = ref false

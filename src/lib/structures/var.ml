@@ -57,5 +57,8 @@ let save_cnt, reinit_cnt =
   save_cnt, reinit_cnt
 
 
+let pp_vrb fmt {hs; id} =
+  Format.fprintf fmt "Var:{%a; %d}" Hstring.print hs id
+
 module Set = Set.Make(struct type t = view let compare = compare end)
 module Map = Map.Make(struct type t = view let compare = compare end)

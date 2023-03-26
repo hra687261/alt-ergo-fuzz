@@ -183,3 +183,45 @@ let new_terms env =
           (Expr.Set.union t4
              (Expr.Set.union t5
                 (Expr.Set.union t6 t7)) )))
+
+module Pp = Pp_utils
+module F = Format
+
+let pp_vrb ppf {
+    r1: Rel1.t; r2: Rel2.t; r3: Rel3.t;
+    r4: Rel4.t; r5: Rel5.t; r6: Rel6.t;
+    r7: Rel7.t
+  } =
+  let r1_p = "r1 = " in
+  let r2_p = "r2 = " in
+  let r3_p = "r3 = " in
+
+  let r4_p = "r4 = " in
+  let r5_p = "r5 = " in
+  let r6_p = "r6 = " in
+
+  let r7_p = "r7 = " in
+
+  let pp_r1 = Pp.add_p Rel1.pp_vrb ~p:r1_p in
+  let pp_r2 = Pp.add_p Rel2.pp_vrb ~p:r2_p in
+  let pp_r3 = Pp.add_p Rel3.pp_vrb ~p:r3_p in
+
+  let pp_r4 = Pp.add_p Rel4.pp_vrb ~p:r4_p in
+  let pp_r5 = Pp.add_p Rel5.pp_vrb ~p:r5_p in
+  let pp_r6 = Pp.add_p Rel6.pp_vrb ~p:r6_p in
+
+  let pp_r7 = Pp.add_p Rel7.pp_vrb ~p:r7_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r1 r1;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r2 r2;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r3 r3;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r4 r4;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r5 r5;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r6 r6;
+
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_r7 r7;
+
+  F.fprintf ppf "}"

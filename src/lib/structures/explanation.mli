@@ -86,3 +86,7 @@ val has_no_bj : t -> bool
 val compare : t -> t -> int
 
 val subset : t -> t -> bool
+
+val pp_bis : Format.formatter -> t -> unit
+
+val pp_exp_vrb : Format.formatter -> exp -> unit

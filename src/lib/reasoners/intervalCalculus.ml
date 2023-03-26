@@ -124,6 +124,211 @@ type t = {
     (Matching_types.trigger_info * Matching_types.gsubst list) list list;
 }
 
+type ineq_status =
+  | Trivial_eq
+  | Trivial_ineq of Q.t
+  | Bottom
+  | Monome of Q.t * P.r * Q.t
+  | Other
+
+module Pp = Pp_utils
+module F = Format
+
+let pp_sc_vs ppf = function
+  | Sim.Core.ValueOK -> F.fprintf ppf "ValueOK"
+  | Sim.Core.LowerKO -> F.fprintf ppf "LowerKO"
+  | Sim.Core.UpperKO -> F.fprintf ppf "UpperKO"
+
+let pp_sc_vi ppf Sim.Core.{ mini; maxi; value; vstatus; empty_dom } =
+
+  let pp_bound ppf Sim.Core.{ bvalue; explanation; } =
+    let bv_p = "bvalue = " in
+    let ex_p = "explanation = " in
+
+    let pp_bv = Pp.add_p ~p:bv_p Sim.Core.R2.print in
+    let pp_ex = Pp.add_p ~p:ex_p Ex.pp_bis in
+
+    F.fprintf ppf "{";
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_bv bvalue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ex explanation;
+    F.fprintf ppf "}"
+  in
+
+  let m1_p = "mini = " in
+  let m2_p = "maxi = " in
+  let v_p = "value = " in
+  let vs_p = "vstatus = " in
+  let ed_p = "empty_dom = " in
+
+  let pp_m1 = Pp.add_p ~p:m1_p (Pp.pp_option pp_bound) in
+  let pp_m2 = Pp.add_p ~p:m2_p (Pp.pp_option pp_bound) in
+  let pp_v = Pp.add_p ~p:v_p Sim.Core.R2.print in
+  let pp_vs = Pp.add_p ~p:vs_p pp_sc_vs in
+  let pp_ed = Pp.add_p ~p:ed_p F.pp_print_bool in
+
+  F.fprintf ppf "{";
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m1 mini;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m2 maxi;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v value;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vs vstatus;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ed empty_dom;
+  F.fprintf ppf "}"
+
+let pp_sc_ss ppf = function
+  | Sim.Core.UNK ->
+    F.fprintf ppf "UNK"
+  | Sim.Core.UNSAT r ->
+    F.fprintf ppf "UNSAT (%a)" X.print r
+  | Sim.Core.SAT ->
+    F.fprintf ppf "SAT"
+
+let pp_sc ppf Sim.Core.{
+    basic; non_basic; slake; fixme;
+    is_int; status; check_invs; nb_pivots
+  } =
+
+  let pp_b1 = F.pp_print_bool in
+  let pp_i = F.pp_print_int in
+  let pp_sc_p = Sim.Core.P.print in
+  let pp_x = X.pp_vrb in
+  let pp_sc_sx = Pp.pp_set (module Sim.Core.SX) pp_x in
+  let pp_vi_pt = Pp.pp_doublet pp_sc_vi pp_sc_p in
+  let pp_vi_sxt = Pp.pp_doublet pp_sc_vi pp_sc_sx in
+
+  let module MXP = Pp.MapPrinter(Sim.Core.MX) in
+
+  let b_p = "basic = " in
+  let nb_p = "non_basic = " in
+  let s1_p = "slake = " in
+  let f_p = "fixme = " in
+  let in_p = "is_int = " in
+  let s2_p = "status = " in
+  let ci_p = "check_invs = " in
+  let np_p = "nb_pivots = " in
+
+  let pp_b2 = MXP.pp X.print pp_vi_pt ~p:b_p  in
+  let pp_nb = MXP.pp X.print pp_vi_sxt ~p:nb_p  in
+  let pp_s1 = MXP.pp X.print pp_sc_p ~p:s1_p  in
+  let pp_f = Pp.add_p pp_sc_sx ~p:f_p  in
+  let pp_in = Pp.add_p pp_b1 ~p:in_p  in
+  let pp_s2 = Pp.add_p pp_sc_ss ~p:s2_p  in
+  let pp_ci = Pp.add_p pp_b1 ~p:ci_p  in
+  let pp_np = Pp.add_p pp_i ~p:np_p  in
+
+
+  F.fprintf ppf "{";
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_b2 basic;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nb non_basic;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 slake;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_f fixme;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_in is_int;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 status;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ci check_invs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_np !nb_pivots;
+  F.fprintf ppf "}"
+
+let pp_vrb ppf {
+    inequations; monomes; polynomes;
+    used_by; known_eqs; improved_p;
+    improved_x; classes; size_splits;
+    int_sim; rat_sim; new_uf;
+    th_axioms; linear_dep; syntactic_matching
+  } =
+  let pp_e = E.pp_bis in
+  let pp_ex = Ex.pp_bis in
+  let pp_i1 = I.print in
+  let pp_p1 = P.print in
+  let pp_q = Q.print in
+  let pp_oi = Oracle.print_inequation in
+  let pp_x = X.pp_vrb in
+  let pp_th = E.pp_th_elt in
+  let pp_gs = Matching_types.pp_gsubst in
+  let pp_ti = Matching_types.pp_trigger_info in
+
+  let module MP0P = Pp.MapPrinter(MP0) in
+  let module MXP = Pp.MapPrinter(MX0) in
+  let module MEP = Pp.MapPrinter(ME) in
+
+  let pp_sxh = Pp.pp_set (module SX) pp_x in
+  let pp_se = Pp.pp_set (module SE) pp_e in
+
+  let pp_db1 = Pp.pp_doublet pp_th pp_ex in
+  let pp_db2 = Pp.pp_doublet pp_i1 pp_sxh in
+
+  let pp_l1 = Pp.pp_list pp_gs in
+  let pp_db3 =
+    Pp.pp_doublet pp_ti pp_l1
+  in
+  let pp_l2 = Pp.pp_list pp_db3 in
+  let pp_uf = Uf.pp_vrb in
+
+  let i2_p = "inequations = " in
+  let m_p = "monomes = " in
+  let p2_p = "polynomes = " in
+
+  let ub_p = "used_by.pow = " in
+  let ke_p = "known_eqs = " in
+  let ip_p = "improved_p = " in
+
+  let ix_p = "improved_x = " in
+  let c_p = "classes = " in
+  let ss_p = "size_splits = " in
+
+  let is_p = "int_sim = " in
+  let rs_p = "rat_sim = " in
+  let nu_p = "new_uf = " in
+
+  let ta_p = "th_axioms = " in
+  let ld_p = "linear_dep = " in
+  let sm_p = "syntactic_matching = " in
+
+  let pp_i2 = MEP.pp pp_e pp_oi ~p:i2_p in
+  let pp_m = MXP.pp pp_x pp_db2 ~p:m_p in
+  let pp_p2 = MP0P.pp pp_p1 pp_i1 ~p:p2_p in
+
+  let pp_ub ppf x =
+    MXP.pp pp_x pp_se ~p:ub_p ppf
+      (MX0.map (fun v -> v.pow) x)
+  in
+  let pp_ke = Pp.pp_set (module SX) pp_x ~p:ke_p in
+  let pp_ip = Pp.pp_set (module SP) pp_p1 ~p:ip_p in
+
+  let pp_ix = Pp.pp_set (module SX) pp_x ~p:ix_p in
+  let pp_c = Pp.pp_list pp_se ~p:c_p in
+  let pp_ss = Pp.add_p pp_q ~p:ss_p in
+
+  let pp_is = Pp.add_p pp_sc ~p:is_p in
+  let pp_rs = Pp.add_p pp_sc ~p:rs_p in
+  let pp_nu = Pp.add_p pp_uf ~p:nu_p in
+
+  let pp_ta = MEP.pp pp_e pp_db1 ~p:ta_p in
+  let pp_ld = MEP.pp pp_e pp_se ~p:ld_p in
+  let pp_sm = Pp.pp_list pp_l2 ~p:sm_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 inequations;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m monomes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p2 polynomes;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ub used_by;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ke known_eqs;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ip improved_p;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ix improved_x;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c classes;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ss size_splits;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_is int_sim;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rs rat_sim;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nu new_uf;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ta th_axioms;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ld linear_dep;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_sm syntactic_matching;
+
+  F.fprintf ppf "}"
+
 module Sim_Wrap = struct
 
   let check_unsat_result simplex env =
@@ -946,13 +1151,6 @@ let find_eq eqs x u env =
         in neweqs
       | _ -> eq1::eqs
     end
-
-type ineq_status =
-  | Trivial_eq
-  | Trivial_ineq of Q.t
-  | Bottom
-  | Monome of Q.t * P.r * Q.t
-  | Other
 
 let ineq_status { Oracle.ple0 = p ; is_le; _ } =
   match P.is_monomial p with

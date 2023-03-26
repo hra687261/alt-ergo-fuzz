@@ -44,6 +44,8 @@ module type HASHED = sig
   type elt
   (** The type of hashed elements*)
 
+  val pp_vrb : Format.formatter -> elt -> unit
+
   val eq : elt -> elt -> bool
   (** Equality predicate on values. *)
 

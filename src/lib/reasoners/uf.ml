@@ -101,6 +101,61 @@ type t = {
 }
 
 
+module Pp = Pp_utils
+module F = Format
+
+let pp_vrb ppf {
+    make; repr; classes;
+    gamma; neqs; ac_rs
+  } =
+
+  let pp_e = E.pp_bis in
+  let pp_ex = Ex.pp_bis in
+  let pp_x = X.pp_vrb in
+  let pp_se = Pp.pp_set (module E.Set) pp_e in
+  let pp_xex = Pp.pp_doublet pp_x pp_ex in
+  let pp_lx = LX.pp_vrb in
+  let pp_ac = Ac.print in
+
+  let module MEP = Pp.MapPrinter(ME) in
+  let module MXP = Pp.MapPrinter(MapX) in
+  let module MLP = Pp.MapPrinter(MapL) in
+  let module RSP = Pp.MapPrinter(RS) in
+
+  let pp_sxh = Pp.pp_set (module SetX) pp_x in
+  let pp_sy = Sy.print in
+  let pp_trl = Pp.pp_triplet pp_ac pp_x pp_ex in
+  let pp_strl = Pp.pp_set (module SetRL) pp_trl in
+  let pp_mlp = MLP.pp pp_lx pp_ex in
+
+  let m_p = "make = " in
+  let r_p = "repr = " in
+  let c_p = "classes = " in
+
+  let g_p = "gamma = " in
+  let n_p = "neqs = " in
+  let ar_p = "ac_rs = " in
+
+  let pp_m = MEP.pp pp_e pp_x ~p:m_p in
+  let pp_r = MXP.pp pp_x pp_xex ~p:r_p in
+  let pp_c = MXP.pp pp_x pp_se ~p:c_p in
+
+  let pp_g = MXP.pp pp_x pp_sxh ~p:g_p in
+  let pp_n = MXP.pp pp_x pp_mlp ~p:n_p in
+  let pp_ar = RSP.pp pp_sy pp_strl ~p:ar_p in
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m make;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r repr;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c classes;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g gamma;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n neqs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_ar ac_rs;
+
+  F.fprintf ppf "}"
+
 exception Found_term of E.t
 
 (* hack: would need an inverse map from semantic values to terms *)

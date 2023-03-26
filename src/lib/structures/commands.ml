@@ -63,3 +63,32 @@ let print_aux fmt = function
 
 let print fmt decl = print_aux fmt decl.st_decl
 
+module Pp = Pp_utils
+module F = Format
+
+let pp_vrb ppf decl =
+  let pp_vrb_aux ppf = function
+    | Assume (name, e, b) ->
+      F.fprintf ppf "Assume %s(%b): @[<hov 2>%a@]"
+        name b Expr.pp_vrb e
+    | PredDef (e, name) ->
+      F.fprintf ppf "PredDef %s: @[<hov 2>%a@]"
+        name Expr.pp_vrb e
+    | RwtDef l ->
+      F.fprintf ppf "RwtDef: @[<hov 2>%a@]"
+        (Util.print_list_pp
+           ~sep:Format.pp_print_space
+           ~pp:(Typed.print_rwt Expr.print)
+        ) l
+    | Query (name, e, sort) ->
+      F.fprintf ppf "Query %s(%a): @[<hov 2>%a@]"
+        name Ty.print_goal_sort sort Expr.pp_vrb e
+    | ThAssume t ->
+      F.fprintf ppf "ThAssume @[<hov 2>%a@]"
+        Expr.print_th_elt t
+    | Push n ->
+      F.fprintf ppf "Push %d" n
+    | Pop n ->
+      F.fprintf ppf "Pop %d" n
+  in
+  pp_vrb_aux ppf decl.st_decl

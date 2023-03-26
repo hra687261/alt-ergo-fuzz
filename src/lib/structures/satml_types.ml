@@ -13,6 +13,9 @@ module ME = Expr.Map
 module E = Expr
 module Hs = Hstring
 
+module Pp = Pp_utils
+module F = Format
+
 module type ATOM = sig
 
   type var =
@@ -98,6 +101,12 @@ module type ATOM = sig
 
   module Set : Set.S with type elt = atom
   module Map : Map.S with type key = atom
+
+  val pp_atom_vrb : Format.formatter -> atom -> unit
+  val pp_clause_vrb : Format.formatter -> clause -> unit
+  val pp_var_vrb : Format.formatter -> var -> unit
+  val pp_env_vrb : Format.formatter -> hcons_env -> unit
+
 end
 
 (*
@@ -411,6 +420,230 @@ module Atom : ATOM = struct
   module Set = Set.Make(struct type t=atom let compare=cmp_atom end)
   module Map = Map.Make(struct type t=atom let compare=cmp_atom end)
 
+  let is_dummy_atom {
+      watched = {data; sz;_}; is_true; timp;
+      is_guard; aid; _
+    } =
+    aid = -102 &&
+    timp == 0 &&
+    is_true == false &&
+    is_guard == false &&
+    Array.length data = 0 &&
+    sz = 0
+
+  let is_dummy_clause {
+      name; atoms = {data; sz;_}; activity;
+      removed; learnt; cpremise; _
+    } =
+    name == "" &&
+    activity == -1. &&
+    removed == false &&
+    learnt == false &&
+    cpremise == [] &&
+    Array.length data = 0 &&
+    sz = 0
+
+  let is_dummy_var {
+      vid; weight; sweight;
+      seen; level; index;
+      reason; vpremise; _
+    } =
+    vid = -101 &&
+    level = -1 &&
+    index = -1 &&
+    reason == None &&
+    weight == -1. &&
+    sweight = 0 &&
+    seen == false &&
+    vpremise == []
+
+  let rec pp_atom_vrb ppf ({
+      var; lit; neg;
+      watched; is_true; timp;
+      is_guard; aid
+    } as a) =
+    if is_dummy_atom a then F.fprintf ppf "dummy_atom" else begin
+
+      let pp_v1 = pp_var_vrb in
+      let pp_a1 = Debug.atom in
+
+      let pp_c = pp_clause_vrb in
+      let pp_cv = Vec.pp pp_c in
+
+      let pp_e = E.pp_bis in
+      let pp_b = F.pp_print_bool in
+      let pp_i = F.pp_print_int in
+
+
+      let v2_p = "var = " in
+      let l_p = "lit = " in
+      let n_p = "neg = " in
+
+      let w_p = "watched = " in
+      let it_p = "is_true = " in
+      let t_p = "timp = " in
+
+      let ig_p = "is_guard = " in
+      let a2_p = "aid = " in
+
+
+      let pp_v2 = Pp.add_p pp_v1 ~p:v2_p in
+      let pp_l = Pp.add_p pp_e ~p:l_p in
+      let pp_n = Pp.add_p pp_a1 ~p:n_p in
+
+      let pp_w = Pp.add_p pp_cv ~p:w_p in
+      let pp_it = Pp.add_p pp_b ~p:it_p in
+      let pp_t = Pp.add_p pp_i ~p:t_p in
+
+      let pp_ig = Pp.add_p pp_b ~p:ig_p in
+      let pp_a2 = Pp.add_p pp_i ~p:a2_p in
+
+
+      F.fprintf ppf "{";
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v2 var;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l lit;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n neg;
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_w watched;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_it is_true;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t timp;
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ig is_guard;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_a2 aid;
+
+      F.fprintf ppf "}"
+    end
+
+  and pp_clause_vrb ppf ({
+      name; atoms; activity;
+      removed; learnt; cpremise; form
+    } as c) =
+    if is_dummy_clause c then F.fprintf ppf "dummy_clause" else begin
+
+      let pp_a1 = Debug.atom in
+      let pp_c = Debug.clause in
+      let pp_av = Vec.pp pp_a1 in
+      let pp_b = F.pp_print_bool in
+      let pp_s = F.pp_print_string in
+      let pp_f1 = F.pp_print_float in
+      let pp_e = E.pp_bis in
+
+
+      let n_p = "name = " in
+      let a1_p = "atoms = " in
+      let a2_p = "activity = " in
+
+      let r_p = "removed = " in
+      let l_p = "learnt = " in
+      let cp_p = "cpremise = " in
+      let f2_p = "form = " in
+
+
+      let pp_n = Pp.add_p pp_s ~p:n_p in
+      let pp_a1 = Pp.add_p pp_av ~p:a1_p in
+      let pp_a2 = Pp.add_p pp_f1 ~p:a2_p in
+
+      let pp_r = Pp.add_p pp_b ~p:r_p in
+      let pp_l = Pp.add_p pp_b ~p:l_p in
+      let pp_cp = Pp.pp_list pp_c ~p:cp_p in
+      let pp_f2 = Pp.add_p pp_e ~p:f2_p in
+
+
+      F.fprintf ppf "{";
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_n name;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a1 atoms;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_a2 activity;
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r removed;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l learnt;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cp cpremise;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_f2 form;
+
+      F.fprintf ppf "}"
+    end
+
+  and pp_var_vrb ppf ({
+      vid; pa; na;
+      weight; sweight; seen;
+      level; index; reason; vpremise
+    } as v) =
+    if is_dummy_var v then F.fprintf ppf "dummy_var" else begin
+
+      let pp_a1 = Debug.atom in
+      let pp_c = Debug.clause in
+      let pp_i1 = F.pp_print_int in
+      let pp_b = F.pp_print_bool in
+      let pp_f = F.pp_print_float in
+
+
+      let vi_p = "vid = " in
+      let pa_p = "pa = " in
+      let na_p = "na = " in
+
+      let w_p = "weight = " in
+      let sw_p = "sweight = " in
+      let s2_p = "seen = " in
+
+      let l_p = "level = " in
+      let i2_p = "index = " in
+      let r_p = "reason = " in
+      let vp_p = "vpremise = " in
+
+
+      let pp_vi = Pp.add_p pp_i1 ~p:vi_p in
+      let pp_pa = Pp.add_p pp_a1 ~p:pa_p in
+      let pp_na = Pp.add_p pp_a1 ~p:na_p in
+
+      let pp_w = Pp.add_p pp_f ~p:w_p in
+      let pp_sw = Pp.add_p pp_i1 ~p:sw_p in
+      let pp_s2 = Pp.add_p pp_b ~p:s2_p in
+
+      let pp_l = Pp.add_p pp_i1 ~p:l_p in
+      let pp_i2 = Pp.add_p pp_i1 ~p:i2_p in
+      let pp_r = Pp.pp_option pp_c ~p:r_p in
+      let pp_vp = Pp.pp_list pp_c ~p:vp_p in
+
+      F.fprintf ppf "{";
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi vid;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pa pa;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_na na;
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_w weight;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sw sweight;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s2 seen;
+
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l level;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_i2 index;
+      F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r reason;
+      F.fprintf ppf "@ @[<hov 2>%a@]" pp_vp vpremise;
+
+      F.fprintf ppf "}"
+    end
+
+  let pp_env_vrb ppf {tbl; cpt} =
+
+    let pp_e = E.pp_bis in
+    let pp_v = pp_var_vrb in
+    let pp_i = F.pp_print_int in
+
+    let module HTP = Pp.HTPrinter(HT) in
+
+    let t_p = "tbl = " in
+    let c_p = "cpt = ref " in
+
+    let pp_t = HTP.pp pp_e pp_v ~p:t_p in
+    let pp_c = Pp.add_p pp_i ~p:c_p in
+
+    F.fprintf ppf "{";
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tbl;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_c !cpt;
+
+    F.fprintf ppf "}"
+
 end
 
 (******************************************************************************)
@@ -465,6 +698,11 @@ module type FLAT_FORMULA = sig
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t
+
+  val pp_view_vrb : Format.formatter -> view -> unit
+  val pp_vrb : Format.formatter -> t -> unit
+  val pp_env_vrb : Format.formatter -> hcons_env -> unit
+
 end
 
 module Flat_Formula : FLAT_FORMULA = struct
@@ -962,6 +1200,62 @@ module Flat_Formula : FLAT_FORMULA = struct
 
   module Set = Set.Make(struct type t'=t type t=t' let compare=compare end)
   module Map = Map.Make(struct type t'=t type t=t' let compare=compare end)
+
+  let rec pp_view_vrb ppf view =
+    let pp_v = pp_vrb in
+    let pp_vl = Pp.pp_list pp_v in
+    let pp_a = Atom.pp_atom_vrb in
+
+    match view with
+    | UNIT atom ->
+      F.fprintf ppf "UNIT @[<hov 2>(%a)@]" pp_a atom
+    | AND tl ->
+      F.fprintf ppf "AND @[<hov 2>(%a)@]" pp_vl tl
+    | OR tl ->
+      F.fprintf ppf "OR @[<hov 2>(%a)@]" pp_vl tl
+
+  and pp_vrb ppf {view; tag; neg} =
+    let pp_v = pp_view_vrb in
+    let pp_i = F.pp_print_int in
+    let pp_n = pp_vrb in
+
+    let v_p = "view = " in
+    let t_p = "tag = " in
+    let n_p = "neg = " in
+
+    let pp_v = Pp.add_p pp_v ~p:v_p in
+    let pp_t = Pp.add_p pp_i ~p:t_p in
+    let pp_n = Pp.add_p pp_n ~p:n_p in
+
+    F.fprintf ppf "{";
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v view;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t tag;
+    F.fprintf ppf "@ @[<hov 2>%s@]" n_p;
+    (* F.fprintf ppf "@ @[<hov 2>%a@]" pp_n neg; *)
+    ignore (pp_n, neg);
+
+    F.fprintf ppf "}"
+
+  and pp_env_vrb ppf {tbl; cpt; atoms} =
+    let pp_ae = Atom.pp_env_vrb in
+    let pp_i = F.pp_print_int in
+    let pp_t1 = pp_vrb in
+    let module HTP = Pp.HTPrinter(HT) in
+
+    let t2_p = "tbl = " in
+    let c_p = "cpt = ref " in
+    let a_p = "atoms = " in
+
+    let pp_t2 = HTP.pp pp_t1 pp_t1 ~p:a_p in
+    let pp_c = Pp.add_p pp_i ~p:c_p in
+    let pp_a = Pp.add_p pp_ae ~p:t2_p in
+
+    F.fprintf ppf "{";
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t2 tbl;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c !cpt;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_a atoms;
+    F.fprintf ppf "}"
 
 end
 

@@ -73,6 +73,11 @@ module type S = sig
   val reinit_em_cache : unit -> unit
   (** Reinitializes the E-matching functor instance's inner cache *)
 
+  val pp_vrb : Format.formatter -> t -> unit
+
+  val pp_instances :
+    Format.formatter -> (Expr.gformula * Explanation.t) list -> unit
+
 end
 
 module Make (X : Theory.S) : S with type tbox = X.t

@@ -10,6 +10,22 @@
 (******************************************************************************)
 
 type t = {heap : int Vec.t; indices : int Vec.t }
+let pp_vrb ppf {heap; indices} =
+  let module Pp = Pp_utils in
+  let module F = Format in
+  let pp_i = F.pp_print_int in
+  let pp_iv = Vec.pp pp_i in
+
+  let h_p = "heap = " in
+  let i_p = "indices = " in
+
+  let pp_h = Pp.add_p pp_iv ~p:h_p in
+  let pp_i = Pp.add_p pp_iv ~p:i_p in
+
+  F.fprintf ppf "{";
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_h heap;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_i indices;
+  F.fprintf ppf "}"
 
 let dummy = -100
 

@@ -82,6 +82,8 @@ module type SAT_ML = sig
   val push : t -> Satml_types.Atom.atom -> unit
   val pop : t -> unit
 
+  val pp_env : Format.formatter -> t -> unit
+
 end
 
 module MFF = FF.Map
@@ -327,6 +329,267 @@ module Make (Th : Theory.S) : SAT_ML with type th = Th.t = struct
       next_dec_guard = 0;
     }
 
+  module Pp = Pp_utils
+  module F = Format
+  module X = Shostak.Combine
+  module Hs = Hstring
+
+  let pp_env ppf {
+      is_unsat; unsat_core; clauses;
+      learnts; clause_inc; var_inc;
+      vars; trail; trail_lim;
+
+      qhead; simpDB_assigns; simpDB_props;
+      order; progress_estimate; remove_satisfied;
+      var_decay; clause_decay; restart_first;
+
+      restart_inc; learntsize_factor; learntsize_inc;
+      expensive_ccmin; polarity_mode; starts;
+      decisions; propagations; conflicts;
+
+      clauses_literals; learnts_literals; max_literals;
+      tot_literals; nb_init_vars; nb_init_clauses;
+      model; tenv; unit_tenv;
+
+      tenv_queue; tatoms_queue; th_tableaux;
+      cpt_current_propagations; proxies; lazy_cnf;
+      lazy_cnf_queue; relevants; relevants_queue;
+
+      ff_lvl; lvl_ff; increm_guards;
+      next_dec_guard
+    } =
+    let pp_i = F.pp_print_int in
+    let pp_f = F.pp_print_float in
+    let pp_b = F.pp_print_bool in
+    let pp_ff = FF.pp_vrb in
+
+    let pp_a = Satml_types.Atom.pp_atom_vrb in
+    let pp_c = Satml_types.Atom.pp_clause_vrb in
+    let pp_v = Satml_types.Atom.pp_var_vrb in
+    let pp_th = Th.pp_vrb in
+
+    let pp_ih = Iheap.pp_vrb in
+    let pp_cl = Pp.pp_list pp_c in
+    let pp_cv = Vec.pp pp_c in
+    let pp_vv = Vec.pp pp_v in
+
+    let pp_av = Vec.pp pp_a in
+    let pp_iv = Vec.pp pp_i in
+    let pp_thv = Vec.pp pp_th in
+    let pp_al = Pp.pp_list pp_a in
+
+    let pp_aalb = Pp.pp_triplet pp_a pp_al pp_b in
+    let pp_ffl = Pp.pp_list pp_ff in
+
+    let module FFP = Pp.MapPrinter(MFF) in
+    let module MAP = Pp.MapPrinter(Atom.Map) in
+    let module UMIP = Pp.MapPrinter(Util.MI) in
+
+    let pp_fflmff = FFP.pp pp_ff pp_ffl in
+    let pp_sff = Pp.pp_set (module FF.Set) pp_ff in
+    let pp_sffv = Vec.pp pp_sff in
+    let pp_db1 = Pp.pp_doublet pp_fflmff pp_ff in
+    let pp_db1_m = MAP.pp pp_a pp_db1 in
+    let pp_db1_mv = Vec.pp pp_db1_m in
+
+    let iu_p = "is_unsat = " in
+    let uc_p = "unsat_core = " in
+    let c1_p = "clauses = " in
+
+    let l1_p = "learnts = " in
+    let ci_p = "clause_inc = " in
+    let vi_p = "var_inc = " in
+
+    let v1_p = "vars = " in
+    let t1_p = "trail = " in
+    let tl1_p = "trail_lim = " in
+
+    let q1_p = "qhead = " in
+    let sa1_p = "simpDB_assigns = " in
+    let sp1_p = "simpDB_props = " in
+
+    let o1_p = "order = " in
+    let pe1_p = "progress_estimate = " in
+    let rs1_p = "remove_satisfied = " in
+
+    let vd1_p = "var_decay = " in
+    let cd1_p = "clause_decay = " in
+    let rf1_p = "restart_first = " in
+
+    let ri1_p = "restart_inc = " in
+    let lf1_p = "learntsize_factor = " in
+    let li1_p = "learntsize_inc = " in
+
+    let ec1_p = "expensive_ccmin = " in
+    let pm1_p = "polarity_mode = " in
+    let s1_p = "starts = " in
+
+    let d1_p = "decisions = " in
+    let p1_p = "propagations = " in
+    let c2_p = "conflicts = " in
+
+    let cl1_p = "clauses_literals = " in
+    let ll1_p = "learnts_literals = " in
+    let ml1_p = "max_literals = " in
+
+    let tl2_p = "tot_literals = " in
+    let niv_p = "nb_init_vars = " in
+    let nic_p = "nb_init_clauses = " in
+
+    let m1_p = "model = " in
+    let t2_p = "tenv = " in
+    let ut1_p = "unit_tenv = " in
+
+    let tq1_p = "tenv_queue = " in
+    let tq2_p = "tatoms_queue = " in
+    let tt1_p = "th_tableaux = " in
+
+    let ccp_p = "cpt_current_propagations = " in
+    let p2_p = "proxies = " in
+    let lc1_p = "lazy_cnf = " in
+
+    let lcq1_p = "lazy_cnf_queue = " in
+    let r1_p = "relevants = " in
+    let rq1_p = "relevants_queue = " in
+
+    let fl1_p = "ff_lvl = " in
+    let lf2_p = "lvl_ff = " in
+    let ig1_p = "increm_guards = " in
+    let ndg1_p = "next_dec_guard = " in
+
+    let pp_iu = Pp.add_p pp_b ~p:iu_p in
+    let pp_uc = Pp.pp_option pp_cl ~p:uc_p in
+    let pp_c1 = Pp.add_p pp_cv ~p:c1_p in
+
+    let pp_l1 = Pp.add_p pp_cv ~p:l1_p in
+    let pp_ci = Pp.add_p pp_f ~p:ci_p in
+    let pp_vi = Pp.add_p pp_f ~p:vi_p in
+
+    let pp_v1 = Pp.add_p pp_vv ~p:v1_p in
+    let pp_t1 = Pp.add_p pp_av ~p:t1_p in
+    let pp_tl1 = Pp.add_p pp_iv ~p:tl1_p in
+
+    let pp_q1 = Pp.add_p pp_i ~p:q1_p in
+    let pp_sa1 = Pp.add_p pp_i ~p:sa1_p in
+    let pp_sp1 = Pp.add_p pp_i ~p:sp1_p in
+
+    let pp_o1 = Pp.add_p pp_ih ~p:o1_p in
+    let pp_pe1 = Pp.add_p pp_f ~p:pe1_p in
+    let pp_rs1 = Pp.add_p pp_b ~p:rs1_p in
+
+    let pp_vd1 = Pp.add_p pp_f ~p:vd1_p in
+    let pp_cd1 = Pp.add_p pp_f ~p:cd1_p in
+    let pp_rf1 = Pp.add_p pp_i ~p:rf1_p in
+
+    let pp_ri1 = Pp.add_p pp_f ~p:ri1_p in
+    let pp_lf1 = Pp.add_p pp_f ~p:lf1_p in
+    let pp_li1 = Pp.add_p pp_f ~p:li1_p in
+
+    let pp_ec1 = Pp.add_p pp_b ~p:ec1_p in
+    let pp_pm1 = Pp.add_p pp_b ~p:pm1_p in
+    let pp_s1 = Pp.add_p pp_i ~p:s1_p in
+
+    let pp_d1 = Pp.add_p pp_i ~p:d1_p in
+    let pp_p1 = Pp.add_p pp_i ~p:p1_p in
+    let pp_c2 = Pp.add_p pp_i ~p:c2_p in
+
+    let pp_cl1 = Pp.add_p pp_i ~p:cl1_p in
+    let pp_ll1 = Pp.add_p pp_i ~p:ll1_p in
+    let pp_ml1 = Pp.add_p pp_i ~p:ml1_p in
+
+    let pp_tl2 = Pp.add_p pp_i ~p:tl2_p in
+    let pp_niv = Pp.add_p pp_i ~p:niv_p in
+    let pp_nic = Pp.add_p pp_i ~p:nic_p in
+
+    let pp_m1 = Pp.add_p pp_vv ~p:m1_p in
+    let pp_t2 = Pp.add_p pp_th ~p:t2_p in
+    let pp_ut1 = Pp.add_p pp_th ~p:ut1_p in
+
+    let pp_tq1 = Pp.add_p pp_thv ~p:tq1_p in
+    let pp_tq2 = Pp.pp_queue pp_a ~p:tq2_p in
+    let pp_tt1 = Pp.pp_queue pp_a ~p:tt1_p in
+
+    let pp_ccp = Pp.add_p pp_i ~p:ccp_p in
+    let pp_p2 = UMIP.pp pp_i pp_aalb ~p:p2_p in
+    let pp_lc1 = MAP.pp pp_a pp_db1 ~p:lc1_p in
+
+    let pp_lcq1 = Pp.add_p pp_db1_mv ~p:lcq1_p in
+    let pp_r1 = Pp.pp_set (module FF.Set) pp_ff ~p:r1_p in
+    let pp_rq1 = Pp.add_p pp_sffv ~p:rq1_p in
+
+    let pp_fl1 = FFP.pp pp_ff pp_i ~p:fl1_p in
+    let pp_lf2 = UMIP.pp pp_i pp_sff ~p:lf2_p in
+    let pp_ig1 = Pp.add_p pp_av ~p:ig1_p in
+    let pp_ndg1 = Pp.add_p pp_i ~p:ndg1_p in
+
+    F.fprintf ppf "{";
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_iu is_unsat;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_uc unsat_core;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c1 clauses;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l1 learnts;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ci clause_inc;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vi var_inc;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_v1 vars;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t1 trail;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tl1 trail_lim;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_q1 qhead;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sa1 simpDB_assigns;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_sp1 simpDB_props;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_o1 order;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pe1 progress_estimate;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rs1 remove_satisfied;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_vd1 var_decay;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cd1 clause_decay;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rf1 restart_first;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ri1 restart_inc;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lf1 learntsize_factor;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_li1 learntsize_inc;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ec1 expensive_ccmin;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_pm1 polarity_mode;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_s1 starts;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_d1 decisions;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p1 propagations;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_c2 conflicts;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_cl1 clauses_literals;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ll1 learnts_literals;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ml1 max_literals;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tl2 tot_literals;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_niv nb_init_vars;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nic nb_init_clauses;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_m1 model;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_t2 tenv;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ut1 unit_tenv;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tq1 tenv_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tq2 tatoms_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tt1 th_tableaux;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ccp cpt_current_propagations;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p2 proxies;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lc1 lazy_cnf;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lcq1 lazy_cnf_queue;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_r1 relevants;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_rq1 relevants_queue;
+
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_fl1 ff_lvl;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_lf2 lvl_ff;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ig1 increm_guards;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_ndg1 next_dec_guard;
+
+    F.fprintf ppf "}"
 
 (*
   module SA = Set.Make

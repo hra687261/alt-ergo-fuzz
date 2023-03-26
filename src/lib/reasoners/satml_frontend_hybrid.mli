@@ -31,4 +31,6 @@ module Make (Th : Theory.S) : sig
 
   val get_decisions : t -> (int * Expr.t) list
 
+  val pp_env : Format.formatter -> t -> unit
+
 end

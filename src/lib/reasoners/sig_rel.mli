@@ -47,8 +47,21 @@ type 'a result = {
   remove: Expr.t list;
 }
 
+val pp_literal :
+  (Format.formatter -> 'a -> unit) ->
+  Format.formatter -> 'a literal -> unit
+
+val pp_fact :
+  (Format.formatter -> 'a -> unit) ->
+  Format.formatter -> 'a literal * Explanation.t * Th_util.lit_origin -> unit
+
+val pp_facts : (Format.formatter -> 'a -> unit) ->
+  Format.formatter -> 'a facts -> unit
+
 module type RELATION = sig
   type t
+
+  val pp_vrb : Format.formatter -> t -> unit
 
   val empty : Expr.Set.t list -> t
 

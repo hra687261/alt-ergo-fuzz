@@ -28,7 +28,6 @@
 
 type answer = (Explanation.t * Expr.Set.t list) option
 
-
 type theory =
   | Th_arith
   | Th_sum
@@ -41,3 +40,23 @@ type lit_origin =
   | CS of theory * Numbers.Q.t
   | NCS of theory * Numbers.Q.t
   | Other
+
+let pp_lit_origin ppf lo =
+  let aux = function
+    | Th_arith -> "Th_arith"
+    | Th_sum -> "Th_sum"
+    | Th_adt -> "Th_adt"
+    | Th_arrays -> "Th_arrays"
+    | Th_UF -> "Th_UF"
+  in
+  match lo with
+  | Subst ->
+    Format.fprintf ppf "Subst"
+  | CS (th, q) ->
+    Format.fprintf ppf "CS (%s, %a)"
+      (aux th) Numbers.Q.print q
+  | NCS (th, q) ->
+    Format.fprintf ppf "NCS (%s, %a)"
+      (aux th) Numbers.Q.print q
+  | Other ->
+    Format.fprintf ppf "Other"

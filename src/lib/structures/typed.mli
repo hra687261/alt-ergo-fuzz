@@ -295,6 +295,8 @@ val print_formula : Format.formatter -> _ atform -> unit
 val print_binders : Format.formatter -> (Symbols.t * Ty.t) list -> unit
 (** Print a list of bound typed variables. *)
 
+val print_patterm : Format.formatter -> pattern -> unit
+
 val print_triggers : Format.formatter -> ('a atterm list * bool) list -> unit
 (** Print a list of triggers. *)
 
@@ -302,3 +304,5 @@ val print_rwt :
   (Format.formatter -> 'a -> unit) ->
   Format.formatter -> 'a rwt_rule -> unit
 (** Print a rewrite rule *)
+
+val print_atdecl : Format.formatter -> _ atdecl -> unit

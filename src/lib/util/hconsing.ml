@@ -29,6 +29,7 @@
 module type HASHED =
 sig
   type elt
+  val pp_vrb : Format.formatter -> elt -> unit
   val eq : elt -> elt -> bool
   val hash : elt -> int
   val set_id : int -> elt -> elt

@@ -93,6 +93,10 @@ let string_of_th_ext ext =
   | NIA -> "NIA"
   | FPA -> "FPA"
 
+let string_of_axiom_kind = function
+  | Default -> "Default"
+  | Propagator -> "Propagator"
+
 let [@inline always] compare_algebraic s1 s2 f_same_constrs_with_args =
   let r1 = Obj.repr s1 in
   let r2 = Obj.repr s2 in
@@ -125,6 +129,53 @@ type matching_env =
     use_cs : bool;
     backward : inst_kind
   }
+
+module Pp = Pp_utils
+module F = Format
+
+let pp_inst_kind ppf = function
+  | Normal -> F.fprintf ppf "Normal"
+  | Forward -> F.fprintf ppf "Forward"
+  | Backward -> F.fprintf ppf "Backward"
+
+let pp_menv ppf {
+    nb_triggers; triggers_var; no_ematching;
+    greedy; use_cs; backward
+  } =
+
+  let pp_b1 = F.pp_print_bool in
+  let pp_i = F.pp_print_int in
+  let pp_ik = pp_inst_kind in
+
+  let nt_p = "nb_triggers = " in
+  let tv_p = "triggers_var = " in
+  let ne_p = "no_ematching = " in
+
+  let g_p = "greedy = " in
+  let uc_p = "use_cs = " in
+  let b2_p = "backward = " in
+
+
+  let pp_nt = Pp.add_p pp_i ~p:nt_p in
+  let pp_tv = Pp.add_p pp_b1 ~p:tv_p in
+  let pp_ne = Pp.add_p pp_b1 ~p:ne_p in
+
+  let pp_g = Pp.add_p pp_b1 ~p:g_p in
+  let pp_uc = Pp.add_p pp_b1 ~p:uc_p in
+  let pp_b2 = Pp.add_p pp_ik ~p:b2_p in
+
+
+  F.fprintf ppf "{";
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_nt nb_triggers;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_tv triggers_var;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_ne no_ematching;
+
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g greedy;
+  F.fprintf ppf "@ @[<hov 2>%a;@]" pp_uc use_cs;
+  F.fprintf ppf "@ @[<hov 2>%a@]" pp_b2 backward;
+
+  F.fprintf ppf "}"
 
 let loop
     ~(f : int -> 'a -> 'b -> 'b)

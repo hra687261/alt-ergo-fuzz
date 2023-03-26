@@ -76,6 +76,10 @@ module type S = sig
     t -> Matching_types.info Expr.Map.t * Expr.t list Expr.Map.t Symbols.Map.t
 
   val reinit_em_cache : unit -> unit
+  val pp_vrb : Format.formatter -> t -> unit
+
+  val pp_instances :
+    Format.formatter -> (Expr.gformula * Explanation.t) list -> unit
 
 end
 
@@ -472,5 +476,51 @@ module Make(X : Theory.S) : S with type tbox = X.t = struct
   let matching_terms_info env = EM.terms_info env.matching
 
   let reinit_em_cache () = EM.reinit_caches ()
+  module Pp = Pp_utils
+  module F = Format
+
+  let pp_vrb ppf {
+      guards; lemmas; predicates;
+      ground_preds; matching
+    } =
+
+    let pp_e = E.pp_bis in
+    let pp_ex = Ex.print in
+    let pp_b = F.pp_print_bool in
+    let pp_i = F.pp_print_int in
+
+    let pp_db1 = Pp.pp_doublet pp_e pp_b in
+    let pp_l1 = Pp.pp_list pp_db1 in
+    let pp_tr1 = Pp.pp_triplet pp_e pp_i pp_ex in
+    let pp_tr2 = Pp.pp_triplet pp_e pp_e pp_ex in
+    let pp_em = EM.pp_vrb in
+
+    let module MEP = Pp.MapPrinter(ME) in
+
+    let g_p = "guards = " in
+    let l_p = "lemmas = " in
+    let p_p = "predicates = " in
+    let gp_p = "ground_preds = " in
+    let m_p = "matching = " in
+
+    let pp_g = MEP.pp ~p:g_p pp_e pp_l1 in
+    let pp_l = MEP.pp ~p:l_p pp_e pp_tr1 in
+    let pp_p = MEP.pp ~p:p_p pp_e pp_tr1 in
+    let pp_gp = MEP.pp ~p:gp_p pp_e pp_tr2 in
+    let pp_m = Pp.add_p pp_em ~p:m_p in
+
+    F.fprintf ppf "{";
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_g guards;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_l lemmas;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_p predicates;
+    F.fprintf ppf "@ @[<hov 2>%a;@]" pp_gp ground_preds;
+    F.fprintf ppf "@ @[<hov 2>%a@]" pp_m matching;
+    F.fprintf ppf "}"
+
+  let pp_instances ppf insts =
+    let pp_eg = E.pp_gform in
+    let pp_ex = Ex.pp_bis in
+    let pp_dbl = Pp.pp_doublet pp_eg pp_ex in
+    Pp.pp_list pp_dbl ppf insts
 
 end
