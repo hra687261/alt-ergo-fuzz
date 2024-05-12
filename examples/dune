@@ -1,5 +1,0 @@
-(executable
- (name lib_usage)
- (public_name lib_usage)
- (libraries alt-ergo-lib crowbar)
- (package alt-ergo))

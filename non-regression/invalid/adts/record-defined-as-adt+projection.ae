@@ -1,7 +1,0 @@
-type t = A of { a : int }
-
-
-goal g:
-forall x : t.
-let y = x#a in
-false

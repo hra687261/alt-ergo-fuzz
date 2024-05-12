@@ -50,8 +50,7 @@ let get_cvc5_response () =
 module AEL = AltErgoLib
 
 let _init_ae =
-  AEL.Options.set_disable_weaks true;
-  AEL.Options.set_use_fpa true
+  AEL.Options.set_disable_weaks true
 
 
 module type Solver =
@@ -73,7 +72,7 @@ module CDCL_solver =
 
 module Tableaux_solver =
   MakeSolver(AEL.Fun_sat.Make(Theory))
-
+(*  `Sat of sat_env | `Unknown of sat_env | `Unsat *)
 
 let solve_with_ae (module S: Solver) =
   let solve ctx tstmts goal_name =
@@ -90,16 +89,16 @@ let solve_with_ae (module S: Solver) =
           in
           match resp, tstmt.st_decl with
           | None, AEL.Commands.Query _ ->
-            if consistent
-            then Some Utils.Unknown, (env, consistent, ex)
-            else Some Utils.Unsat, (env, consistent, ex)
+            if consistent = `Unsat
+            then Some Utils.Unsat, (env, consistent, ex)
+            else Some Utils.Unknown, (env, consistent, ex)
           | None, _ ->
             resp, (env, consistent, ex)
           | _ ->
             Format.fprintf Format.err_formatter
               "\nSolve is expected to get one goal at a time@.";
             assert false
-      ) (None, (S.SAT.empty (), true, AEL.Explanation.empty))
+      ) (None, (S.SAT.empty (), `Unknown (S.SAT.empty ()), AEL.Explanation.empty))
         tstmts
     in
     Option.get resp
