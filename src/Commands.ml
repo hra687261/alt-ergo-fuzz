@@ -3,7 +3,7 @@ open Utils
 let default_mem_limit = 500
 let default_time_limit = 10000
 
-let data_dir = Sys.getcwd () ^ "/aef_data/"
+let data_dir = Sys.getcwd () ^ "/data/"
 
 let input_dir = data_dir ^ "input/"
 let output_dir = data_dir ^ "output/"

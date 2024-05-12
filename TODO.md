@@ -4,4 +4,4 @@
 - Write better, more detailed docs.
 - Replace the current AST with [Dolmen](https://github.com/Gbury/dolmen)'s typed AST.
 - Add a shrinking functionality to have simpler/smaller test cases when bugs are found.
-- Replace the bug_info type to something more flexible.
+- Replace the bug_info type with something more flexible.

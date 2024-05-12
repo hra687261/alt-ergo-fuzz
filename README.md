@@ -1,5 +1,5 @@
 
-This subrepo contains the code of Alt-Ergo-Fuzz, a fuzzer for the Alt-Ergo SMT solver.
+Alt-Ergo-Fuzz: A fuzzer for the Alt-Ergo SMT solver.
 
 ### Requirements:
   - [CVC5](https://github.com/cvc5/cvc5).
